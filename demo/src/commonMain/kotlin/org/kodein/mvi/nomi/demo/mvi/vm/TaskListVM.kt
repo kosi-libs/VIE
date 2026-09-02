@@ -2,6 +2,7 @@ package org.kodein.mvi.nomi.demo.mvi.vm
 
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.launch
+import org.kodein.mvi.nomi.LoggingMiddleware
 import org.kodein.mvi.nomi.MVIViewModel
 import org.kodein.mvi.nomi.demo.mvi.TaskListMVI
 import org.kodein.mvi.nomi.demo.mvi.TaskListMVI.Intent
@@ -12,7 +13,8 @@ import org.kodein.mvi.nomi.demo.business.TaskRepository
 class TaskListVM(
     private val taskRepository: TaskRepository,
 ) : TaskListMVI, MVIViewModel<Model, Intent, Signal>(
-    firstModel = Model()
+    firstModel = Model(),
+    middlewares = listOf(LoggingMiddleware("TaskList")),
 ) {
     init {
         viewModelScope.launch {

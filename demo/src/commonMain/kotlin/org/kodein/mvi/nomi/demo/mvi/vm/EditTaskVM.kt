@@ -2,6 +2,7 @@ package org.kodein.mvi.nomi.demo.mvi.vm
 
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.launch
+import org.kodein.mvi.nomi.LoggingMiddleware
 import org.kodein.mvi.nomi.MVIViewModel
 import org.kodein.mvi.nomi.demo.business.TaskRepository
 import org.kodein.mvi.nomi.demo.mvi.EditTaskMVI
@@ -17,7 +18,8 @@ class EditTaskVM(
 ) : EditTaskMVI, MVIViewModel<Model, Intent, Signal>(
     firstModel = Model(
         loading = taskId != null,
-    )
+    ),
+    middlewares = listOf(LoggingMiddleware("EditTask")),
 ) {
     init {
         if (taskId != null) {
