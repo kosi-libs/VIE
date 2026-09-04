@@ -1,0 +1,440 @@
+= VIE
+:toc: macro
+:toclevels: 2
+:idprefix:
+:idseparator: -
+:source-highlighter: highlight.js
+
+*Model-View-Intent for Compose Multiplatform — one state flow down, intents up, signals sideways.*
+
+VIE gives a screen three types and a contract between them. A *Model* is the state the view renders.
+An *Intent* is a UI event — most often something the user did, but not always. A *Signal* is a
+one-off the view should react to but not render — a navigation, a snackbar, a toast. You declare the
+three as an interface; a `VIEViewModel` implements it; a `VieView` renders it. The view only ever
+sees the contract, never the ViewModel.
+
+The name is the French translation of MVI: *V*ue *I*ntention *É*tat, built on Compose
+*V*iew*M*odels.
+
+.CounterVIE.kt
+[source,kotlin]
+----
+interface CounterVIE : VIE<CounterVIE.Model, CounterVIE.Intent, CounterVIE.Signal> {
+
+    data class Model(val count: Int, val saving: Boolean = false) : VIE.Model
+
+    sealed interface Intent : VIE.Intent {
+        data object Increment : Intent
+        data object Save : Intent
+    }
+
+    sealed interface Signal : VIE.Signal {
+        data object Saved : Signal, VIE.Signal.Event          // broadcast to every listener
+        data class Error(val message: String) : Signal, VIE.Signal.Effect  // handled once
+    }
+}
+----
+
+.CounterVM.kt
+[source,kotlin]
+----
+class CounterVM(
+    private val store: CounterStore,
+) : CounterVIE, VIEViewModel<CounterVIE.Model, CounterVIE.Intent, CounterVIE.Signal>(
+    firstModel = CounterVIE.Model(count = 0),
+    middlewares = listOf(VIELoggingMiddleware("Counter")),
+) {
+    override suspend fun process(intent: CounterVIE.Intent) {
+        when (intent) {
+            is CounterVIE.Intent.Increment -> update { copy(count = count + 1) }
+            is CounterVIE.Intent.Save -> {
+                update { copy(saving = true) }
+                store.save(model.count)
+                    .onSuccess { signal(CounterVIE.Signal.Saved) }
+                    .onFailure { signal(CounterVIE.Signal.Error(it.message ?: "Save failed")) }
+                update { copy(saving = false) }
+            }
+        }
+    }
+}
+----
+
+.Counter.kt
+[source,kotlin]
+----
+@Composable
+fun Counter(store: CounterStore) {
+    VieView(newVM = { CounterVM(store) }) { model ->        // `this` is a VIEViewContext
+        SignalEffect { signal ->
+            when (signal) {
+                is CounterVIE.Signal.Saved -> /* … */ Unit
+                is CounterVIE.Signal.Error -> /* show snackbar */ Unit
+            }
+        }
+        Column {
+            Text("Count: ${model.count}")
+            Button(onClick = { post(CounterVIE.Intent.Increment) }) { Text("+") }
+            Button(
+                onClick = { post(CounterVIE.Intent.Save) },
+                enabled = !model.saving,
+            ) { Text("Save") }
+        }
+    }
+}
+----
+
+No navigation framework, no event bus, no manual `collectAsState`. An interface, a ViewModel, and a
+composable that is handed the model and a way to talk back.
+
+toc::[]
+
+== Why VIE
+
+*The contract is an interface.* `CounterVIE : VIE<Model, Intent, Signal>` names the three types once.
+The ViewModel is one implementation of that interface; the view function depends on the interface,
+not on `CounterVM`. Swapping in a fake for a preview or a test is a different constructor call,
+nothing more.
+
+*The view never holds the ViewModel.* Inside `VieView { }`, the receiver is a
+`VIEViewContext<Intent, Signal>` — exactly two members, `post(intent)` and `signalFlow`. No
+`modelFlow`, no `update`, no `viewModelScope`, no `process`. A view written as an extension on
+`VIEViewContext` (see <<the-view,The view>>) can be rendered against a hand-made context with zero
+Compose ViewModel machinery.
+
+*Events and Effects are different delivery channels.* A `Signal` that is a `VIE.Signal.Event` is
+broadcast to *every* collector of `signalFlow` that is currently active, and is dropped if there are
+none. A `Signal` that is a `VIE.Signal.Effect` goes to *exactly one* collector — useful when two
+views observe the same ViewModel and a "navigate back" must fire once, not twice.
+
+*Model updates are serialized.* `update { }` takes a `suspend Model.() -> Model` and hands it to a
+single consumer coroutine, then suspends until it has been applied. Two `process` calls racing on
+`copy(count = count + 1)` cannot lose an increment.
+
+*Built on `ViewModel`, not beside it.* `VIEViewModel` extends
+`androidx.lifecycle.ViewModel`, so `viewModelScope`, `viewModel { }` keying, and Navigation3 entry
+scoping all work unchanged. VIE adds the MVI shape; it does not replace the lifecycle.
+
+*Middlewares wrap the flows.* A `VIEMiddleware` intercepts the model, intent and signal flows as
+plain `Flow` transformations — logging, filtering, replay — without the ViewModel or the view
+knowing.
+
+== Setup
+
+VIE is published as a single Kotlin Multiplatform artifact:
+
+.build.gradle.kts
+[source,kotlin]
+----
+kotlin {
+    sourceSets {
+        commonMain.dependencies {
+            implementation("org.kodein.arch.vie:vie:0.1.0")
+        }
+    }
+}
+----
+
+VIE depends on Compose runtime, Compose foundation, `lifecycle-viewmodel-compose` and
+kotlinx-coroutines as `implementation` dependencies — they are *not* exposed transitively. A Compose
+Multiplatform application module already has all of them; a pure-logic module that only declares
+`VIEViewModel` subclasses needs at least `kotlinx-coroutines-core` and
+`org.jetbrains.androidx.lifecycle:lifecycle-viewmodel-compose` of its own.
+
+NOTE: The `group`/`version` publishing coordinates above are the intended ones; the Gradle build in
+this repository does not configure Maven publishing yet.
+
+== Core concepts
+
+=== `VIE<Model, Intent, Signal>`
+
+The contract. It is what a view depends on, and what a `VIEViewModel` implements.
+
+[source,kotlin]
+----
+interface VIE<Model : VIE.Model, Intent : VIE.Intent, Signal : VIE.Signal>
+    : VIEViewContext<Intent, Signal> {
+
+    val modelFlow: StateFlow<Model>
+    override fun post(intent: Intent)
+    override val signalFlow: Flow<Signal>
+}
+----
+
+The three type parameters are bounded by three marker interfaces — `VIE.Model`, `VIE.Intent`,
+`VIE.Signal` — so a stray type cannot slip into the wrong slot.
+
+=== Model
+
+The state the view renders. Always a `data class` — the view relies on its structural equality (to
+skip recomposition when an update produces an equal model). A model is always complete: a
+`VIEViewModel` is  constructed with a `firstModel`, so `modelFlow` never has to represent "nothing
+yet". Model "loading" states are ordinary fields — `val tasks: List<Task>? = null`,
+`val saving: Boolean = false`.
+
+[source,kotlin]
+----
+data class Model(
+    val count: Int,
+    val saving: Boolean = false,
+) : VIE.Model
+----
+
+=== Intent
+
+A UI event — most often something the user did, but not always (a lifecycle callback, a timer firing
+in the view, an incoming deep link). Sent from the view with `post(intent)`. Model it as a
+`sealed interface` so `process` can `when` over it exhaustively.
+
+[source,kotlin]
+----
+sealed interface Intent : VIE.Intent {
+    data object Increment : Intent
+    data class SetName(val name: String) : Intent
+}
+----
+
+A screen that takes no input at all can use the built-in `VIE.Intent.None` as its `Intent` type — it
+has a private constructor and cannot be instantiated, so `post` becomes uncallable.
+
+=== Signal
+
+A one-off the view should act on but not render. Every concrete signal must also pick a *delivery
+kind* by implementing one of:
+
+[cols="1,3",options="header"]
+|===
+| Kind | Delivery
+
+| `VIE.Signal.Event`
+| Broadcast to *every* active collector of `signalFlow`. Emitted with no collector, it is dropped
+  (there is no replay buffer). Use for things every listener cares about: "data saved", "logged
+  out".
+
+| `VIE.Signal.Effect`
+| Delivered to *exactly one* collector. If several views observe the same ViewModel, an `Effect`
+  reaches whichever one collects it first. Use for one-shot navigation and other actions that must
+  not happen twice.
+|===
+
+[source,kotlin]
+----
+sealed interface Signal : VIE.Signal {
+    data object LoggedOut : Signal, VIE.Signal.Event
+    data class ShowError(val message: String) : Signal, VIE.Signal.Effect
+}
+----
+
+A screen with nothing to signal can use `VIE.Signal.None` as its `Signal` type.
+
+== The ViewModel
+
+`VIEViewModel` is the abstract base. Subclass it, pass the first model and any middlewares up, and
+implement `process`.
+
+[source,kotlin]
+----
+abstract class VIEViewModel<Model : VIE.Model, Intent : VIE.Intent, Signal : VIE.Signal>(
+    firstModel: Model,
+    middlewares: List<VIEMiddleware<Model, Intent, Signal>> = emptyList(),
+) : ViewModel(), VIE<Model, Intent, Signal>
+----
+
+[cols="1,3",options="header"]
+|===
+| Member | Purpose
+
+| `abstract suspend fun process(intent: Intent)`
+| Called for every posted intent, one at a time, on `viewModelScope`. Long or parallel work should
+  be launched into `viewModelScope` explicitly rather than blocking the intent stream.
+
+| `suspend fun update(update: suspend Model.() -> Model)`
+| Atomically replaces the model. Serialized against all other `update` calls; returns once applied.
+
+| `protected val model: Model`
+| The current model — shorthand for `modelFlow.value`.
+
+| `suspend fun signal(signal: S) where S : Signal, S : VIE.Signal.Type`
+| Emits a signal. The bound forces `S` to be an `Event` or an `Effect` — a signal type that picked
+  neither will not compile at the call site.
+
+| `final override fun post(intent: Intent)`
+| Feeds an intent into the pipeline. Provided; not overridable.
+|===
+
+.CounterVM.kt
+[source,kotlin]
+----
+override suspend fun process(intent: CounterVIE.Intent) {
+    when (intent) {
+        CounterVIE.Intent.Increment -> update { copy(count = count + 1) }
+        CounterVIE.Intent.Reset     -> update { copy(count = 0) }
+    }
+}
+----
+
+=== Feeding a Flow into the model or a signal
+
+Two helpers collect an external `Flow` straight into the ViewModel. They are declared with a
+`context` parameter, so they are called from inside a `VIEViewModel` (typically an `init` block or a
+`viewModelScope` coroutine):
+
+[source,kotlin]
+----
+// context(vm: VIEViewModel<Model, *, *>)
+suspend fun <Model, T> Flow<T>.collectToModel(update: suspend Model.(T) -> Model)
+
+// context(vm: VIEViewModel<*, *, Signal>)
+suspend fun <Signal, T> Flow<T>.collectToSignal(convert: suspend (T) -> Signal)
+    where Signal : VIE.Signal, Signal : VIE.Signal.Type
+----
+
+.TaskListVM.kt
+[source,kotlin]
+----
+init {
+    viewModelScope.launch {
+        taskRepository.flow().collectToModel { tasks -> copy(tasks = tasks) }
+    }
+}
+----
+
+== The view
+
+`VieView` is the single entry point. It creates (and remembers, keyed) the ViewModel, collects
+`modelFlow` as Compose state, and invokes `content` with the current model and a
+`VIEViewContext` receiver.
+
+[source,kotlin]
+----
+@Composable
+inline fun <reified Model : VIE.Model, Intent : VIE.Intent, Signal : VIE.Signal> VieView(
+    crossinline newVM: () -> VIEViewModel<Model, Intent, Signal>,
+    key: String? = null,
+    content: @Composable VIEViewContext<Intent, Signal>.(Model) -> Unit,
+)
+----
+
+Inside `content`, `this` is a `VIEViewContext<Intent, Signal>`:
+
+[source,kotlin]
+----
+interface VIEViewContext<Intent : VIE.Intent, Signal : VIE.Signal> {
+    fun post(intent: Intent)
+    val signalFlow: Flow<Signal>
+}
+----
+
+=== `SignalEffect`
+
+React to signals with the `SignalEffect` composable — it collects `signalFlow` for the lifetime of
+the composition:
+
+[source,kotlin]
+----
+SignalEffect { signal ->
+    when (signal) {
+        is Signal.LoggedOut  -> navController.navigate("login")
+        is Signal.ShowError  -> snackbarHostState.showSnackbar(signal.message)
+    }
+}
+----
+
+=== Views as extension functions
+
+Splitting the wiring from the layout keeps the layout testable. The demo does this everywhere: a
+thin `@Composable` that calls `VieView`, and a second `@Composable` extension on `VIEViewContext`
+that only takes `model` plus plain callbacks.
+
+[source,kotlin]
+----
+@Composable
+fun TaskList(goToTask: (Uuid) -> Unit) {
+    VieView(newVM = { TaskListVM(/* … */) }) { model ->
+        TaskList(model = model, goToTask = goToTask)   // extension below
+    }
+}
+
+@Composable
+fun VIEViewContext<TaskListVIE.Intent, TaskListVIE.Signal>.TaskList(
+    model: TaskListVIE.Model,
+    goToTask: (Uuid) -> Unit,
+) {
+    // renders `model`, calls `post(…)`, uses `SignalEffect { }` — no ViewModel in sight
+}
+----
+
+The second function can be exercised in a `@Preview` or a screenshot test against a fake
+`VIEViewContext`.
+
+== Middlewares
+
+A `VIEMiddleware` intercepts each of the three flows. Every method defaults to identity, so override
+only what you need:
+
+[source,kotlin]
+----
+interface VIEMiddleware<Model : VIE.Model, Intent : VIE.Intent, Signal : VIE.Signal> {
+    fun interceptModels(flow: Flow<Model>): Flow<Model> = flow
+    fun interceptIntents(flow: Flow<Intent>): Flow<Intent> = flow
+    fun interceptSignals(flow: Flow<Signal>): Flow<Signal> = flow
+}
+----
+
+`VIELoggingMiddleware(name)` ships in the box — it prints every model, intent and signal, plus
+`START` / `END` markers, prefixed with `name`.
+
+[source,kotlin]
+----
+VIEViewModel(
+    firstModel = Model(count = 0),
+    middlewares = listOf(
+        VIELoggingMiddleware("Counter"),
+        MetricsMiddleware(),
+    ),
+)
+----
+
+*Order.* The list is folded from the end, so the *last* middleware wraps the raw source flow and the
+*first* sits closest to the ViewModel/view. Above, `MetricsMiddleware` sees the source values;
+`VIELoggingMiddleware` sees whatever `MetricsMiddleware` passed through.
+
+== Supported platforms
+
+`vie` is a Kotlin Multiplatform library targeting:
+
+* *JVM*
+* *iOS* — `iosArm64`, `iosSimulatorArm64`
+* *JS* — browser
+* *Wasm/JS* — browser
+
+The library declares no Android target of its own; an Android application consumes it through a
+shared Compose Multiplatform module that does (as `demo/demo-android` does through
+`demo/demo-shared`).
+
+== Demo
+
+`demo/demo-shared` is a full task-list application built on VIE — two screens
+(`TaskListVIE` / `EditTaskVIE`), each with its contract, ViewModel and view, over an async
+repository. It runs on every target:
+
+[source,bash]
+----
+./gradlew :demo:demo-desktop:run                              # JVM desktop window
+./gradlew :demo:demo-desktop:jsBrowserDevelopmentRun          # JS in the browser
+./gradlew :demo:demo-desktop:wasmJsBrowserDevelopmentRun      # Wasm/JS in the browser
+./gradlew :demo:demo-android:installDebug                     # Android device / emulator
+----
+
+iOS runs from the Xcode project in `demo/demo-ios`.
+
+The demo wires its ViewModels with https://github.com/kosi-libs/Inara[Inara] (`@DIModule` in
+`business/AppModule.kt`, `@DIFactory` in `vie/vm/VMFactory.kt`) — VIE itself has no dependency on any
+DI framework, and `VIEViewModel` subclasses are plain constructors.
+
+== License
+
+VIE is released under the MIT License.
+
+----
+Copyright (c) 2026 Salomon BRYS
+----

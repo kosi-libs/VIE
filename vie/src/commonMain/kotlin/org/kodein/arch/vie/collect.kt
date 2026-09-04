@@ -11,7 +11,7 @@ public suspend fun <Model : VIE.Model, T> Flow<T>.collectToModel(update: suspend
 }
 
 context(vm: VIEViewModel<*, *, Signal>)
-public suspend fun <Signal, T> Flow<T>.collectToSinal(convert: suspend (T) -> Signal) where Signal : VIE.Signal, Signal : VIE.Signal.Type {
+public suspend fun <Signal, T> Flow<T>.collectToSignal(convert: suspend (T) -> Signal) where Signal : VIE.Signal, Signal : VIE.Signal.Type {
     collect {
         vm.signal(convert(it))
     }

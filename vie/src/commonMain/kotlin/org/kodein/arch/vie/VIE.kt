@@ -14,7 +14,7 @@ public interface VIE<Model : VIE.Model, Intent : VIE.Intent, Signal : VIE.Signal
         public sealed interface Type
         public interface Effect: Signal, Type
         public interface Event: Signal, Type
-        public abstract class None private constructor() : Type
+        public abstract class None private constructor() : Signal, Type
     }
 
     public val modelFlow: StateFlow<Model>

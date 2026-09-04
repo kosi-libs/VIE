@@ -78,20 +78,10 @@ fun VIEViewContext<Intent, Signal>.TaskList(
         }
     }
 
-    var isTimeMachineOpen by remember { mutableStateOf(false) }
-
     Scaffold(
         topBar = {
             TopAppBar(
                 title = { Text("Task List") },
-                actions = {
-                    IconButton(onClick = { isTimeMachineOpen = !isTimeMachineOpen }) {
-                        Icon(
-                            imageVector = if (!isTimeMachineOpen) Icons.Default.Visibility else Icons.Default.VisibilityOff,
-                            contentDescription = if (!isTimeMachineOpen) "Open time machine" else "Close time machine",
-                        )
-                    }
-                }
             )
         },
         snackbarHost = { SnackbarHost(snackbarHostState) },
