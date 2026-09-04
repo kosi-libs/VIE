@@ -1,0 +1,8 @@
+<component name="ArtifactManager">
+  <artifact type="jar" name="vie-test-wasm-js">
+    <output-path>$PROJECT_DIR$/vie-test/build/libs</output-path>
+    <root id="archive" name="vie-test-wasm-js.jar">
+      <element id="module-output" name="Kosi-VIE.vie-test.wasmJsMain" />
+    </root>
+  </artifact>
+</component>

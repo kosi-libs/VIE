@@ -1,17 +1,16 @@
-package org.kodein.arch.vie
+package org.kodein.arch.vie.test
 
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.ReceiveChannel
-import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.emptyFlow
+import org.kodein.arch.vie.VIE
 
 
 /**
- * A full [VIE] implementation for tests: holds a model, records every posted intent, and lets a
- * test emit signals — built for assertions, not for previews (use [EmptyVIE] for that).
+ * A full [org.kodein.arch.vie.VIE] implementation for tests: holds a model, records every posted intent, and lets a
+ * test emit signals — built for assertions, not for previews (use [org.kodein.arch.vie.EmptyVIE] for that).
  *
  * ```kotlin
  * val vie = MockVIE<CounterVIE.Model, CounterVIE.Intent, CounterVIE.Signal>(
@@ -50,11 +49,16 @@ public class MockVIE<Model: VIE.Model, Intent : VIE.Intent, Signal : VIE.Signal>
     }
 
     /**
-     * Mutable: `emit` into it to drive the view's [SignalEffect]. Has no replay, so a signal
-     * emitted before the composition starts collecting is dropped — emit it after the view has
-     * composed.
+     * Mutable: `emit` into it (or call [signal]) to drive the view's [org.kodein.arch.vie.SignalEffect]. Has no
+     * replay, so a signal sent before the composition starts collecting is buffered but not
+     * replayed to a *later* collector that starts after it — send it after the view has composed.
      */
-    override val signalFlow: MutableSharedFlow<Signal> = MutableSharedFlow()
+    override val signalFlow: MutableSharedFlow<Signal> = MutableSharedFlow(extraBufferCapacity = 64)
+
+    /** Non-suspending shorthand for `signalFlow.tryEmit(signal)`, handy from test bodies. */
+    public fun signal(signal: Signal) {
+        signalFlow.tryEmit(signal)
+    }
 }
 
 /**
@@ -76,29 +80,3 @@ public fun <Model: VIE.Model, Intent : VIE.Intent, Signal : VIE.Signal> MockVIE<
     return list
 }
 
-/**
- * A [VIEViewScope] with nothing behind it, for previews: [post] discards the intent, and
- * [signalFlow] is an always-empty [Flow], so a [SignalEffect] in the view never fires.
- *
- * It carries no model — unlike [MockVIE], there is nothing to seed — so the model goes to the
- * view's own `model` parameter, once:
- *
- * ```kotlin
- * @Preview
- * @Composable
- * fun CounterPreview() {
- *     EmptyVIE<CounterVIE.Intent, CounterVIE.Signal>().Counter(
- *         model = CounterVIE.Model(count = 3),
- *     )
- * }
- * ```
- *
- * @param Intent The events the view can send up (discarded).
- * @param Signal The one-offs the view can react to (never emitted).
- */
-public class EmptyVIE<Intent : VIE.Intent, Signal : VIE.Signal>() : VIEViewScope<Intent, Signal> {
-    /** Discards [intent]. */
-    override fun post(intent: Intent) {}
-    /** Always empty. */
-    override val signalFlow: Flow<Signal> = emptyFlow()
-}

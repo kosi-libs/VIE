@@ -1,6 +1,5 @@
 package org.kodein.arch.vie.demo.view
 
-import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -35,12 +34,13 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import org.kodein.arch.vie.EmptyVIE
-import org.kodein.arch.vie.VIEViewScope
-import org.kodein.arch.vie.VIEView
 import org.kodein.arch.vie.SignalEffect
+import org.kodein.arch.vie.VIEView
+import org.kodein.arch.vie.VIEViewScope
 import org.kodein.arch.vie.demo.business.AppModule
 import org.kodein.arch.vie.demo.current
 import org.kodein.arch.vie.demo.data.Task
@@ -70,7 +70,6 @@ fun EditTask(
     }
 }
 
-@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun VIEViewScope<Intent, Signal>.EditTask(
     model: Model,
@@ -134,12 +133,14 @@ fun VIEViewScope<Intent, Signal>.EditTask(
                     label = { Text("Title") },
                     lineLimits = TextFieldLineLimits.SingleLine,
                     modifier = Modifier
+                        .testTag("title")
                         .fillMaxWidth()
                 )
                 TextField(
                     state = descriptionState,
                     label = { Text("Description") },
                     modifier = Modifier
+                        .testTag("description")
                         .weight(1f)
                         .fillMaxWidth()
                 )
@@ -180,6 +181,7 @@ fun VIEViewScope<Intent, Signal>.EditTask(
                 ) {
                     CircularProgressIndicator(
                         modifier = Modifier
+                            .testTag("loading")
                             .size(64.dp)
                     )
                 }

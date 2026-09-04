@@ -18,6 +18,7 @@
             <option value="$PROJECT_DIR$/timemachine/vie-timemachine-server" />
             <option value="$PROJECT_DIR$/timemachine/vie-timemachine-shared" />
             <option value="$PROJECT_DIR$/vie" />
+            <option value="$PROJECT_DIR$/vie-test" />
           </set>
         </option>
         <option name="myGradleHome" value="" />

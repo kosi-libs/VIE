@@ -26,6 +26,7 @@ enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
 
 include(
     ":vie",
+    ":vie-test",
     ":timemachine:vie-timemachine-shared",
     ":timemachine:vie-timemachine-client",
     ":timemachine:vie-timemachine-server",

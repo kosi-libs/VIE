@@ -120,7 +120,7 @@ knowing.
 
 == Setup
 
-VIE is published as a single Kotlin Multiplatform artifact:
+VIE is published as a Kotlin Multiplatform artifact:
 
 .build.gradle.kts
 [source,kotlin]
@@ -140,8 +140,24 @@ Multiplatform application module already has all of them; a pure-logic module th
 `VIEViewModel` subclasses needs at least `kotlinx-coroutines-core` and
 `org.jetbrains.androidx.lifecycle:lifecycle-viewmodel-compose` of its own.
 
-NOTE: The `group`/`version` publishing coordinates above are the intended ones; the Gradle build in
-this repository does not configure Maven publishing yet.
+Its test helpers — `MockVIE` and `runVMTest` (see <<previews-and-testing,Previews and testing>>) —
+live in a separate artifact, so pulling them in never adds test-only dependencies to a production
+source set:
+
+.build.gradle.kts
+[source,kotlin]
+----
+kotlin {
+    sourceSets {
+        commonTest.dependencies {
+            implementation("org.kodein.arch.vie:vie-test:0.1.0")
+        }
+    }
+}
+----
+
+NOTE: The `group`/`version` publishing coordinates above are the intended ones for both artifacts;
+the Gradle build in this repository does not configure Maven publishing yet.
 
 == Core concepts
 
@@ -371,9 +387,12 @@ The second function can be exercised in a `@Preview` against an `EmptyVIE` or a 
 A view written as a `VIEViewScope` extension (see <<views-as-extension-functions,Views as extension
 functions>>) needs nothing more than a `VIEViewScope` to render — no `VIEViewModel`, no
 `viewModel { }` keying, no lifecycle. VIE ships two ready-made scopes for exactly that, one per job:
-`EmptyVIE` to look at the layout, `MockVIE` to assert on it. Both live in `commonMain` of the `vie`
-artifact, so `EmptyVIE` is reachable from `@Preview` functions in a main source set, not just from
-tests.
+`EmptyVIE` to look at the layout, `MockVIE` to assert on it.
+
+`EmptyVIE` lives in `commonMain` of the `vie` artifact itself, so it is reachable from `@Preview`
+functions in a main source set, not just from tests. `MockVIE` — along with `runVMTest`, for testing
+the ViewModel side — lives in the separate `vie-test` artifact (see <<setup,Setup>>), so a
+production source set never has to depend on it.
 
 === Previews
 
@@ -397,13 +416,13 @@ fun CounterPreview() {
 `org.jetbrains.compose.ui:ui-tooling` as a `runtimeOnly` dependency for the IDE/tooling to render
 it) — see `demo/demo-shared/build.gradle.kts` for a module that declares both alongside VIE.
 
-=== Testing
+=== Testing a view with `MockVIE`
 
-`MockVIE<Model, Intent, Signal>` is a full `VIE` implementation, not just a `VIEViewScope`: it holds
-a model, records every posted intent, and lets a test emit signals — built for assertions, not for
-previews. (It *would* work as a preview receiver too, since `VIE` extends `VIEViewScope`, but it
-needs a seeded model and records intents nobody reads; `EmptyVIE` above is the right tool when
-nothing has to be recorded or driven.)
+`MockVIE<Model, Intent, Signal>` (from `vie-test`) is a full `VIE` implementation, not just a
+`VIEViewScope`: it holds a model, records every posted intent, and lets a test emit signals — built
+for assertions, not for previews. (It *would* work as a preview receiver too, since `VIE` extends
+`VIEViewScope`, but it needs a seeded model and records intents nobody reads; `EmptyVIE` above is
+the right tool when nothing has to be recorded or driven.)
 
 [cols="1,3",options="header"]
 |===
@@ -425,7 +444,10 @@ nothing has to be recorded or driven.)
 | Records the intent into `intentsChannel`. Nothing processes it — no model update, no signal.
 
 | `override val signalFlow: MutableSharedFlow<Signal>`
-| Mutable: `emit` into it to drive the view's `SignalEffect { }`.
+| Mutable: `emit` into it (or call `signal(…)` below) to drive the view's `SignalEffect { }`.
+
+| `fun signal(signal: Signal)`
+| Non-suspending shorthand for `signalFlow.tryEmit(signal)`, handy from a test body.
 
 | `fun pendingIntents(): List<Intent>`
 | Drains `intentsChannel` and returns everything posted since the previous call, in order;
@@ -456,13 +478,51 @@ since the previous call; calling it twice in a row without an intervening `post`
 
 `modelFlow` and `signalFlow` are the mutable counterparts of the read-only members `VIE` exposes,
 so a test can also drive the view from the other direction: assign `modelFlow.value` to re-render
-with a new model, or `signalFlow.emit(…)` to check the view's `SignalEffect` reaction. `signalFlow`
-is a `MutableSharedFlow` with no replay, so a signal emitted before the composition starts
-collecting is dropped — emit it after the view has composed.
+with a new model, or `signalFlow.emit(…)` / `signal(…)` to check the view's `SignalEffect` reaction.
+`signalFlow` is a buffered `MutableSharedFlow` with no *replay*: a signal sent before any collector
+has started is held in the buffer and delivered once one does, but it is not replayed to a
+*second*, later collector — send it after the view has composed.
 
 `MockVIE` replaces the ViewModel entirely: there is no `process`, no middleware, no
 `viewModelScope`. Testing how a `VIEViewModel` handles an intent — the `process` side — is a
-separate, ordinary unit test against the `VIEViewModel` subclass itself.
+separate, ordinary unit test against the `VIEViewModel` subclass itself; `runVMTest` below exists to
+make that straightforward.
+
+=== Testing a `VIEViewModel` with `runVMTest`
+
+A `VIEViewModel` subclass is a plain class: construct it directly with whatever real or fake
+collaborators the test needs, no DI container required. Three of its mechanics make that more than
+a bare constructor call, though — all handled by `runVMTest` (from `vie-test`):
+
+* `modelFlow` is `stateIn(viewModelScope, SharingStarted.Lazily, …)`, so it only advances state
+  while something collects it.
+* `signalFlow` has no replay, so a signal emitted with nobody collecting is lost.
+* `viewModelScope` resolves `Dispatchers.Main` the first time it is touched — typically in
+  `init { }` — so `Dispatchers.Main` must already be a `TestDispatcher` *before* the view model is
+  constructed, for its (and any repository's) `delay(…)` calls to run on virtual time instead of
+  wall-clock time.
+
+`runVMTest` builds the view model inside a `kotlinx.coroutines.test.runTest { }` with all three
+already arranged: model and signal collectors are running before `newVM` returns, and `block` gets
+the view model plus every signal collected so far.
+
+[source,kotlin]
+----
+@Test
+fun save_updatesModelAndSignalsSaved() = runVMTest(
+    newVM = { CounterVM(FakeCounterStore()) },
+) { vm, signals ->
+    vm.post(CounterVIE.Intent.Save)
+    advanceUntilIdle()
+
+    assertEquals(CounterVIE.Signal.Saved, signals.single())
+    assertEquals(false, vm.modelFlow.value.saving)
+}
+----
+
+`newVM` and `block` both run with `TestScope` as their receiver, so `advanceTimeBy`, `runCurrent`
+and `advanceUntilIdle` are all in scope directly, no `this@runTest` needed. The view model is
+cleared once `block` returns, cancelling `viewModelScope`.
 
 == Middlewares
 

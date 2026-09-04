@@ -26,12 +26,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import org.kodein.arch.vie.EmptyVIE
-import org.kodein.arch.vie.VIEViewScope
-import org.kodein.arch.vie.VIEView
 import org.kodein.arch.vie.SignalEffect
+import org.kodein.arch.vie.VIEView
+import org.kodein.arch.vie.VIEViewScope
 import org.kodein.arch.vie.demo.business.AppModule
 import org.kodein.arch.vie.demo.current
 import org.kodein.arch.vie.demo.data.Task
@@ -100,6 +101,7 @@ fun VIEViewScope<Intent, Signal>.TaskList(
                 ) {
                     CircularProgressIndicator(
                         modifier = Modifier
+                            .testTag("loading")
                             .size(64.dp)
                     )
                 }
@@ -123,17 +125,20 @@ fun VIEViewScope<Intent, Signal>.TaskList(
                     items(model.tasks) { (id, task) ->
                         ListItem(
                             onClick = { goToTask(id) },
+                            modifier = Modifier.testTag("row-$id"),
                             leadingContent = {
                                 Checkbox(
                                     checked = task.completed,
                                     onCheckedChange = { post(Intent.UpdateTaskCompletion(id, it)) },
-                                    enabled = (id to Work.Updating) !in model.work
+                                    enabled = (id to Work.Updating) !in model.work,
+                                    modifier = Modifier.testTag("checkbox-$id"),
                                 )
                             },
                             trailingContent = {
                                 IconButton(
                                     onClick = { post(Intent.DeleteTask(id)) },
-                                    enabled = (id to Work.Deleting) !in model.work
+                                    enabled = (id to Work.Deleting) !in model.work,
+                                    modifier = Modifier.testTag("delete-$id"),
                                 ) {
                                     Icon(Icons.Default.Delete, contentDescription = "Delete")
                                 }

@@ -24,7 +24,13 @@ kotlin {
     iosSimulatorArm64()
 
     js {
-        browser()
+        browser {
+            testTask {
+                // There's a weird bug in Compose JS that fails test on JS.
+                // See https://youtrack.jetbrains.com/issue/CMP-4906
+                enabled = false
+            }
+        }
         binaries.executable()
     }
 
@@ -41,7 +47,6 @@ kotlin {
 
         commonMain.dependencies {
             implementation(projects.vie)
-//            implementation(projects.timemachine.vieTimemachineClient)
 
             implementation(libs.androidx.navigation3.runtime)
 
@@ -54,7 +59,6 @@ kotlin {
             implementation(libs.compose.material3)
             implementation(libs.compose.materialIcons)
             implementation(libs.compose.runtime)
-            runtimeOnly(libs.compose.ui.tooling)
             implementation(libs.compose.ui.tooling.preview)
 
             implementation(libs.inara.runtime)
@@ -62,9 +66,19 @@ kotlin {
             implementation(libs.kotlinx.coroutines)
         }
         commonTest.dependencies {
+            implementation(projects.vieTest)
             implementation(libs.kotlin.test)
+            implementation(libs.kotlinx.coroutines.test)
+            implementation(libs.compose.ui.test)
         }
         jvmMain.dependencies {
+            runtimeOnly(libs.compose.ui.tooling)
+        }
+        androidMain.dependencies {
+            runtimeOnly(libs.compose.ui.tooling)
+        }
+        jvmTest.dependencies {
+            implementation(compose.desktop.currentOs)
         }
     }
 }

@@ -82,7 +82,12 @@ public abstract class VIEViewModel<Model : VIE.Model, Intent : VIE.Intent, Signa
             .stateIn(viewModelScope, SharingStarted.Lazily, firstModel)
         viewModelScope.launch {
             updateChannel.consumeEach {
-                modelCollector.emit(it.update(modelFlow.value))
+                // Read modelCollector.value, not modelFlow.value: modelFlow is derived from it via
+                // middlewares + stateIn, which only catches up once its own collector gets to run.
+                // Two updates handled back-to-back here, with no dispatch in between to let that
+                // happen, would otherwise have the second one compute its result from a model that
+                // doesn't yet reflect the first — silently discarding it.
+                modelCollector.emit(it.update(modelCollector.value))
                 it.job.complete()
             }
         }

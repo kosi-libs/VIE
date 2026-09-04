@@ -1,0 +1,8 @@
+<component name="ArtifactManager">
+  <artifact type="jar" name="vie-test-js">
+    <output-path>$PROJECT_DIR$/vie-test/build/libs</output-path>
+    <root id="archive" name="vie-test-js.jar">
+      <element id="module-output" name="Kosi-VIE.vie-test.jsMain" />
+    </root>
+  </artifact>
+</component>
