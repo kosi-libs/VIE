@@ -1,0 +1,63 @@
+package {{viewPackage}}
+
+import androidx.compose.runtime.Composable
+import androidx.compose.ui.tooling.preview.Preview
+import org.kodein.arch.vie.EmptyVIE
+import org.kodein.arch.vie.SignalEffect
+import org.kodein.arch.vie.VIEView
+import org.kodein.arch.vie.VIEViewScope
+import {{viePackage}}.{{Name}}VIE.Intent
+import {{viePackage}}.{{Name}}VIE.Model
+import {{viePackage}}.{{Name}}VIE.Signal
+import {{vmPackage}}.{{Name}}VM
+
+
+/**
+ * Entry point: creates the ViewModel and renders the [{{Name}}] extension below. This is the
+ * only place that knows about [{{Name}}VM] — pass a `key` here if several instances of this
+ * screen can coexist in one composition (e.g. one per list item).
+ */
+@Composable
+fun {{Name}}(
+    // TODO: constructor args for {{Name}}VM, plus navigation callbacks, e.g.:
+    // goBack: () -> Unit,
+) {
+    VIEView(
+        newVM = { {{Name}}VM(/* … */) },
+    ) { model ->
+        {{Name}}(model = model /*, goBack = goBack */)
+    }
+}
+
+/**
+ * The layout, as an extension on [VIEViewScope] — no ViewModel in sight, so this can be
+ * rendered against a real screen, an [EmptyVIE] preview, or a [org.kodein.arch.vie.MockVIE] in
+ * tests.
+ */
+@Composable
+fun VIEViewScope<Intent, Signal>.{{Name}}(
+    model: Model,
+    // TODO: plain callback params for navigation, e.g. goBack: () -> Unit,
+) {
+    SignalEffect { signal ->
+        when (signal) {
+            // TODO: add one branch per Signal below. Do NOT add an `else` branch — since
+            // Kotlin 1.7, a non-exhaustive `when` is a compile ERROR, so leaving this
+            // exhaustive is what makes the compiler catch a forgotten Signal the next time
+            // one is added. If this screen never has anything to signal, delete this
+            // SignalEffect entirely and use `VIE.Signal.None` as the Signal type instead.
+            //
+            // is Signal.Error -> /* show a snackbar */ Unit
+        }
+    }
+
+    // TODO: render `model`, call `post(Intent...)` on user actions.
+}
+
+@Preview
+@Composable
+private fun {{Name}}Preview() {
+    EmptyVIE<Intent, Signal>().{{Name}}(
+        model = Model(),
+    )
+}

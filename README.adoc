@@ -509,6 +509,12 @@ The library declares no Android target of its own; an Android application consum
 shared Compose Multiplatform module that does (as `demo/demo-android` does through
 `demo/demo-shared`).
 
+== AI skill
+
+`ai-skill/` is an Agent Skill for coding agents: VIE's good practices, a review checklist for bad
+practices, and templates to scaffold a new screen's contract, ViewModel and view. Install it into
+a project that *consumes* `vie` — see `ai-skill/README.md`.
+
 == Demo
 
 `demo/demo-shared` is a full task-list application built on VIE — two screens

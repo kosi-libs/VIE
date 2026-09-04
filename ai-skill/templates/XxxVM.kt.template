@@ -1,0 +1,53 @@
+package {{vmPackage}}
+
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.launch
+import org.kodein.arch.vie.VIELoggingMiddleware
+import org.kodein.arch.vie.VIEViewModel
+import {{viePackage}}.{{Name}}VIE
+import {{viePackage}}.{{Name}}VIE.Intent
+import {{viePackage}}.{{Name}}VIE.Model
+import {{viePackage}}.{{Name}}VIE.Signal
+
+
+/**
+ * ViewModel for the {{Name}} screen. Mutate the model only through [update]; emit signals only
+ * through [signal].
+ */
+class {{Name}}VM(
+    // TODO: add constructor dependencies (repositories, etc.)
+) : {{Name}}VIE, VIEViewModel<Model, Intent, Signal>(
+    firstModel = Model(),
+    middlewares = listOfNotNull(VIELoggingMiddleware("{{Name}}")),
+) {
+
+    init {
+        // TODO: feed external state into the model or signals as needed, e.g.:
+        // viewModelScope.launch {
+        //     someRepository.flow().collectToModel { value -> copy(field = value) }
+        // }
+    }
+
+    override suspend fun process(intent: Intent) {
+        when (intent) {
+            // TODO: add one branch per Intent below. Do NOT add an `else` branch — since
+            // Kotlin 1.7, a non-exhaustive `when` over a sealed type is a compile ERROR, so
+            // leaving this exhaustive is what makes the compiler catch a forgotten Intent the
+            // next time one is added.
+            //
+            // Awaiting a suspend call directly in a branch serializes it against the next
+            // intent — correct when later intents should wait behind it. Use
+            // `viewModelScope.launch { }` instead when the work should run independently
+            // without blocking the intent stream. Either way, keep suspend calls *outside*
+            // `update {}` — update {} runs on a single dedicated coroutine shared by every
+            // intent, so a suspend call inside it stalls every other pending update, not just
+            // this one:
+            //
+            // is Intent.Save -> {
+            //     update { copy(saving = true) }      // small, synchronous
+            //     val result = repository.save(...)    // suspends *outside* update {}
+            //     update { copy(saving = false) }      // small, synchronous
+            // }
+        }
+    }
+}
