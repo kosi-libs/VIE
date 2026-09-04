@@ -12,7 +12,7 @@
         android:theme="@android:style/Theme.Material.Light.NoActionBar">
         <activity
             android:exported="true"
-            android:name="org.kodein.mvivm.demo.android.MainActivity">
+            android:name="org.kodein.arch.vie.demo.android.MainActivity">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />

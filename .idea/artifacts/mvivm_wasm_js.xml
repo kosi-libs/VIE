@@ -1,8 +1,0 @@
-<component name="ArtifactManager">
-  <artifact type="jar" name="mvivm-wasm-js">
-    <output-path>$PROJECT_DIR$/mvivm/build/libs</output-path>
-    <root id="archive" name="mvivm-wasm-js.jar">
-      <element id="module-output" name="Kosi-MVIVM.mvivm.wasmJsMain" />
-    </root>
-  </artifact>
-</component>

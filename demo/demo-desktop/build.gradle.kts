@@ -35,5 +35,5 @@ kotlin {
 }
 
 compose {
-    desktop.application.mainClass = "org.kodein.mvivm.demo.MainKt"
+    desktop.application.mainClass = "org.kodein.arch.vie.demo.MainKt"
 }

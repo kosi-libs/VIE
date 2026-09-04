@@ -1,15 +1,15 @@
-# TimeMachine: an MVI-VM Inspector
+# TimeMachine: a VIE Inspector
 A compose multiplatform desktop app that allows to inspect the behaviour of a multiplatform in development.
 
 ## Context
-I am developping an MVI library that allows to develop a Compose multiplatform application with the Model View Intent UI pattern. The library is called MVI-VM (because it uses Compose ViewModels for MVI stores).
+I am developping a VIE library that allows to develop a Compose multiplatform application with the Model View Intent UI pattern. The library is called VIE (because it uses Compose ViewModels for its Model-View-Intent stores).
 
 ### Data
-An MVI ViewModel listens for Intents, and can emit:
+A VIE ViewModel listens for Intents, and can emit:
 - A **Model**, that represents what the View should display, and that replaces the previous Model. There always is a current Model (the ViewModel starts with a model), and a View that listens for a Model will always immediately receive one upon subscription. A Model should always be a `data class`.
 - A **Signal**, that informs the View of an event. That signal may be an **Event** that is broadcasted to all Views listening to that ViewModel Signals, or an **Effect** that will be sent to only one View (at random if there are multiple listeners). A Signal should always be a `sealed interface`.
 
-An MVI View listens for Models, and Signals, and may emit :
+A VIE View listens for Models, and Signals, and may emit :
 - An **Intent**, that informs the ViewModel of UI event, which the ViewModel may want to react to. An Intent should always be a `sealed interface`.
 
 ## Application
@@ -21,7 +21,7 @@ It uses Compose Multiplatform with Material3.
 The client will connect to to the application server, and identify its session with a name and unique identifier. There may be multiple connection with different identifiers but the same name (the same application running different instances). Note that there may be only one connection per unique identifier, but that a client may disconnect and reconnect with the same identifier (because of network issues).
 
 ### ViewModel information
-When a MVI ViewModel is started on client, the client will send:
+When a VIE ViewModel is started on client, the client will send:
 - The fully qualified type name of the ViewModel
 - A unique identifier (to identify it amongst multiple instances)
 - The fully qualified type name of the `Model`, it is using, and whether it is `@Serializable`.

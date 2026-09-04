@@ -15,7 +15,7 @@ kotlin {
     jvm()
 
     android {
-        namespace = "org.kodein.mvivm.demo"
+        namespace = "org.kodein.arch.vie.demo"
         compileSdk = 37
         minSdk = 26
     }
@@ -40,8 +40,8 @@ kotlin {
         }
 
         commonMain.dependencies {
-            implementation(projects.mvivm)
-//            implementation(projects.timemachine.mvivmTimemachineClient)
+            implementation(projects.vie)
+//            implementation(projects.timemachine.vieTimemachineClient)
 
             implementation(libs.androidx.navigation3.runtime)
 

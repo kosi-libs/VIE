@@ -5,11 +5,11 @@ plugins {
 }
 
 android {
-    namespace = "org.kodein.mvivm.demo.android"
+    namespace = "org.kodein.arch.vie.demo.android"
     compileSdk = 37
 
     defaultConfig {
-        applicationId = "org.kodein.mvivm.demo.android"
+        applicationId = "org.kodein.arch.vie.demo.android"
         minSdk = 26
         targetSdk = 37
         versionCode = 1

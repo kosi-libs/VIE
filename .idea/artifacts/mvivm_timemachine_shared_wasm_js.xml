@@ -1,8 +1,0 @@
-<component name="ArtifactManager">
-  <artifact type="jar" name="mvivm-timemachine-shared-wasm-js">
-    <output-path>$PROJECT_DIR$/timemachine/mvivm-timemachine-shared/build/libs</output-path>
-    <root id="archive" name="mvivm-timemachine-shared-wasm-js.jar">
-      <element id="module-output" name="Kosi-MVIVM.timemachine.mvivm-timemachine-shared.wasmJsMain" />
-    </root>
-  </artifact>
-</component>

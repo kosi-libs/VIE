@@ -27,3 +27,8 @@ out/
 
 ### Android ###
 local.properties
+
+### Xcode ###
+xcuserdata/
+*.xcuserstate
+DerivedData/
