@@ -37,7 +37,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import org.kodein.arch.vie.VIEViewContext
-import org.kodein.arch.vie.VieView
+import org.kodein.arch.vie.VIEView
 import org.kodein.arch.vie.SignalEffect
 import org.kodein.arch.vie.demo.business.AppModule
 import org.kodein.arch.vie.demo.current
@@ -57,7 +57,7 @@ fun EditTask(
 ) {
     val appModule = AppModule.current
 
-    VieView(
+    VIEView(
         newVM = { VMFactory.EditTaskVM(appModule, taskId) }
     ) {
         EditTask(

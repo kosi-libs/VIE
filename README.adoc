@@ -10,7 +10,7 @@
 VIE gives a screen three types and a contract between them. A *Model* is the state the view renders.
 An *Intent* is a UI event — most often something the user did, but not always. A *Signal* is a
 one-off the view should react to but not render — a navigation, a snackbar, a toast. You declare the
-three as an interface; a `VIEViewModel` implements it; a `VieView` renders it. The view only ever
+three as an interface; a `VIEViewModel` implements it; a `VIEView` renders it. The view only ever
 sees the contract, never the ViewModel.
 
 The name is the French translation of MVI: *V*ue *I*ntention *É*tat, built on Compose
@@ -64,7 +64,7 @@ class CounterVM(
 ----
 @Composable
 fun Counter(store: CounterStore) {
-    VieView(newVM = { CounterVM(store) }) { model ->        // `this` is a VIEViewContext
+    VIEView(newVM = { CounterVM(store) }) { model ->        // `this` is a VIEViewContext
         SignalEffect { signal ->
             when (signal) {
                 is CounterVIE.Signal.Saved -> /* … */ Unit
@@ -95,7 +95,7 @@ The ViewModel is one implementation of that interface; the view function depends
 not on `CounterVM`. Swapping in a fake for a preview or a test is a different constructor call,
 nothing more.
 
-*The view never holds the ViewModel.* Inside `VieView { }`, the receiver is a
+*The view never holds the ViewModel.* Inside `VIEView { }`, the receiver is a
 `VIEViewContext<Intent, Signal>` — exactly two members, `post(intent)` and `signalFlow`. No
 `modelFlow`, no `update`, no `viewModelScope`, no `process`. A view written as an extension on
 `VIEViewContext` (see <<the-view,The view>>) can be rendered against a hand-made context with zero
@@ -300,14 +300,14 @@ init {
 
 == The view
 
-`VieView` is the single entry point. It creates (and remembers, keyed) the ViewModel, collects
+`VIEView` is the single entry point. It creates (and remembers, keyed) the ViewModel, collects
 `modelFlow` as Compose state, and invokes `content` with the current model and a
 `VIEViewContext` receiver.
 
 [source,kotlin]
 ----
 @Composable
-inline fun <reified Model : VIE.Model, Intent : VIE.Intent, Signal : VIE.Signal> VieView(
+inline fun <reified Model : VIE.Model, Intent : VIE.Intent, Signal : VIE.Signal> VIEView(
     crossinline newVM: () -> VIEViewModel<Model, Intent, Signal>,
     key: String? = null,
     content: @Composable VIEViewContext<Intent, Signal>.(Model) -> Unit,
@@ -342,14 +342,14 @@ SignalEffect { signal ->
 === Views as extension functions
 
 Splitting the wiring from the layout keeps the layout testable. The demo does this everywhere: a
-thin `@Composable` that calls `VieView`, and a second `@Composable` extension on `VIEViewContext`
+thin `@Composable` that calls `VIEView`, and a second `@Composable` extension on `VIEViewContext`
 that only takes `model` plus plain callbacks.
 
 [source,kotlin]
 ----
 @Composable
 fun TaskList(goToTask: (Uuid) -> Unit) {
-    VieView(newVM = { TaskListVM(/* … */) }) { model ->
+    VIEView(newVM = { TaskListVM(/* … */) }) { model ->
         TaskList(model = model, goToTask = goToTask)   // extension below
     }
 }

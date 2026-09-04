@@ -7,7 +7,7 @@ import androidx.lifecycle.viewmodel.compose.viewModel
 
 
 @Composable
-public inline fun <reified Model : VIE.Model, Intent : VIE.Intent, Signal : VIE.Signal> VieView(
+public inline fun <reified Model : VIE.Model, Intent : VIE.Intent, Signal : VIE.Signal> VIEView(
     crossinline newVM: () -> VIEViewModel<Model, Intent, Signal>,
     key: String? = null,
     content: @Composable VIEViewContext<Intent, Signal>.(Model) -> Unit,
