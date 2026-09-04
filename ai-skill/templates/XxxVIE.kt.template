@@ -22,8 +22,8 @@ interface {{Name}}VIE : VIE<Model, Intent, Signal> {
     /**
      * The events the {{Name}} view sends up.
      *
-     * If this screen takes no input at all, delete this and use `VIE.Intent.None` as the
-     * `Intent` type argument above instead.
+     * If this screen takes no input at all, delete this, replace the `Intent` type argument above
+     * with `NoIntent`, and import it bare: `import org.kodein.arch.vie.VIE.NoIntent`.
      */
     sealed interface Intent : VIE.Intent {
         // TODO: add intents, e.g.:
@@ -37,8 +37,8 @@ interface {{Name}}VIE : VIE<Model, Intent, Signal> {
      * dropped if none) or `VIE.Signal.Effect` (delivered to exactly one collector — use this for
      * one-shot navigation and anything that must not fire twice).
      *
-     * If this screen has nothing to signal, delete this and use `VIE.Signal.None` as the
-     * `Signal` type argument above instead.
+     * If this screen has nothing to signal, delete this, replace the `Signal` type argument above
+     * with `NoSignal`, and import it bare: `import org.kodein.arch.vie.VIE.NoSignal`.
      */
     sealed interface Signal : VIE.Signal {
         // TODO: add signals, e.g.:

@@ -1,5 +1,6 @@
 package org.kodein.arch.vie
 
+import org.kodein.arch.vie.VIE.NoSignal
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -15,7 +16,7 @@ class MockVIETest {
 
     @Test
     fun postThenPendingIntents_returnsThemInOrder() {
-        val vie = MockVIE<Model, Intent, VIE.Signal.None>(Model(count = 0))
+        val vie = MockVIE<Model, Intent, NoSignal>(Model(count = 0))
 
         vie.post(Intent.Increment)
         vie.post(Intent.Increment)
@@ -29,14 +30,14 @@ class MockVIETest {
 
     @Test
     fun pendingIntents_onUntouchedMock_isEmpty() {
-        val vie = MockVIE<Model, Intent, VIE.Signal.None>(Model(count = 0))
+        val vie = MockVIE<Model, Intent, NoSignal>(Model(count = 0))
 
         assertEquals(emptyList(), vie.pendingIntents())
     }
 
     @Test
     fun pendingIntents_drains() {
-        val vie = MockVIE<Model, Intent, VIE.Signal.None>(Model(count = 0))
+        val vie = MockVIE<Model, Intent, NoSignal>(Model(count = 0))
 
         vie.post(Intent.Increment)
         assertEquals(listOf(Intent.Increment), vie.pendingIntents())
@@ -48,7 +49,7 @@ class MockVIETest {
 
     @Test
     fun model_reflectsModelFlowValue() {
-        val vie = MockVIE<Model, Intent, VIE.Signal.None>(Model(count = 0))
+        val vie = MockVIE<Model, Intent, NoSignal>(Model(count = 0))
 
         vie.modelFlow.value = Model(count = 42)
 

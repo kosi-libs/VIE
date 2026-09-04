@@ -210,7 +210,8 @@ sealed interface Intent : VIE.Intent {
 ----
 
 A screen that takes no input at all can use the built-in `VIE.Intent.None` as its `Intent` type — it
-has a private constructor and cannot be instantiated, so `post` becomes uncallable.
+has a private constructor and cannot be instantiated, so `post` becomes uncallable. It is aliased
+`NoIntent` — import it directly and use the bare name: `VIE<Model, NoIntent, Signal>`.
 
 === Signal
 
@@ -240,7 +241,8 @@ sealed interface Signal : VIE.Signal {
 }
 ----
 
-A screen with nothing to signal can use `VIE.Signal.None` as its `Signal` type.
+A screen with nothing to signal can use `VIE.Signal.None` as its `Signal` type. It is aliased
+`NoSignal` — import it directly and use the bare name: `VIE<Model, Intent, NoSignal>`.
 
 == The ViewModel
 

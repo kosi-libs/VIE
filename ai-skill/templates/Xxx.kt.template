@@ -45,7 +45,9 @@ fun VIEViewScope<Intent, Signal>.{{Name}}(
             // Kotlin 1.7, a non-exhaustive `when` is a compile ERROR, so leaving this
             // exhaustive is what makes the compiler catch a forgotten Signal the next time
             // one is added. If this screen never has anything to signal, delete this
-            // SignalEffect entirely and use `VIE.Signal.None` as the Signal type instead.
+            // SignalEffect entirely, drop the `Signal` import above, replace every `Signal`
+            // type argument in this file (VIEViewScope, EmptyVIE) with `NoSignal`, and import
+            // it bare: `import org.kodein.arch.vie.VIE.NoSignal`.
             //
             // is Signal.Error -> /* show a snackbar */ Unit
         }

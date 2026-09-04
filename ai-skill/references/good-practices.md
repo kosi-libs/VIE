@@ -11,11 +11,18 @@ to be: a complex screen with independent sections (say, a filter panel and a res
 just as reasonably be split into one `VIE` + ViewModel per section, each mounted with its own
 `VIEView`. The right granularity is a call the developer makes per screen, not a rule VIE imposes.
 
-Whatever the granularity, import the contract's nested types so the ViewModel and view signatures
-stay readable:
+In the VIE, ViewModel and view files alike, import the contract's `Model`, `Intent` and `Signal`
+and refer to them by their bare names — even the VIE file itself imports its own nested types,
+which is what makes `VIE<Model, Intent, Signal>` read cleanly instead of
+`VIE<CounterVIE.Model, CounterVIE.Intent, CounterVIE.Signal>`:
 
 ```kotlin
-interface CounterVIE : VIE<CounterVIE.Model, CounterVIE.Intent, CounterVIE.Signal> {
+import org.kodein.arch.vie.VIE
+import com.example.counter.CounterVIE.Intent
+import com.example.counter.CounterVIE.Model
+import com.example.counter.CounterVIE.Signal
+
+interface CounterVIE : VIE<Model, Intent, Signal> {
     data class Model(val count: Int, val saving: Boolean = false) : VIE.Model
     sealed interface Intent : VIE.Intent {
         data object Increment : Intent
@@ -27,6 +34,19 @@ interface CounterVIE : VIE<CounterVIE.Model, CounterVIE.Intent, CounterVIE.Signa
     }
 }
 ```
+
+Never import `VIE.Model`, `VIE.Intent` or `VIE.Signal` themselves — always keep the `VIE.` prefix
+on those base markers (`: VIE.Model`, `VIE.Signal.Event`, `VIE.Signal.Effect`, the generic bound on
+a `VIEMiddleware`). Importing them bare would collide with the contract's own
+`Model`/`Intent`/`Signal` imports above, and erase the visual distinction between "this screen's
+type" and "the library's marker". The one exception is a file that genuinely depends on more than
+one contract at once (say, a parent composable hosting two child VIEs) — only one contract's types
+can be imported bare there, so the rest stay qualified.
+
+`VIE.NoIntent` and `VIE.NoSignal` — aliases for `VIE.Intent.None` and `VIE.Signal.None` — are a
+deliberate exception to that prefix rule: import and use them bare (`NoIntent`, `NoSignal`). Unlike
+`Model`/`Intent`/`Signal`/`Event`/`Effect`, these names are never also the contract's own type, so a
+bare import can't collide with anything or blur which type belongs to which screen.
 
 A view depends on `CounterVIE.Model`/`Intent`/`Signal` (through `VIEViewScope`), never on
 `CounterVM`. Swapping in a fake for a preview or a test is a different constructor call, nothing
@@ -57,9 +77,10 @@ A `sealed interface`, so `process` can `when` over it and the compiler catches a
 when a new intent is added later. An intent is most often something the user did, but not
 always — a lifecycle callback, a timer, an incoming deep link all qualify.
 
-A screen that takes no input at all uses the built-in `VIE.Intent.None` — it has a private
-constructor, so `post` becomes uncallable at that type. Don't invent an empty sealed interface for
-this; the library already provides it.
+A screen that takes no input at all uses the built-in `VIE.Intent.None`, aliased `NoIntent` — it
+has a private constructor, so `post` becomes uncallable at that type. Don't invent an empty sealed
+interface for this; the library already provides it. Import and use the bare alias:
+`VIE<Model, NoIntent, Signal>`.
 
 ## Signal
 
@@ -72,25 +93,30 @@ A `sealed interface`; every concrete signal also picks a delivery kind:
   same ViewModel, whichever collects first gets it. Use for one-shot navigation and anything that
   must not happen twice — a "navigate back" broadcast to two observers would fire twice.
 
-A screen with nothing to signal uses the built-in `VIE.Signal.None`.
+A screen with nothing to signal uses the built-in `VIE.Signal.None`, aliased `NoSignal` — import
+and use the bare alias: `VIE<Model, Intent, NoSignal>`.
 
 ## The ViewModel
 
 ```kotlin
+import com.example.counter.CounterVIE.Intent
+import com.example.counter.CounterVIE.Model
+import com.example.counter.CounterVIE.Signal
+
 class CounterVM(
     private val store: CounterStore,
-) : CounterVIE, VIEViewModel<CounterVIE.Model, CounterVIE.Intent, CounterVIE.Signal>(
-    firstModel = CounterVIE.Model(count = 0),
+) : CounterVIE, VIEViewModel<Model, Intent, Signal>(
+    firstModel = Model(count = 0),
     middlewares = listOfNotNull(VIELoggingMiddleware("Counter").takeIf { isDebug }),
 ) {
-    override suspend fun process(intent: CounterVIE.Intent) {
+    override suspend fun process(intent: Intent) {
         when (intent) {
-            is CounterVIE.Intent.Increment -> update { copy(count = count + 1) }
-            is CounterVIE.Intent.Save -> {
+            is Intent.Increment -> update { copy(count = count + 1) }
+            is Intent.Save -> {
                 update { copy(saving = true) }
                 store.save(model.count)
-                    .onSuccess { signal(CounterVIE.Signal.Saved) }
-                    .onFailure { signal(CounterVIE.Signal.Error(it.message ?: "Save failed")) }
+                    .onSuccess { signal(Signal.Saved) }
+                    .onFailure { signal(Signal.Error(it.message ?: "Save failed")) }
                 update { copy(saving = false) }
             }
         }
@@ -191,6 +217,10 @@ second composable; pick whichever fits.
 signals to react to:
 
 ```kotlin
+import com.example.counter.CounterVIE.Intent
+import com.example.counter.CounterVIE.Model
+import com.example.counter.CounterVIE.Signal
+
 @Composable
 fun Counter(store: CounterStore) {
     VIEView(newVM = { CounterVM(store) }) { model ->
@@ -199,39 +229,44 @@ fun Counter(store: CounterStore) {
 }
 
 @Composable
-fun VIEViewScope<CounterVIE.Intent, CounterVIE.Signal>.Counter(model: CounterVIE.Model) {
+fun VIEViewScope<Intent, Signal>.Counter(model: Model) {
     SignalEffect { signal ->
         when (signal) {
-            is CounterVIE.Signal.Saved -> /* … */ Unit
-            is CounterVIE.Signal.Error -> /* show snackbar */ Unit
+            is Signal.Saved -> /* … */ Unit
+            is Signal.Error -> /* show snackbar */ Unit
         }
     }
     Column {
         Text("Count: ${model.count}")
-        Button(onClick = { post(CounterVIE.Intent.Increment) }) { Text("+") }
+        Button(onClick = { post(Intent.Increment) }) { Text("+") }
     }
 }
 ```
 
 **As a plain function taking `model` and a `post` callback** — fully independent of VIE, worth it
-when the screen's `Signal` is `VIE.Signal.None` (nothing to react to) and the composable should
-have zero VIE dependency at all, e.g. for reuse outside a VIE screen or a non-VIE preview harness.
-Taking `CounterVIE` itself as an example wouldn't fit here — its `Signal` isn't `None` — so
-picture a simpler `SwitchVIE : VIE<SwitchVIE.Model, SwitchVIE.Intent, VIE.Signal.None>` instead:
+when the screen's `Signal` is `NoSignal` (nothing to react to) and the composable should have zero
+VIE dependency at all, e.g. for reuse outside a VIE screen or a non-VIE preview harness.
+Taking `CounterVIE` itself as an example wouldn't fit here — its `Signal` isn't `NoSignal` — so
+picture a simpler `SwitchVIE : VIE<Model, Intent, NoSignal>` instead, with `NoSignal` imported bare
+straight from `VIE` in the `SwitchVIE.kt` contract file. This `Switch` view file itself never
+mentions `Signal` at all — a plain-callback view has nothing to import there:
 
 ```kotlin
+import com.example.switch.SwitchVIE.Intent
+import com.example.switch.SwitchVIE.Model
+
 @Composable
-fun Switch(model: SwitchVIE.Model, post: (SwitchVIE.Intent) -> Unit) {
+fun Switch(model: Model, post: (Intent) -> Unit) {
     Checkbox(
         checked = model.on,
-        onCheckedChange = { post(SwitchVIE.Intent.Toggle) },
+        onCheckedChange = { post(Intent.Toggle) },
     )
 }
 ```
 
 The caller wires it explicitly, since `VIEViewScope`'s implicit `post` isn't available:
 `VIEView(newVM = { … }) { model -> Switch(model = model, post = ::post) }`. A
-`VIEViewScope<Intent, VIE.Signal.None>` extension is the equivalent middle ground — still an
+`VIEViewScope<Intent, NoSignal>` extension is the equivalent middle ground — still an
 extension, but on a scope that can never emit anything to react to.
 
 Both shapes keep the layout testable and previewable; the `VIEViewScope` one is also why
@@ -250,11 +285,11 @@ same call site collapse onto a single ViewModel.
 
 ### Signals in the view
 
-If a screen's `Signal` has any concrete member (i.e. it isn't `VIE.Signal.None`), its view should
+If a screen's `Signal` has any concrete member (i.e. it isn't `NoSignal`), its view should
 call `SignalEffect { }` somewhere — an `Event` emitted with nobody collecting is silently dropped,
 and an `Effect` emitted with nobody collecting leaves the emitting coroutine suspended forever
 waiting for a collector that will never arrive. If a screen truly has nothing to react to, prefer
-declaring `Signal = VIE.Signal.None` in the contract in the first place — that's exactly when the
+declaring `Signal = NoSignal` in the contract in the first place — that's exactly when the
 plain `model`/`post` view shape above becomes attractive.
 
 `SignalEffect`'s `when`, like `process`'s, must be exhaustive with no `else`:
@@ -287,7 +322,7 @@ view that happens to collect the signal. If it genuinely has to stay in the view
 @Preview
 @Composable
 fun CounterPreview() {
-    EmptyVIE<CounterVIE.Intent, CounterVIE.Signal>().Counter(model = CounterVIE.Model(count = 3))
+    EmptyVIE<Intent, Signal>().Counter(model = Model(count = 3))
 }
 ```
 

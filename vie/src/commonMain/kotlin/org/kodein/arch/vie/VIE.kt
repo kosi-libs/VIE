@@ -52,6 +52,14 @@ public interface VIE<Model : VIE.Model, Intent : VIE.Intent, Signal : VIE.Signal
     }
 
     /**
+     * Shorthand for [Intent.None], the [Intent] type of a screen that takes no input at all.
+     *
+     * Import it directly (`import org.kodein.arch.vie.VIE.NoIntent`) and use the bare name, so a
+     * contract reads `VIE<Model, NoIntent, Signal>` rather than `VIE<Model, VIE.Intent.None, Signal>`.
+     */
+    public typealias NoIntent = Intent.None
+
+    /**
      * Marker for a screen's one-off type: something the view should act on but not render. Every
      * concrete signal must also pick a delivery kind by implementing [Event] or [Effect].
      */
@@ -68,6 +76,14 @@ public interface VIE<Model : VIE.Model, Intent : VIE.Intent, Signal : VIE.Signal
          */
         public abstract class None private constructor() : Signal, Type
     }
+
+    /**
+     * Shorthand for [Signal.None], the [Signal] type of a screen with nothing to signal.
+     *
+     * Import it directly (`import org.kodein.arch.vie.VIE.NoSignal`) and use the bare name, so a
+     * contract reads `VIE<Model, Intent, NoSignal>` rather than `VIE<Model, Intent, VIE.Signal.None>`.
+     */
+    public typealias NoSignal = Signal.None
 
     /** The current state of the screen. Never has to represent "nothing yet" — see [Model]. */
     public val modelFlow: StateFlow<Model>

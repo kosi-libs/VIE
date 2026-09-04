@@ -105,7 +105,7 @@ plus plain callbacks, called from a thin wrapper that calls `VIEView`. See
 
 **Not this:** a composable typed `model: Model, post: (Intent) -> Unit` — with no `VIEViewScope`
 at all — is a deliberate, equally valid alternative for a screen whose `Signal` is
-`VIE.Signal.None`, not an instance of this smell. This entry is specifically about a parameter
+`NoSignal`, not an instance of this smell. This entry is specifically about a parameter
 typed as the ViewModel or the `VIE` contract itself; see `good-practices.md` § "The view".
 
 ## 7. Manual `modelFlow.collectAsState()` instead of `VIEView`
@@ -154,7 +154,7 @@ until triggered by an intent the view sends once composed.
 
 ## 10. A view ignores a non-empty `Signal` type
 
-**Smell:** a `XxxVIE.Signal` with one or more concrete members (i.e. not `VIE.Signal.None`), whose
+**Smell:** a `XxxVIE.Signal` with one or more concrete members (i.e. not `NoSignal`), whose
 corresponding view has no `SignalEffect { }` call anywhere. This is a cross-file check: read the
 contract to see whether `Signal` is non-trivial, then read the view that renders it.
 
@@ -170,7 +170,7 @@ likely a bug, not a deliberate design.
 signals truly are meant to be handled elsewhere (a parent composable, an observer outside this
 view), document that with a comment at the point signals are (not) handled, so the omission reads
 as deliberate rather than missed. If nothing should ever react, the contract's `Signal` should be
-`VIE.Signal.None` instead.
+`NoSignal` instead.
 
 ## 11. Work awaited directly in `process` that shouldn't block the intent stream
 
@@ -281,6 +281,37 @@ collector (the view's `SignalEffect`) is active is simply lost.
 
 **Fix:** render the view first, then emit; or await confirmation the view has started collecting
 before emitting.
+
+## 18. Contract types written qualified instead of imported bare, or a base marker imported bare
+
+**Smell:** in a `*VIE.kt`, `*VM.kt` or view file, the contract's own `Model`/`Intent`/`Signal`
+written qualified (`CounterVIE.Model`, `CounterVIE.Intent.Increment`) where importing them and
+using the bare name would do — including inside the VIE file itself, which should read
+`VIE<Model, Intent, Signal>`, not `VIE<CounterVIE.Model, CounterVIE.Intent, CounterVIE.Signal>`.
+The opposite mistake also counts: an `import` line pulling in the base marker `VIE.Model`,
+`VIE.Intent` or `VIE.Signal` unqualified, rather than always referencing it with the `VIE.` prefix.
+
+**Grep:** `^import .*\.VIE\.(Model|Intent|Signal)$` for the bad import; `\w+VIE\.(Model|Intent|Signal)\b`
+inside a file's body for needless qualification.
+
+**Why:** purely a hygiene concern, not a correctness one — none of this fails to compile. Bare
+names keep the ViewModel/view signatures readable (`VIEViewScope<Intent, Signal>`, not
+`VIEViewScope<CounterVIE.Intent, CounterVIE.Signal>`). Importing a base marker bare would collide
+with the contract's own `Model`/`Intent`/`Signal` imports in the same file and erase the visual
+distinction between "this screen's type" and "the library's marker" (`VIE.Signal.Event`,
+`VIE.Signal.Effect`).
+
+**Fix:** import the contract's `Model`/`Intent`/`Signal` and use the bare names; keep the `VIE.`
+prefix on every base marker.
+
+**Not this:**
+- A file that genuinely depends on more than one contract at once (e.g. a parent composable
+  hosting two child VIEs) can only import one contract's types bare — the rest have to stay
+  qualified. That's not this smell.
+- `import org.kodein.arch.vie.VIE.NoIntent` / `.NoSignal`, and using `NoIntent`/`NoSignal` bare, is
+  correct — not the base-marker mistake this entry describes. `VIE.NoIntent`/`VIE.NoSignal` are a
+  deliberate exception to the "keep the `VIE.` prefix" rule (see `good-practices.md` § "The
+  contract"): unlike `Model`/`Intent`/`Signal`, they never collide with a contract's own type name.
 
 ## Reporting
 

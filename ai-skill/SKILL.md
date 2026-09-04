@@ -25,10 +25,12 @@ for — apply it in three ways:
 |---|---|
 | `VIE<Model, Intent, Signal>` | The contract. `Model`/`Intent`/`Signal` are marker interfaces bounding the three type params. |
 | `VIE.Model` | Marker for the state type. Implement as a `data class`. |
-| `VIE.Intent` | Marker for the UI-event type. Implement as a `sealed interface`. `VIE.Intent.None` — uninstantiable, for a screen with no input. |
-| `VIE.Signal` | Marker for the one-off type. Implement as a `sealed interface`; each concrete signal also picks `VIE.Signal.Event` or `VIE.Signal.Effect`. `VIE.Signal.None` — for a screen with nothing to signal. |
+| `VIE.Intent` | Marker for the UI-event type. Implement as a `sealed interface`. `VIE.Intent.None` (aliased `VIE.NoIntent`) — uninstantiable, for a screen with no input. |
+| `VIE.Signal` | Marker for the one-off type. Implement as a `sealed interface`; each concrete signal also picks `VIE.Signal.Event` or `VIE.Signal.Effect`. `VIE.Signal.None` (aliased `VIE.NoSignal`) — for a screen with nothing to signal. |
 | `VIE.Signal.Event` | Broadcast to **every** active collector of `signalFlow`; **dropped** if none are collecting (no replay buffer). |
 | `VIE.Signal.Effect` | Delivered to **exactly one** collector. Use for one-shot navigation and anything that must not fire twice. |
+| `VIE.NoIntent` | Alias for `VIE.Intent.None`. Import bare (`import ….VIE.NoIntent`) and use unqualified: `VIE<Model, NoIntent, Signal>`. |
+| `VIE.NoSignal` | Alias for `VIE.Signal.None`. Import bare (`import ….VIE.NoSignal`) and use unqualified: `VIE<Model, Intent, NoSignal>`. |
 | `VIEViewScope<Intent, Signal>` | What a view sees: `post(intent)` and `signalFlow`. No `modelFlow`, no `update`, no `process`. |
 | `SignalEffect { signal -> … }` | `@Composable` — collects `signalFlow` for the composition's lifetime; put an exhaustive `when` inside. |
 | `VIEViewModel<Model, Intent, Signal>(firstModel, middlewares)` | Abstract base, extends `androidx.lifecycle.ViewModel`. Implement `process(intent)`. Call `update { copy(...) }` to mutate, `signal(s)` to emit. |
