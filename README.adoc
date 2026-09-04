@@ -13,8 +13,8 @@ one-off the view should react to but not render — a navigation, a snackbar, a 
 three as an interface; a `VIEViewModel` implements it; a `VIEView` renders it. The view only ever
 sees the contract, never the ViewModel.
 
-The name is the French translation of MVI: *V*ue *I*ntention *É*tat, built on Compose
-*V*iew*M*odels.
+The name is the French translation of MVI: **V**ue **I**ntention **É**tat, built on Compose
+**V**iew**M**odels.
 
 .CounterVIE.kt
 [source,kotlin]
