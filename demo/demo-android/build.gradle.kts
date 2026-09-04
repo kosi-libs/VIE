@@ -6,12 +6,12 @@ plugins {
 
 android {
     namespace = "org.kodein.arch.vie.demo.android"
-    compileSdk = 37
+    compileSdk = findProperty("android.compileSdk")!!.toString().toInt()
 
     defaultConfig {
         applicationId = "org.kodein.arch.vie.demo.android"
-        minSdk = 26
-        targetSdk = 37
+        minSdk = findProperty("android.minSdk")!!.toString().toInt()
+        targetSdk = findProperty("android.targetSdk")!!.toString().toInt()
         versionCode = 1
         versionName = "1.0"
     }

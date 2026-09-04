@@ -16,8 +16,8 @@ kotlin {
 
     android {
         namespace = "org.kodein.arch.vie.demo"
-        compileSdk = 37
-        minSdk = 26
+        compileSdk = findProperty("android.compileSdk")!!.toString().toInt()
+        minSdk = findProperty("android.minSdk")!!.toString().toInt()
     }
 
     iosArm64()
