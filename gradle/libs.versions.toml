@@ -38,6 +38,7 @@ compose-materialIcons = { module = "org.jetbrains.compose.material:material-icon
 compose-runtime = { module = "org.jetbrains.compose.runtime:runtime", version.ref = "compose-multiplatform" }
 compose-ui = { module = "org.jetbrains.compose.ui:ui", version.ref = "compose-multiplatform" }
 compose-ui-tooling = { module = "org.jetbrains.compose.ui:ui-tooling", version.ref = "compose-multiplatform" }
+compose-ui-tooling-preview = { module = "org.jetbrains.compose.ui:ui-tooling-preview", version.ref = "compose-multiplatform" }
 inara-processor = { module = "org.kodein.di.inara:inara-processor", version.ref = "inara"}
 inara-runtime = { module = "org.kodein.di.inara:inara-runtime", version.ref = "inara"}
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }

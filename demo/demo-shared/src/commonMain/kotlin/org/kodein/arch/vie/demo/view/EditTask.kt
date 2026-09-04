@@ -35,8 +35,10 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import org.kodein.arch.vie.VIEViewContext
+import org.kodein.arch.vie.EmptyVIE
+import org.kodein.arch.vie.VIEViewScope
 import org.kodein.arch.vie.VIEView
 import org.kodein.arch.vie.SignalEffect
 import org.kodein.arch.vie.demo.business.AppModule
@@ -70,7 +72,7 @@ fun EditTask(
 
 @OptIn(ExperimentalFoundationApi::class)
 @Composable
-fun VIEViewContext<Intent, Signal>.EditTask(
+fun VIEViewScope<Intent, Signal>.EditTask(
     model: Model,
     goBack: () -> Unit,
     new: Boolean,
@@ -185,4 +187,17 @@ fun VIEViewContext<Intent, Signal>.EditTask(
             }
         }
     }
+}
+
+@Preview
+@Composable
+fun EditTaskPreview() {
+    EmptyVIE<Intent, Signal>().EditTask(
+        model = Model(
+            loading = false,
+            task = Task(title = "Task 1", description = "", completed = false),
+        ),
+        goBack = {},
+        new = false,
+    )
 }

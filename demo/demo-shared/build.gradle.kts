@@ -54,6 +54,8 @@ kotlin {
             implementation(libs.compose.material3)
             implementation(libs.compose.materialIcons)
             implementation(libs.compose.runtime)
+            runtimeOnly(libs.compose.ui.tooling)
+            implementation(libs.compose.ui.tooling.preview)
 
             implementation(libs.inara.runtime)
 
@@ -61,6 +63,8 @@ kotlin {
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
+        }
+        jvmMain.dependencies {
         }
     }
 }

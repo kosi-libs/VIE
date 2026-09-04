@@ -9,8 +9,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
-import androidx.compose.material.icons.filled.Visibility
-import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3ExpressiveApi
@@ -25,20 +23,21 @@ import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
-import org.kodein.arch.vie.VIEViewContext
+import org.kodein.arch.vie.EmptyVIE
+import org.kodein.arch.vie.VIEViewScope
 import org.kodein.arch.vie.VIEView
 import org.kodein.arch.vie.SignalEffect
 import org.kodein.arch.vie.demo.business.AppModule
 import org.kodein.arch.vie.demo.current
+import org.kodein.arch.vie.demo.data.Task
 import org.kodein.arch.vie.demo.vie.TaskListVIE.Intent
 import org.kodein.arch.vie.demo.vie.TaskListVIE.Model
+import org.kodein.arch.vie.demo.vie.TaskListVIE.Model.Work
 import org.kodein.arch.vie.demo.vie.TaskListVIE.Signal
 import org.kodein.arch.vie.demo.vie.vm.TaskListVM
 import org.kodein.arch.vie.demo.vie.vm.VMFactory
@@ -65,7 +64,7 @@ fun TaskList(
 
 @OptIn(ExperimentalMaterial3ExpressiveApi::class)
 @Composable
-fun VIEViewContext<Intent, Signal>.TaskList(
+fun VIEViewScope<Intent, Signal>.TaskList(
     model: Model,
     goToNewTask: () -> Unit,
     goToTask: (Uuid) -> Unit,
@@ -128,13 +127,13 @@ fun VIEViewContext<Intent, Signal>.TaskList(
                                 Checkbox(
                                     checked = task.completed,
                                     onCheckedChange = { post(Intent.UpdateTaskCompletion(id, it)) },
-                                    enabled = (id to Model.Work.Updating) !in model.work
+                                    enabled = (id to Work.Updating) !in model.work
                                 )
                             },
                             trailingContent = {
                                 IconButton(
                                     onClick = { post(Intent.DeleteTask(id)) },
-                                    enabled = (id to Model.Work.Deleting) !in model.work
+                                    enabled = (id to Work.Deleting) !in model.work
                                 ) {
                                     Icon(Icons.Default.Delete, contentDescription = "Delete")
                                 }
@@ -145,4 +144,24 @@ fun VIEViewContext<Intent, Signal>.TaskList(
             }
         }
     }
+}
+
+@Preview
+@Composable
+fun TaskListPreview() {
+    EmptyVIE<Intent, Signal>().TaskList(
+        model = Model(
+            tasks = listOf(
+                Uuid.parse("ed7c8378-9cbd-4c20-9d64-425fe531d438") to Task(title = "Task 1", description = "", completed = false),
+                Uuid.parse("1ee53463-078c-4bd1-b9dc-db2066b938b3") to Task(title = "Task 2", description = "", completed = true),
+                Uuid.parse("a4143d0c-9a2c-49b0-9191-30fbe8356955") to Task(title = "Task 3", description = "", completed = false),
+            ),
+            work = listOf(
+                Uuid.parse("ed7c8378-9cbd-4c20-9d64-425fe531d438") to Work.Updating,
+                Uuid.parse("a4143d0c-9a2c-49b0-9191-30fbe8356955") to Work.Deleting,
+            ),
+        ),
+        goToNewTask = {},
+        goToTask = {},
+    )
 }

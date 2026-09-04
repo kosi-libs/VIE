@@ -4,7 +4,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
 
 
-public interface VIE<Model : VIE.Model, Intent : VIE.Intent, Signal : VIE.Signal> : VIEViewContext<Intent, Signal> {
+public interface VIE<Model : VIE.Model, Intent : VIE.Intent, Signal : VIE.Signal> : VIEViewScope<Intent, Signal> {
 
     public interface Model
     public interface Intent {
