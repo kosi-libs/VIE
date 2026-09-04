@@ -1,0 +1,8 @@
+<component name="ArtifactManager">
+  <artifact type="jar" name="demo-shared-jvm">
+    <output-path>$PROJECT_DIR$/demo/demo-shared/build/libs</output-path>
+    <root id="archive" name="demo-shared-jvm.jar">
+      <element id="module-output" name="Kosi-MVIVM.demo.demo-shared.jvmMain" />
+    </root>
+  </artifact>
+</component>

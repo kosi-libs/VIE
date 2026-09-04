@@ -1,3 +1,11 @@
+pluginManagement {
+    repositories {
+        gradlePluginPortal()
+        google()
+        mavenCentral()
+    }
+}
+
 dependencyResolutionManagement {
     @Suppress("UnstableApiUsage")
     repositories {
@@ -12,11 +20,18 @@ plugins {
     id("org.gradle.toolchains.foojay-resolver-convention") version "1.0.0"
 }
 
-rootProject.name = "Nomi-MVI"
+rootProject.name = "Kosi-MVIVM"
 
 enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
 
 include(
-    ":nomi-compose",
-    ":demo",
+    ":mvivm",
+    ":timemachine:mvivm-timemachine-shared",
+    ":timemachine:mvivm-timemachine-client",
+    ":timemachine:mvivm-timemachine-server",
+
+    ":demo:demo-shared",
+
+    ":demo:demo-android",
+    ":demo:demo-desktop",
 )

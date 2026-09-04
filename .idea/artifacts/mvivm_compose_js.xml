@@ -1,0 +1,6 @@
+<component name="ArtifactManager">
+  <artifact type="jar" name="mvivm-compose-js">
+    <output-path>$PROJECT_DIR$/mvivm-compose/build/libs</output-path>
+    <root id="archive" name="mvivm-compose-js.jar" />
+  </artifact>
+</component>

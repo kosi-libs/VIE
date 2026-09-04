@@ -1,0 +1,8 @@
+<component name="ArtifactManager">
+  <artifact type="jar" name="mvivm-timemachine-client-js">
+    <output-path>$PROJECT_DIR$/timemachine/mvivm-timemachine-client/build/libs</output-path>
+    <root id="archive" name="mvivm-timemachine-client-js.jar">
+      <element id="module-output" name="Kosi-MVIVM.timemachine.mvivm-timemachine-client.jsMain" />
+    </root>
+  </artifact>
+</component>

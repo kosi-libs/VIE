@@ -1,0 +1,8 @@
+<component name="ArtifactManager">
+  <artifact type="jar" name="demo-desktop-js">
+    <output-path>$PROJECT_DIR$/demo/demo-desktop/build/libs</output-path>
+    <root id="archive" name="demo-desktop-js.jar">
+      <element id="module-output" name="Kosi-MVIVM.demo.demo-desktop.jsMain" />
+    </root>
+  </artifact>
+</component>

@@ -1,8 +1,0 @@
-<component name="ArtifactManager">
-  <artifact type="jar" name="nomi-compose-js">
-    <output-path>$PROJECT_DIR$/nomi-compose/build/libs</output-path>
-    <root id="archive" name="nomi-compose-js.jar">
-      <element id="module-output" name="Nomi-MVI.nomi-compose.jsMain" />
-    </root>
-  </artifact>
-</component>
