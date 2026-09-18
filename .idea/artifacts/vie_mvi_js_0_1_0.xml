@@ -1,6 +1,0 @@
-<component name="ArtifactManager">
-  <artifact type="jar" name="vie-mvi-js-0.1.0">
-    <output-path>$PROJECT_DIR$/vie-mvi/build/libs</output-path>
-    <root id="archive" name="vie-mvi-js-0.1.0.jar" />
-  </artifact>
-</component>

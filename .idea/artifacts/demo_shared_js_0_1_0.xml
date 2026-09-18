@@ -1,8 +1,0 @@
-<component name="ArtifactManager">
-  <artifact type="jar" name="demo-shared-js-0.1.0">
-    <output-path>$PROJECT_DIR$/demo/demo-shared/build/libs</output-path>
-    <root id="archive" name="demo-shared-js-0.1.0.jar">
-      <element id="module-output" name="Kosi-VIE.demo.demo-shared.jsMain" />
-    </root>
-  </artifact>
-</component>
