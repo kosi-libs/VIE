@@ -1,5 +1,5 @@
 [versions]
-android-gradlePlugin = "9.1.1"              # https://kotlinlang.org/docs/multiplatform/multiplatform-compatibility-guide.html#version-compatibility
+android-gradlePlugin = "9.3.1"              # https://kotlinlang.org/docs/multiplatform/multiplatform-compatibility-guide.html#version-compatibility
 
 androidx-activity = "1.13.0"                # https://developer.android.com/jetpack/androidx/releases/activity
 androidx-jb-lifecycle = "2.11.0"            # https://github.com/JetBrains/compose-multiplatform/releases
@@ -14,11 +14,11 @@ coroutines = "1.11.0"                       # https://github.com/Kotlin/kotlinx.
 
 inara = "0.1.0"                             # https://github.com/kosi-libs/Inara/releases
 
-kotlin = "2.4.10"                           # https://kotlinlang.org/docs/releases.html#release-history
+kotlin = "2.4.20"                           # https://kotlinlang.org/docs/releases.html#release-history
 kotlinx-serialization = "1.11.0"            # https://github.com/Kotlin/kotlinx.serialization/releases
-ksp = "2.3.11"                              # https://github.com/google/ksp/releases
+ksp = "2.3.12"                              # https://github.com/google/ksp/releases
 
-ktor = "3.5.2"                              # https://github.com/ktorio/ktor/releases
+ktor = "3.6.0"                              # https://github.com/ktorio/ktor/releases
 
 mavenPublish = "0.37.0"                     # https://github.com/vanniktech/gradle-maven-publish-plugin/releases
 
