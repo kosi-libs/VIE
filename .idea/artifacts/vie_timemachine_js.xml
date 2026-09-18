@@ -1,8 +1,0 @@
-<component name="ArtifactManager">
-  <artifact type="jar" name="vie-timemachine-js">
-    <output-path>$PROJECT_DIR$/vie-timemachine/build/libs</output-path>
-    <root id="archive" name="vie-timemachine-js.jar">
-      <element id="module-output" name="Kosi-VIE.vie-timemachine.jsMain" />
-    </root>
-  </artifact>
-</component>

@@ -1,6 +1,0 @@
-<component name="ArtifactManager">
-  <artifact type="jar" name="vie-compose-js">
-    <output-path>$PROJECT_DIR$/vie-compose/build/libs</output-path>
-    <root id="archive" name="vie-compose-js.jar" />
-  </artifact>
-</component>
