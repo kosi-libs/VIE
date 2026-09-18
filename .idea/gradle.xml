@@ -14,10 +14,10 @@
             <option value="$PROJECT_DIR$/demo/demo-ios" />
             <option value="$PROJECT_DIR$/demo/demo-shared" />
             <option value="$PROJECT_DIR$/timemachine" />
+            <option value="$PROJECT_DIR$/timemachine/timemachine-server" />
             <option value="$PROJECT_DIR$/timemachine/vie-timemachine-client" />
-            <option value="$PROJECT_DIR$/timemachine/vie-timemachine-server" />
             <option value="$PROJECT_DIR$/timemachine/vie-timemachine-shared" />
-            <option value="$PROJECT_DIR$/vie" />
+            <option value="$PROJECT_DIR$/vie-mvi" />
             <option value="$PROJECT_DIR$/vie-test" />
           </set>
         </option>

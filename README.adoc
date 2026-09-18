@@ -128,17 +128,15 @@ VIE is published as a Kotlin Multiplatform artifact:
 kotlin {
     sourceSets {
         commonMain.dependencies {
-            implementation("org.kodein.arch.vie:vie:0.1.0")
+            implementation("org.kodein.arch.vie:vie-mvi:0.1.0")
         }
     }
 }
 ----
 
-VIE depends on Compose runtime, Compose foundation, `lifecycle-viewmodel-compose` and
-kotlinx-coroutines as `implementation` dependencies — they are *not* exposed transitively. A Compose
-Multiplatform application module already has all of them; a pure-logic module that only declares
-`VIEViewModel` subclasses needs at least `kotlinx-coroutines-core` and
-`org.jetbrains.androidx.lifecycle:lifecycle-viewmodel-compose` of its own.
+Compose runtime, `lifecycle-viewmodel-compose` and kotlinx-coroutines appear in VIE's own public
+signatures — `@Composable`, `ViewModel`, `StateFlow` — so they are `api` dependencies and come along
+transitively. Compose foundation is an `implementation` detail and does not.
 
 Its test helpers — `MockVIE` and `runVMTest` (see <<previews-and-testing,Previews and testing>>) —
 live in a separate artifact, so pulling them in never adds test-only dependencies to a production
@@ -156,8 +154,8 @@ kotlin {
 }
 ----
 
-NOTE: The `group`/`version` publishing coordinates above are the intended ones for both artifacts;
-the Gradle build in this repository does not configure Maven publishing yet.
+NOTE: Neither artifact has been released yet — the coordinates above are the ones the build is
+configured to publish to Maven Central.
 
 == Core concepts
 

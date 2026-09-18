@@ -10,7 +10,7 @@ plugins {
 }
 
 kotlin {
-    jvmToolchain(17)
+    jvmToolchain(findProperty("jvm.toolchain")!!.toString().toInt())
 
     jvm()
 
@@ -46,14 +46,12 @@ kotlin {
         }
 
         commonMain.dependencies {
-            implementation(projects.vie)
-
-            implementation(libs.androidx.navigation3.runtime)
+            implementation(projects.vieMvi)
 
             implementation(libs.androidx.jb.lifecycle.viewmodel.compose)
             implementation(libs.androidx.jb.lifecycle.viewmodel.navigation3)
-
             implementation(libs.androidx.jb.navigation3.ui)
+            implementation(libs.androidx.navigation3.runtime)
 
             implementation(libs.compose.foundation)
             implementation(libs.compose.material3)
@@ -67,9 +65,10 @@ kotlin {
         }
         commonTest.dependencies {
             implementation(projects.vieTest)
+
+            implementation(libs.compose.ui.test)
             implementation(libs.kotlin.test)
             implementation(libs.kotlinx.coroutines.test)
-            implementation(libs.compose.ui.test)
         }
         jvmMain.dependencies {
             runtimeOnly(libs.compose.ui.tooling)

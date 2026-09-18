@@ -5,7 +5,7 @@ conventions: what good VIE code looks like, how to spot bad VIE code on review, 
 scaffold a new screen's contract, ViewModel and view. It is not specific to Claude Code — `SKILL.md`
 is the open Agent Skill format, so any agent/tool that reads it can use it.
 
-It is meant to be installed into *projects that consume* the `org.kodein.arch.vie:vie` artifact,
+It is meant to be installed into *projects that consume* the `org.kodein.arch.vie:vie-mvi` artifact,
 not into this repository.
 
 ## Install

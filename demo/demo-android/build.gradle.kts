@@ -23,12 +23,16 @@ android {
 }
 
 kotlin {
+    // Not the project's jvm.toolchain: AGP's own tooling needs a newer JDK than 17 to run, while
+    // compileOptions above still targets 17 bytecode.
     jvmToolchain(25)
 }
 
 dependencies {
     implementation(projects.demo.demoShared)
+
+    implementation(libs.androidx.activity.compose)
+
     implementation(libs.compose.ui)
     implementation(libs.compose.ui.tooling)
-    implementation(libs.androidx.activity.compose)
 }

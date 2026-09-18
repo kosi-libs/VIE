@@ -1,53 +1,67 @@
 [versions]
 android-gradlePlugin = "9.1.1"              # https://kotlinlang.org/docs/multiplatform/multiplatform-compatibility-guide.html#version-compatibility
+
 androidx-activity = "1.13.0"                # https://developer.android.com/jetpack/androidx/releases/activity
 androidx-jb-lifecycle = "2.11.0"            # https://github.com/JetBrains/compose-multiplatform/releases
 androidx-jb-navigation3 = "1.2.0-alpha02"   # https://github.com/JetBrains/compose-multiplatform/releases
 androidx-navigation3 = "1.2.0-beta01"       # https://github.com/JetBrains/compose-multiplatform/releases
+
 compose-material3 = "1.12.0-alpha03"        # https://github.com/JetBrains/compose-multiplatform/releases
 compose-materialIcons = "1.7.3"             # https://mvnrepository.com/artifact/org.jetbrains.compose.material/material-icons-extended
 compose-multiplatform = "1.12.0"            # https://github.com/JetBrains/compose-multiplatform/releases
+
 coroutines = "1.11.0"                       # https://github.com/Kotlin/kotlinx.coroutines/releases
-inara = "0.1.0"
+
+inara = "0.1.0"                             # https://github.com/kosi-libs/Inara/releases
+
 kotlin = "2.4.10"                           # https://kotlinlang.org/docs/releases.html#release-history
-kotlinx-serialization = "1.11.0"           # https://github.com/Kotlin/kotlinx.serialization/releases
+kotlinx-serialization = "1.11.0"            # https://github.com/Kotlin/kotlinx.serialization/releases
 ksp = "2.3.11"                              # https://github.com/google/ksp/releases
-ktor = "3.5.2"
+
+ktor = "3.5.2"                              # https://github.com/ktorio/ktor/releases
+
 mavenPublish = "0.37.0"                     # https://github.com/vanniktech/gradle-maven-publish-plugin/releases
 
 [plugins]
 android-application = { id = "com.android.application", version.ref = "android-gradlePlugin" }
 android-kotlin-multiplatform-library = { id = "com.android.kotlin.multiplatform.library", version.ref = "android-gradlePlugin" }
+
 compose-multiplatform = { id = "org.jetbrains.compose", version.ref = "compose-multiplatform" }
+
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
 kotlin-multiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin" }
 kotlin-plugin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 kotlin-plugin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
+
 mavenPublish = { id = "com.vanniktech.maven.publish", version.ref = "mavenPublish" }
 
 [libraries]
 androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "androidx-activity" }
-androidx-navigation3-runtime = { module = "androidx.navigation3:navigation3-runtime", version.ref = "androidx-navigation3" }
 androidx-jb-lifecycle-viewmodel-compose = { module = "org.jetbrains.androidx.lifecycle:lifecycle-viewmodel-compose", version.ref = "androidx-jb-lifecycle" }
 androidx-jb-lifecycle-viewmodel-navigation3 = { module = "org.jetbrains.androidx.lifecycle:lifecycle-viewmodel-navigation3", version.ref = "androidx-jb-lifecycle" }
 androidx-jb-navigation3-ui = { module = "org.jetbrains.androidx.navigation3:navigation3-ui", version.ref = "androidx-jb-navigation3" }
+androidx-navigation3-runtime = { module = "androidx.navigation3:navigation3-runtime", version.ref = "androidx-navigation3" }
+
 compose-foundation = { module = "org.jetbrains.compose.foundation:foundation", version.ref = "compose-multiplatform" }
 compose-material3 = { module = "org.jetbrains.compose.material3:material3", version.ref = "compose-material3" }
 compose-materialIcons = { module = "org.jetbrains.compose.material:material-icons-extended", version.ref = "compose-materialIcons" }
 compose-runtime = { module = "org.jetbrains.compose.runtime:runtime", version.ref = "compose-multiplatform" }
 compose-ui = { module = "org.jetbrains.compose.ui:ui", version.ref = "compose-multiplatform" }
-compose-ui-tooling = { module = "org.jetbrains.compose.ui:ui-tooling", version.ref = "compose-multiplatform" }
 compose-ui-test = { module = "org.jetbrains.compose.ui:ui-test", version.ref = "compose-multiplatform" }
+compose-ui-tooling = { module = "org.jetbrains.compose.ui:ui-tooling", version.ref = "compose-multiplatform" }
 compose-ui-tooling-preview = { module = "org.jetbrains.compose.ui:ui-tooling-preview", version.ref = "compose-multiplatform" }
-inara-processor = { module = "org.kodein.di.inara:inara-processor", version.ref = "inara"}
-inara-runtime = { module = "org.kodein.di.inara:inara-runtime", version.ref = "inara"}
+
+inara-processor = { module = "org.kodein.di.inara:inara-processor", version.ref = "inara" }
+inara-runtime = { module = "org.kodein.di.inara:inara-runtime", version.ref = "inara" }
+
 kotlin-test = { module = "org.jetbrains.kotlin:kotlin-test", version.ref = "kotlin" }
 kotlin-test-junit = { module = "org.jetbrains.kotlin:kotlin-test-junit", version.ref = "kotlin" }
 kotlinx-coroutines = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-core", version.ref = "coroutines" }
 kotlinx-coroutines-swing = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-swing", version.ref = "coroutines" }
 kotlinx-coroutines-test = { module = "org.jetbrains.kotlinx:kotlinx-coroutines-test", version.ref = "coroutines" }
 kotlinx-serialization-json = { module = "org.jetbrains.kotlinx:kotlinx-serialization-json", version.ref = "kotlinx-serialization" }
+
 ktor-server-cio = { module = "io.ktor:ktor-server-cio", version.ref = "ktor" }
 ktor-server-core = { module = "io.ktor:ktor-server-core", version.ref = "ktor" }
 ktor-server-websockets = { module = "io.ktor:ktor-server-websockets", version.ref = "ktor" }

@@ -32,3 +32,6 @@ local.properties
 xcuserdata/
 *.xcuserstate
 DerivedData/
+
+### Local review scratch file
+ISSUES.adoc

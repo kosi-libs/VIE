@@ -1,5 +1,6 @@
-package org.kodein.arch.vie
+package org.kodein.arch.vie.test
 
+import org.kodein.arch.vie.VIE
 import org.kodein.arch.vie.VIE.NoSignal
 import kotlin.test.Test
 import kotlin.test.assertEquals
