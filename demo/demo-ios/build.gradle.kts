@@ -20,6 +20,7 @@ kotlin {
     sourceSets {
         iosMain.dependencies {
             implementation(projects.demo.demoShared)
+            implementation(projects.timemachine.vieTimemachineClient)
 
             implementation(libs.compose.runtime)
             implementation(libs.compose.ui)
