@@ -27,7 +27,7 @@ class TaskListVMTest {
 
     @Test
     fun tasksAreNullUntilRepositoryEmits() = runVMTest(
-        newVM = { TaskListVM(InMemoryTaskRepository()) },
+        newVM = { TaskListVM(InMemoryTaskRepository(), middlewares = emptyList()) },
     ) { vm, _ ->
         assertNull(vm.modelFlow.value.tasks)
 
@@ -42,7 +42,7 @@ class TaskListVMTest {
     fun deleteTask_marksWorkThenRemovesTask() {
         val repo = InMemoryTaskRepository()
         runVMTest(
-            newVM = { TaskListVM(repo) },
+            newVM = { TaskListVM(repo, middlewares = emptyList()) },
         ) { vm, _ ->
             val id = repo.add(task).getOrThrow()
             advanceUntilIdle()
@@ -62,7 +62,7 @@ class TaskListVMTest {
     fun updateTaskCompletion_marksWorkThenUpdatesTask() {
         val repo = InMemoryTaskRepository()
         runVMTest(
-            newVM = { TaskListVM(repo) },
+            newVM = { TaskListVM(repo, middlewares = emptyList()) },
         ) { vm, _ ->
             val id = repo.add(task).getOrThrow()
             advanceUntilIdle()
@@ -79,7 +79,7 @@ class TaskListVMTest {
 
     @Test
     fun updateTaskCompletion_onUnknownTask_isIgnored() = runVMTest(
-        newVM = { TaskListVM(InMemoryTaskRepository()) },
+        newVM = { TaskListVM(InMemoryTaskRepository(), middlewares = emptyList()) },
     ) { vm, signals ->
         advanceUntilIdle()
 
@@ -95,7 +95,7 @@ class TaskListVMTest {
         val realRepo = InMemoryTaskRepository()
         val repo = FailingUpdateRepository(realRepo)
         runVMTest(
-            newVM = { TaskListVM(repo) },
+            newVM = { TaskListVM(repo, middlewares = emptyList()) },
         ) { vm, signals ->
             val id = realRepo.add(task).getOrThrow()
             advanceUntilIdle()

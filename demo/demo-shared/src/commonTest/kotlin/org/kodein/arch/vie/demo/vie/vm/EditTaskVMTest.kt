@@ -28,7 +28,7 @@ class EditTaskVMTest {
 
     @Test
     fun newTask_isNotLoading() = runVMTest(
-        newVM = { EditTaskVM(taskId = null, InMemoryTaskRepository()) },
+        newVM = { EditTaskVM(taskId = null, InMemoryTaskRepository(), middlewares = emptyList()) },
     ) { vm, _ ->
         assertFalse(vm.modelFlow.value.loading)
         assertNull(vm.modelFlow.value.task)
@@ -40,7 +40,7 @@ class EditTaskVMTest {
         runVMTest(
             newVM = {
                 val id = repo.add(task).getOrThrow()
-                EditTaskVM(id, repo)
+                EditTaskVM(id, repo, middlewares = emptyList())
             },
         ) { vm, _ ->
             assertTrue(vm.modelFlow.value.loading) // the repository's simulated delay hasn't elapsed yet
@@ -53,7 +53,7 @@ class EditTaskVMTest {
 
     @Test
     fun unknownTask_signalsLoadFail() = runVMTest(
-        newVM = { EditTaskVM(Uuid.parse("00000000-0000-0000-0000-000000000000"), InMemoryTaskRepository()) },
+        newVM = { EditTaskVM(Uuid.parse("00000000-0000-0000-0000-000000000000"), InMemoryTaskRepository(), middlewares = emptyList()) },
     ) { _, signals ->
         advanceUntilIdle()
 
@@ -64,7 +64,7 @@ class EditTaskVMTest {
     fun edit_onNewTask_addsAndSignalsEdited() {
         val repo = InMemoryTaskRepository()
         runVMTest(
-            newVM = { EditTaskVM(taskId = null, repo) },
+            newVM = { EditTaskVM(taskId = null, repo, middlewares = emptyList()) },
         ) { vm, signals ->
             vm.post(Intent.Edit(task))
             runCurrent()
@@ -78,7 +78,7 @@ class EditTaskVMTest {
 
     @Test
     fun edit_withBlankTitle_signalsErrorAndStopsLoading() = runVMTest(
-        newVM = { EditTaskVM(taskId = null, InMemoryTaskRepository()) },
+        newVM = { EditTaskVM(taskId = null, InMemoryTaskRepository(), middlewares = emptyList()) },
     ) { vm, signals ->
         vm.post(Intent.Edit(task.copy(title = "")))
         advanceUntilIdle()
@@ -93,7 +93,7 @@ class EditTaskVMTest {
         runVMTest(
             newVM = {
                 val id = repo.add(task).getOrThrow()
-                EditTaskVM(id, repo)
+                EditTaskVM(id, repo, middlewares = emptyList())
             },
         ) { vm, signals ->
             advanceUntilIdle() // let the existing task finish loading
