@@ -2,7 +2,7 @@ package org.kodein.arch.vie.demo.vie.vm
 
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.launch
-import org.kodein.arch.vie.VIELoggingMiddleware
+import org.kodein.arch.vie.VIEMiddleware
 import org.kodein.arch.vie.VIEViewModel
 import org.kodein.arch.vie.demo.business.TaskRepository
 import org.kodein.arch.vie.demo.vie.TaskListVIE
@@ -12,9 +12,12 @@ import org.kodein.arch.vie.demo.vie.TaskListVIE.Signal
 
 class TaskListVM(
     private val taskRepository: TaskRepository,
+    // No default, on purpose: under `@DIFactory` a default outranks the module's member, and would silently leave
+    // TimeMachine out.
+    middlewares: List<VIEMiddleware<Model, Intent, Signal>>,
 ) : TaskListVIE, VIEViewModel<Model, Intent, Signal>(
     firstModel = Model(),
-    middlewares = listOfNotNull(VIELoggingMiddleware("TaskList")),
+    middlewares = middlewares,
 ) {
     init {
         viewModelScope.launch {
