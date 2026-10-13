@@ -59,8 +59,11 @@ public abstract class VIEViewModel<Model : VIE.Model, Intent : VIE.Intent, Signa
     /** The current state of the screen, after all [middlewares] have run. */
     final override val modelFlow: StateFlow<Model>
 
-    /** The current model — shorthand for `modelFlow.value`. */
-    protected val model: Model get() = modelFlow.value
+    /**
+     * The current model: the latest one an [update] applied, so it is current before the first view
+     * collects [modelFlow], which `modelFlow.value` is not. Before any [update], the first model.
+     */
+    protected val model: Model get() = modelCollector.value
 
     private val intentCollector: FlowCollector<Intent>
 
@@ -76,8 +79,10 @@ public abstract class VIEViewModel<Model : VIE.Model, Intent : VIE.Intent, Signa
 
     private val updateChannel = Channel<Update<Model>>()
 
+    private val modelCollector: MutableStateFlow<Model>
+
     init {
-        val modelCollector = MutableStateFlow(firstModel)
+        modelCollector = MutableStateFlow(firstModel)
         modelFlow = middlewares.foldRight(modelCollector.asFlow()) { middleware, flow -> middleware.interceptModels(flow) }
             .stateIn(viewModelScope, SharingStarted.Lazily, firstModel)
         viewModelScope.launch {
@@ -87,7 +92,11 @@ public abstract class VIEViewModel<Model : VIE.Model, Intent : VIE.Intent, Signa
                 // Two updates handled back-to-back here, with no dispatch in between to let that
                 // happen, would otherwise have the second one compute its result from a model that
                 // doesn't yet reflect the first — silently discarding it.
-                modelCollector.emit(it.update(modelCollector.value))
+                val next = it.update(modelCollector.value)
+                modelCollector.emit(next)
+                // The one place that sees every transition, whether or not a view collects, and
+                // without conflation: `modelFlow` is a StateFlow, which a burst of updates thins out.
+                middlewares.forEach { middleware -> middleware.onModelUpdated(next) }
                 it.job.complete()
             }
         }
@@ -118,6 +127,10 @@ public abstract class VIEViewModel<Model : VIE.Model, Intent : VIE.Intent, Signa
             effectChannel.receiveAsFlow() as Flow<Signal>,
             evenFlow  as Flow<Signal>,
         )
+
+        middlewares.forEach { middleware ->
+            middleware.onAttached(this)
+        }
     }
 
     /** Feeds [intent] into the intent pipeline, to be handled by [process]. Not overridable. */

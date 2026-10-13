@@ -7,8 +7,9 @@ import kotlinx.coroutines.flow.onEach
 
 /**
  * Intercepts a [VIEViewModel]'s model, intent and signal flows as plain [Flow] transformations —
- * logging, filtering, replay — without the ViewModel or the view knowing. Every method defaults
- * to identity, so a middleware only needs to override what it cares about.
+ * logging, filtering, replay — without the view knowing. Every `intercept*` method defaults to
+ * identity, [onAttached] and [onModelUpdated] to a no-op, so a middleware only needs to override what it cares
+ * about. A middleware sees the ViewModel itself only if it overrides [onAttached].
  *
  * Several middlewares are folded from the end of the list: the *last* one wraps the raw source
  * flow, the *first* sits closest to the ViewModel and view.
@@ -42,6 +43,44 @@ public interface VIEMiddleware<Model : VIE.Model, Intent : VIE.Intent, Signal : 
      * @return The transformed signal flow.
      */
     public fun interceptSignals(flow: Flow<Signal>): Flow<Signal> = flow
+
+    /**
+     * Hands the middleware the [VIEViewModel] it is installed on — for example to drive it from
+     * the outside, rather than only observing its flows. Does nothing by default.
+     *
+     * Called once from [VIEViewModel]'s `init`, after every middleware has been folded into the
+     * flows. [VIEViewModel]'s own setup is complete at this point, but its subclass has not been
+     * constructed yet: nothing done here may reach subclass code — [VIEViewModel.post] (which runs
+     * `process`), `update`, overridden members or subclass state.
+     *
+     * Storing [vm], registering a closeable on it, and launching into its `viewModelScope` are all
+     * fine. A launched coroutine may start running right away, though (on
+     * `Dispatchers.Main.immediate`, until its first suspension), so the launched code must follow
+     * the same rule until construction ends.
+     *
+     * A middleware overriding this must not be attached to more than one [VIEViewModel]: a second
+     * [onAttached] call overwrites whatever the middleware stored from the first, so an instance
+     * shared across ViewModels (e.g. a DI singleton) would silently start driving the wrong one.
+     *
+     * @param vm The ViewModel this middleware was installed on.
+     */
+    public fun onAttached(vm: VIEViewModel<Model, Intent, Signal>) {}
+
+    /**
+     * Called with each model [VIEViewModel.update] produces, right after it was applied and before
+     * `update` returns. Does nothing by default.
+     *
+     * Unlike [interceptModels], whose flow only runs once a view collects and which a `StateFlow`
+     * conflates, this sees every transition, in order, with or without a view — including one that
+     * leaves the model equal. It receives the model as `update` produced it, before any middleware's
+     * [interceptModels] transformed it. The first model is not reported, as no `update` produced it.
+     *
+     * Runs on the thread of the ViewModel's update loop, one call at a time: it must be quick, and
+     * must not throw — a failure here ends the loop, and every later `update` would suspend forever.
+     *
+     * @param model The model that was just applied.
+     */
+    public fun onModelUpdated(model: Model) {}
 
 }
 
