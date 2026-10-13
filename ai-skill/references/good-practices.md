@@ -279,9 +279,11 @@ Navigation out of the screen arrives either as a plain callback parameter (`goBa
 supplied by the caller, or as a `Signal.Effect` handled inside `SignalEffect { }` — not by the view
 reaching into the ViewModel or a navigation singleton directly.
 
-If several instances of the same ViewModel need to coexist in one composition (e.g. a list of
-detail screens), pass a distinct `key` to each `VIEView` call — without it, instances with the
-same call site collapse onto a single ViewModel.
+A ViewModel is identified, under its owner, by its concrete class and its `key`. Several instances
+of one ViewModel class (e.g. a list of detail screens) need a distinct `key` each, or they share
+one ViewModel; views of different classes need none, and the same `key` on two classes is fine.
+Type `newVM`'s lambda with the concrete class: one typed `VIEViewModel<…>` gets no class
+discrimination, so such views are told apart by their `key` alone.
 
 ### Signals in the view
 
@@ -336,8 +338,12 @@ ordinary unit test against that subclass; it has nothing to do with `MockVIE`.
 
 ## Middlewares
 
-`VIEMiddleware` intercepts the three flows as plain `Flow` transformations; every method defaults
-to identity, so override only what you need. When several are supplied, the list folds from the
+`VIEMiddleware` intercepts the three flows as plain `Flow` transformations; every `intercept…`
+method defaults to identity, so override only what you need. `onAttached(vm)` is the one
+non-flow method: a no-op by default, called once from `VIEViewModel`'s `init` with the ViewModel
+the middleware is installed on, for a middleware that has to drive it rather than only observe it.
+A middleware that overrides it keeps that reference, so build one instance per ViewModel and never
+share it (a DI singleton, a top-level `val`): a second `onAttached` overwrites the first. When several are supplied, the list folds from the
 end: the *last* middleware wraps the raw source flow and sees it first; the *first* sits closest
 to the ViewModel and view and sees whatever every other middleware already passed through.
 
@@ -351,3 +357,25 @@ middlewares = listOf(
 Order the list by what each middleware needs to see, not by habit — a middleware that must
 observe the truly raw values (before any other middleware can filter or transform them) goes
 last; one that should reflect what actually reaches the ViewModel/view goes first.
+
+`TimeMachine.middleware()` — the probe that streams a ViewModel to the TimeMachine inspector — is
+the example of a middleware that goes last: it reports intents as the view posted them and signals
+as the ViewModel emitted them, before any other middleware can filter or transform them. Start the
+probe once, early, with `enabled` tied to a debug flag, then build the list wherever the ViewModel
+is built:
+
+```kotlin
+TimeMachine.start(TimeMachineConfig(appName = "MyApp", enabled = isDebug))   // once, early
+
+CounterVM(
+    store = store,
+    middlewares = listOf(
+        VIELoggingMiddleware("Counter"),
+        TimeMachine.middleware(),   // last: nearest the source, sees what the view posted
+    ),
+)
+```
+
+Build one list per ViewModel — the probe serves exactly one — so a DI module provides it with a
+per-ViewModel binding, never a singleton, and the ViewModel takes it as a `middlewares` parameter
+with no default: a default outranks what the module provides.

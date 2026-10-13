@@ -1,6 +1,6 @@
 ---
 name: vie
-description: Guidance for the VIE Kotlin Multiplatform MVI library (org.kodein.arch.vie). Use when writing, explaining, or reviewing code that declares or uses VIE, VIEViewModel, VIEViewScope, VIEView, VIEMiddleware, SignalEffect, MockVIE, or EmptyVIE; or when the user asks to create a new VIE screen, scaffold a VIE ViewModel/View, or check VIE code for best practices.
+description: Guidance for the VIE Kotlin Multiplatform MVI library (org.kodein.arch.vie). Use when writing, explaining, or reviewing code that declares or uses VIE, VIEViewModel, VIEViewScope, VIEView, VIEMiddleware, SignalEffect, MockVIE, EmptyVIE, TimeMachine, or TimeMachineConfig; or when the user asks to create a new VIE screen, scaffold a VIE ViewModel/View, or check VIE code for best practices.
 ---
 
 # VIE
@@ -37,9 +37,11 @@ for — apply it in three ways:
 | `update { suspend Model.() -> Model }` | Atomically replaces the model; serialized against every other `update` call; suspends until applied. |
 | `signal(s)` | Emits `s`; `s`'s type must be `Signal` and `VIE.Signal.Event`/`Effect` (enforced by a `where` bound). |
 | `collectToModel { … }` / `collectToSignal { … }` | `Flow<T>` extensions, called with a `VIEViewModel` in context (`init` block or `viewModelScope` coroutine) — feed an external flow straight into the model or a signal. |
-| `VIEView(newVM = { … }, key = null) { model -> … }` | The entry point: creates/remembers the ViewModel, collects `modelFlow` as Compose state, invokes `content` with a `VIEViewScope` receiver. |
-| `VIEMiddleware<Model, Intent, Signal>` | Intercepts the model/intent/signal flows as plain `Flow` transformations. A list folds from the end: the *last* middleware wraps the raw source, the *first* sits closest to the ViewModel/view. |
+| `VIEView(newVM = { … }, key = null) { model -> … }` | The entry point: creates/remembers the ViewModel, collects `modelFlow` as Compose state, invokes `content` with a `VIEViewScope` receiver. A ViewModel is identified by its class and `key`: instances of one class under one owner need distinct keys, views of different classes none, and `newVM` is typed with the concrete class. |
+| `VIEMiddleware<Model, Intent, Signal>` | Intercepts the model/intent/signal flows as plain `Flow` transformations; `onAttached(vm)` (no-op by default) also hands it the ViewModel it is installed on, so an overriding middleware must not be shared between ViewModels. A list folds from the end: the *last* middleware wraps the raw source, the *first* sits closest to the ViewModel/view. |
 | `VIELoggingMiddleware(name)` | Ships in the box: prints every model/intent/signal plus `START`/`END`, prefixed with `name`. |
+| `TimeMachine.start(TimeMachineConfig(appName, enabled = …))` | Starts the probe that streams ViewModels to the TimeMachine inspector. Call it once, early, before the first ViewModel it should observe is built, with `enabled` tied to a debug flag: `false` makes the probe inert (no socket, no work), and a release build must never enable it. `host` defaults to `localhost`. |
+| `TimeMachine.middleware()` | A `VIEMiddleware` that reports its ViewModel to the inspector, and lets the inspector send it a Model, an Intent or a Signal, each of which needs its type to be `@Serializable`. Goes *last* in `middlewares`, one list per ViewModel, never shared. Infers its three types from the list it is put in. |
 | `MockVIE<Model, Intent, Signal>(model)` | A full `VIE` for tests: mutable `modelFlow`/`signalFlow`, records posted intents in `intentsChannel`. |
 | `MockVIE.pendingIntents()` | **Drains** `intentsChannel`: returns intents posted since the previous call, then empties. Not an accumulating log. |
 | `EmptyVIE<Intent, Signal>()` | A `VIEViewScope` with nothing behind it, for `@Preview`s: `post` discards, `signalFlow` is always empty. Carries no model — pass one to the view's own `model` parameter. |
