@@ -46,6 +46,7 @@ kotlin {
         }
 
         commonMain.dependencies {
+            implementation(projects.timemachine.vieTimemachineClient)
             implementation(projects.vieMvi)
 
             implementation(libs.androidx.jb.lifecycle.viewmodel.compose)
