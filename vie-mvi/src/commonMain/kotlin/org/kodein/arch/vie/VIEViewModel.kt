@@ -2,30 +2,27 @@ package org.kodein.arch.vie
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
-import kotlinx.coroutines.CompletableJob
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.ExperimentalCoroutinesApi
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.consumeEach
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.FlowCollector
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.merge
 import kotlinx.coroutines.flow.receiveAsFlow
-import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 
 
 /**
- * The abstract ViewModel base: implements [VIE], built on `androidx.lifecycle.ViewModel` rather
- * than beside it, so `viewModelScope`, `viewModel { }` keying and Navigation3 entry scoping all
- * work unchanged. Subclass it, pass [firstModel] and any [middlewares] up, and implement
- * [process].
+ * Abstract ViewModel implementing [VIE], built on `androidx.lifecycle.ViewModel` so
+ * `viewModelScope`, `viewModel { }` and Navigation3 entry scoping work unchanged.
  *
  * ```kotlin
  * class CounterVM(
@@ -44,11 +41,8 @@ import kotlinx.coroutines.launch
  * @param Model The state the view renders.
  * @param Intent The events the view sends up.
  * @param Signal The one-offs the view reacts to but does not render.
- * @param firstModel The model [modelFlow] starts with. A model is always complete, so `modelFlow`
- *   never has to represent "nothing yet".
- * @param middlewares Intercepts the model, intent and signal flows, closest-to-source first: the
- *   list is folded from the end, so the *last* middleware wraps the raw source flow and the
- *   *first* sits closest to the ViewModel and view.
+ * @param firstModel The model [modelFlow] starts with.
+ * @param middlewares Intercept the flows; the first sits closest to the view.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 public abstract class VIEViewModel<Model : VIE.Model, Intent : VIE.Intent, Signal : VIE.Signal>(
@@ -56,11 +50,11 @@ public abstract class VIEViewModel<Model : VIE.Model, Intent : VIE.Intent, Signa
     middlewares: List<VIEMiddleware<Model, Intent, Signal>> = emptyList(),
 ) : ViewModel(), VIE<Model, Intent, Signal> {
 
-    /** The current state of the screen, after all [middlewares] have run. */
+    /** The current model, after every middleware. Kept up to date with or without a collector; conflated. */
     final override val modelFlow: StateFlow<Model>
 
-    /** The current model — shorthand for `modelFlow.value`. */
-    protected val model: Model get() = modelFlow.value
+    /** The latest model [update] applied, before any middleware: current as soon as `update` returns. */
+    protected val model: Model get() = modelCollector.replayCache.last()
 
     private val intentCollector: FlowCollector<Intent>
 
@@ -71,29 +65,53 @@ public abstract class VIEViewModel<Model : VIE.Model, Intent : VIE.Intent, Signa
 
     private class Update<M>(
         val update: suspend M.() -> M,
-        val job: CompletableJob,
+        val result: CompletableDeferred<Unit>,
     )
 
     private val updateChannel = Channel<Update<Model>>()
 
+    // Not a StateFlow: middlewares must see every model, equal ones included. The replay slot is the current model.
+    // Unbounded extra buffer, so `emit` never waits on a middleware: `update` must not depend on the pipeline's pace.
+    private val modelCollector = MutableSharedFlow<Model>(
+        replay = 1,
+        extraBufferCapacity = Channel.UNLIMITED,
+    ).apply {
+        tryEmit(firstModel)
+    }
+
     init {
-        val modelCollector = MutableStateFlow(firstModel)
-        modelFlow = middlewares.foldRight(modelCollector.asFlow()) { middleware, flow -> middleware.interceptModels(flow) }
-            .stateIn(viewModelScope, SharingStarted.Lazily, firstModel)
+        middlewares.forEach { middleware ->
+            middleware.onAttached(this)
+        }
+
+        val modelState = MutableStateFlow(firstModel)
+        modelFlow = modelState.asStateFlow()
+        // Launched before the update loop, so it subscribes to modelCollector before any update is emitted.
+        viewModelScope.launch {
+            middlewares.foldRight<_, Flow<Model>>(modelCollector) { middleware, flow ->
+                middleware.interceptModels(flow)
+            }.collect { modelState.value = it }
+        }
+
         viewModelScope.launch {
             updateChannel.consumeEach {
-                // Read modelCollector.value, not modelFlow.value: modelFlow is derived from it via
-                // middlewares + stateIn, which only catches up once its own collector gets to run.
-                // Two updates handled back-to-back here, with no dispatch in between to let that
-                // happen, would otherwise have the second one compute its result from a model that
-                // doesn't yet reflect the first — silently discarding it.
-                modelCollector.emit(it.update(modelCollector.value))
-                it.job.complete()
+                // `model`, not `modelFlow.value`, which lags behind and has been through the middlewares.
+                val next = try {
+                    it.update(model)
+                } catch (e: Throwable) {
+                    // The block's failure is its caller's: the loop must keep serving later updates.
+                    it.result.completeExceptionally(e)
+                    currentCoroutineContext().ensureActive()
+                    return@consumeEach
+                }
+                modelCollector.emit(next)
+                it.result.complete(Unit)
             }
         }
 
         intentCollector = MutableSharedFlow()
-        val intentFlow = middlewares.foldRight(intentCollector.asFlow()) { middleware, flow -> middleware.interceptIntents(flow) }
+        val intentFlow =
+            middlewares.foldRight(intentCollector.asFlow()) { middleware, flow -> middleware.interceptIntents(flow) }
         viewModelScope.launch {
             intentFlow.collect {
                 process(it)
@@ -101,14 +119,15 @@ public abstract class VIEViewModel<Model : VIE.Model, Intent : VIE.Intent, Signa
         }
 
         signalCollector = MutableSharedFlow()
-        val allSignalsFlow = middlewares.foldRight(signalCollector.asFlow()) { middleware, flow -> middleware.interceptSignals(flow) }
+        val allSignalsFlow =
+            middlewares.foldRight(signalCollector.asFlow()) { middleware, flow -> middleware.interceptSignals(flow) }
         val effectChannel = Channel<VIE.Signal.Effect /* & Signal */>()
-        val evenFlow = MutableSharedFlow<VIE.Signal.Event /* & Signal */>()
+        val eventFlow = MutableSharedFlow<VIE.Signal.Event /* & Signal */>()
         viewModelScope.launch {
             allSignalsFlow.collect { signal ->
                 when (signal) {
                     is VIE.Signal.Effect -> effectChannel.send(signal)
-                    is VIE.Signal.Event -> evenFlow.emit(signal)
+                    is VIE.Signal.Event -> eventFlow.emit(signal)
                     is VIE.Signal.None -> error("Cannot send None signal")
                 }
             }
@@ -116,11 +135,11 @@ public abstract class VIEViewModel<Model : VIE.Model, Intent : VIE.Intent, Signa
         @Suppress("UNCHECKED_CAST")
         signalFlow = merge(
             effectChannel.receiveAsFlow() as Flow<Signal>,
-            evenFlow  as Flow<Signal>,
+            eventFlow as Flow<Signal>,
         )
     }
 
-    /** Feeds [intent] into the intent pipeline, to be handled by [process]. Not overridable. */
+    /** Sends [intent] through the middlewares to [process]. */
     final override fun post(intent: Intent) {
         viewModelScope.launch {
             intentCollector.emit(intent)
@@ -140,12 +159,14 @@ public abstract class VIEViewModel<Model : VIE.Model, Intent : VIE.Intent, Signa
      * until it has been applied. Serialized against every other call to this function, so two
      * concurrent calls cannot lose each other's changes.
      *
+     * Throws whatever [update] throws, leaving the model unchanged.
+     *
      * @param update Computes the next model from the current one.
      */
     public suspend fun update(update: suspend Model.() -> Model) {
-        val job = Job()
-        updateChannel.send(Update(update, job))
-        job.join()
+        val result = CompletableDeferred<Unit>()
+        updateChannel.send(Update(update, result))
+        result.await()
     }
 
     /**
@@ -157,7 +178,7 @@ public abstract class VIEViewModel<Model : VIE.Model, Intent : VIE.Intent, Signa
      */
     // https://youtrack.jetbrains.com/projects/KT/issues/KT-19215
     @Suppress("BOUNDS_NOT_ALLOWED_IF_BOUNDED_BY_TYPE_PARAMETER")
-    public suspend fun <S> signal(signal: S) where S : Signal, S : VIE.Signal.Type  {
+    public suspend fun <S> signal(signal: S) where S : Signal, S : VIE.Signal.Type {
         signalCollector.emit(signal)
     }
 }

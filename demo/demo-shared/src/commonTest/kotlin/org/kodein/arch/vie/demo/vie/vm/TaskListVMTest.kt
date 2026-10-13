@@ -28,7 +28,7 @@ class TaskListVMTest {
     @Test
     fun tasksAreNullUntilRepositoryEmits() = runVMTest(
         newVM = { TaskListVM(InMemoryTaskRepository()) },
-    ) { vm, _ ->
+    ) { vm, _, _ ->
         assertNull(vm.modelFlow.value.tasks)
 
         runCurrent() // the repository's simulated delay hasn't elapsed yet
@@ -43,7 +43,7 @@ class TaskListVMTest {
         val repo = InMemoryTaskRepository()
         runVMTest(
             newVM = { TaskListVM(repo) },
-        ) { vm, _ ->
+        ) { vm, _, _ ->
             val id = repo.add(task).getOrThrow()
             advanceUntilIdle()
             assertEquals(listOf(id to task), vm.modelFlow.value.tasks)
@@ -63,7 +63,7 @@ class TaskListVMTest {
         val repo = InMemoryTaskRepository()
         runVMTest(
             newVM = { TaskListVM(repo) },
-        ) { vm, _ ->
+        ) { vm, _, _ ->
             val id = repo.add(task).getOrThrow()
             advanceUntilIdle()
 
@@ -80,7 +80,7 @@ class TaskListVMTest {
     @Test
     fun updateTaskCompletion_onUnknownTask_isIgnored() = runVMTest(
         newVM = { TaskListVM(InMemoryTaskRepository()) },
-    ) { vm, signals ->
+    ) { vm, _, signals ->
         advanceUntilIdle()
 
         vm.post(Intent.UpdateTaskCompletion(Uuid.parse("00000000-0000-0000-0000-000000000000"), completed = true))
@@ -96,7 +96,7 @@ class TaskListVMTest {
         val repo = FailingUpdateRepository(realRepo)
         runVMTest(
             newVM = { TaskListVM(repo) },
-        ) { vm, signals ->
+        ) { vm, _, signals ->
             val id = realRepo.add(task).getOrThrow()
             advanceUntilIdle()
 

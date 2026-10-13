@@ -7,6 +7,7 @@ import kotlinx.coroutines.test.runCurrent
 import org.kodein.arch.vie.demo.business.repo.InMemoryTaskRepository
 import org.kodein.arch.vie.demo.data.Task
 import org.kodein.arch.vie.demo.vie.EditTaskVIE.Intent
+import org.kodein.arch.vie.demo.vie.EditTaskVIE.Model
 import org.kodein.arch.vie.demo.vie.EditTaskVIE.Signal
 import org.kodein.arch.vie.test.runVMTest
 import kotlin.test.Test
@@ -29,7 +30,7 @@ class EditTaskVMTest {
     @Test
     fun newTask_isNotLoading() = runVMTest(
         newVM = { EditTaskVM(taskId = null, InMemoryTaskRepository()) },
-    ) { vm, _ ->
+    ) { vm, _, _ ->
         assertFalse(vm.modelFlow.value.loading)
         assertNull(vm.modelFlow.value.task)
     }
@@ -42,19 +43,17 @@ class EditTaskVMTest {
                 val id = repo.add(task).getOrThrow()
                 EditTaskVM(id, repo)
             },
-        ) { vm, _ ->
-            assertTrue(vm.modelFlow.value.loading) // the repository's simulated delay hasn't elapsed yet
-
+        ) { _, models, _ ->
             advanceUntilIdle()
-            assertFalse(vm.modelFlow.value.loading)
-            assertEquals(task, vm.modelFlow.value.task)
+
+            assertEquals(listOf(Model(loading = true), Model(loading = false, task = task)), models)
         }
     }
 
     @Test
     fun unknownTask_signalsLoadFail() = runVMTest(
         newVM = { EditTaskVM(Uuid.parse("00000000-0000-0000-0000-000000000000"), InMemoryTaskRepository()) },
-    ) { _, signals ->
+    ) { _, _, signals ->
         advanceUntilIdle()
 
         assertEquals(listOf(Signal.LoadFail), signals)
@@ -65,7 +64,7 @@ class EditTaskVMTest {
         val repo = InMemoryTaskRepository()
         runVMTest(
             newVM = { EditTaskVM(taskId = null, repo) },
-        ) { vm, signals ->
+        ) { vm, _, signals ->
             vm.post(Intent.Edit(task))
             runCurrent()
             assertTrue(vm.modelFlow.value.loading)
@@ -79,7 +78,7 @@ class EditTaskVMTest {
     @Test
     fun edit_withBlankTitle_signalsErrorAndStopsLoading() = runVMTest(
         newVM = { EditTaskVM(taskId = null, InMemoryTaskRepository()) },
-    ) { vm, signals ->
+    ) { vm, _, signals ->
         vm.post(Intent.Edit(task.copy(title = "")))
         advanceUntilIdle()
 
@@ -95,7 +94,7 @@ class EditTaskVMTest {
                 val id = repo.add(task).getOrThrow()
                 EditTaskVM(id, repo)
             },
-        ) { vm, signals ->
+        ) { vm, _, signals ->
             advanceUntilIdle() // let the existing task finish loading
 
             val updated = task.copy(title = "Buy oat milk")
