@@ -13,7 +13,7 @@ kotlin {
     jvm()
 
     android {
-        namespace = "org.kodein.arch.vie.tm.protocol"
+        namespace = "org.kodein.arch.vie.timemachine.protocol"
         compileSdk = findProperty("android.compileSdk")!!.toString().toInt()
         minSdk = findProperty("android.minSdk")!!.toString().toInt()
     }
@@ -42,7 +42,6 @@ kotlin {
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
-            implementation(libs.kotlinx.coroutines.test)
         }
     }
 
