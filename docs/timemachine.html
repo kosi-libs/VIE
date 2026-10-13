@@ -1,0 +1,1548 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1,viewport-fit=cover"><style>:root{color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}html{scroll-padding-top:env(safe-area-inset-top,0px)}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#fff;color:#000}img{max-width:100%}[hidden]:not([hidden=until-found i]){display:none!important}</style></head><body>
+<title>VIE TimeMachine Internals</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Condensed:wght@500;600;700&family=IBM+Plex+Sans:ital,wght@0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<style>
+/* Layout: a logic-analyzer bench. Four instrument lanes (UI · ViewModel · probe · inspector) on the left, a readout panel on the right; Internals is a reference manual with a sticky index. */
+:root {
+  --bg: #eef0f4; --surface: #ffffff; --surface-2: #f6f7fa; --ink: #171a22; --muted: #5a6172; --line: #d9dde6; --line-2: #c4cad6;
+  --accent: #6b4bdc; --accent-soft: #ece7ff;
+  --lane-ui: #0f8a7e; --lane-vm: #7a4bd6; --lane-client: #b36b00; --lane-server: #1f5fbf;
+  --wire-up: #b36b00; --wire-down: #1f5fbf; --lost: #c0392b;
+  --chg: #fff3c4; --chg-ink: #6b4d00;
+  --code-bg: #f4f5f9; --j-key: #7a4bd6; --j-str: #0f7a55; --j-num: #b35400; --j-lit: #1f5fbf;
+  --f-display: "IBM Plex Sans Condensed", "Arial Narrow", system-ui, sans-serif;
+  --f-body: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --r: 8px;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #101219; --surface: #171a23; --surface-2: #1d212c; --ink: #e5e7ee; --muted: #9aa1b3; --line: #2a2f3c; --line-2: #39404f;
+  --accent: #a38bff; --accent-soft: #2a2347;
+  --lane-ui: #3cc9b8; --lane-vm: #b392ff; --lane-client: #f0a640; --lane-server: #6aa4ff;
+  --wire-up: #f0a640; --wire-down: #6aa4ff; --lost: #ff7a6b;
+  --chg: #3d3313; --chg-ink: #ffd76a;
+  --code-bg: #12141c; --j-key: #b392ff; --j-str: #5fd3a0; --j-num: #f5a35c; --j-lit: #6aa4ff;
+  color-scheme: dark; } }
+:root[data-theme="dark"] {
+  --bg: #101219; --surface: #171a23; --surface-2: #1d212c; --ink: #e5e7ee; --muted: #9aa1b3; --line: #2a2f3c; --line-2: #39404f;
+  --accent: #a38bff; --accent-soft: #2a2347;
+  --lane-ui: #3cc9b8; --lane-vm: #b392ff; --lane-client: #f0a640; --lane-server: #6aa4ff;
+  --wire-up: #f0a640; --wire-down: #6aa4ff; --lost: #ff7a6b;
+  --chg: #3d3313; --chg-ink: #ffd76a;
+  --code-bg: #12141c; --j-key: #b392ff; --j-str: #5fd3a0; --j-num: #f5a35c; --j-lit: #6aa4ff;
+  color-scheme: dark; }
+
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--ink); font: 15px/1.55 var(--f-body); }
+.wrap { max-width: 1440px; margin: 0 auto; padding-inline: 20px; padding-block: 0 48px; }
+code, .mono { font-family: var(--f-mono); font-size: .86em; }
+p code, li code, td code, .txt code { background: var(--code-bg); border: 1px solid var(--line); padding: 0 .3em; border-radius: 4px; overflow-wrap: anywhere; }
+a { color: var(--accent); }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+h1, h2, h3, h4 { font-family: var(--f-display); text-wrap: balance; margin: 0; letter-spacing: .005em; }
+.eyebrow { font: 600 11px/1 var(--f-mono); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+
+/* header */
+header.top { position: sticky; top: env(safe-area-inset-top, 0px); z-index: 20; background: var(--bg); border-bottom: 1px solid var(--line); }
+.top-in { max-width: 1440px; margin: 0 auto; padding: 14px 20px 0; display: flex; flex-wrap: wrap; gap: 8px 24px; align-items: end; justify-content: space-between; }
+.brand h1 { font-size: 26px; font-weight: 700; line-height: 1.1; }
+.brand h1 span { color: var(--accent); }
+.brand .eyebrow { margin-bottom: 6px; display: block; }
+nav.tabs { display: flex; gap: 2px; }
+nav.tabs button { font: 600 14px var(--f-display); letter-spacing: .02em; border: 0; background: none; color: var(--muted); padding: 10px 14px; cursor: pointer; border-bottom: 3px solid transparent; }
+nav.tabs button[aria-selected="true"] { color: var(--ink); border-bottom-color: var(--accent); }
+.theme-btn { font: 500 12px var(--f-mono); background: var(--surface); color: var(--muted); border: 1px solid var(--line); border-radius: 6px; padding: 5px 9px; cursor: pointer; margin-bottom: 8px; }
+
+/* ===== FLOW TAB ===== */
+.scen-bar { display: flex; gap: 6px; overflow-x: auto; padding-block: 14px 10px; scrollbar-width: thin; }
+.scen-bar button { flex: none; font: 500 13px var(--f-body); background: var(--surface); color: var(--ink); border: 1px solid var(--line); border-radius: 999px; padding: 6px 12px; cursor: pointer; white-space: nowrap; }
+.scen-bar button .n { font: 600 11px var(--f-mono); color: var(--muted); margin-right: 6px; }
+.scen-bar button[aria-pressed="true"] { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.scen-bar button[aria-pressed="true"] .n { color: inherit; opacity: .7; }
+.scen-head { display: flex; flex-wrap: wrap; gap: 10px 24px; align-items: center; justify-content: space-between; padding-block: 4px 12px; }
+.scen-head h2 { font-size: 22px; }
+.scen-head p { margin: 2px 0 0; color: var(--muted); max-width: 75ch; }
+.controls { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.controls button { font: 600 13px var(--f-body); border: 1px solid var(--line-2); background: var(--surface); color: var(--ink); border-radius: 6px; padding: 7px 12px; cursor: pointer; min-width: 40px; }
+.controls button.primary { background: var(--accent); border-color: var(--accent); color: #fff; }
+.controls button:disabled { opacity: .4; cursor: default; }
+.counter { font: 600 13px var(--f-mono); color: var(--muted); font-variant-numeric: tabular-nums; min-width: 64px; text-align: center; }
+.kbd { font: 500 11px var(--f-mono); color: var(--muted); }
+@media (max-width: 600px) { .controls .kbd { display: none; } }
+
+.bench { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 16px; align-items: start; }
+@media (max-width: 980px) { .bench { grid-template-columns: minmax(0, 1fr); } }
+
+/* sequence diagram */
+.diagram { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; }
+.lanes, .row { display: grid; grid-template-columns: 34px repeat(4, minmax(0, 1fr)); }
+.lanes { position: sticky; top: 0; z-index: 3; background: var(--surface-2); border-bottom: 1px solid var(--line); }
+.lanes div { padding: 9px 6px 8px; text-align: center; font: 700 12.5px/1.15 var(--f-display); letter-spacing: .03em; text-transform: uppercase; border-top: 3px solid transparent; }
+.lanes div small { display: block; font: 400 10.5px/1.3 var(--f-mono); text-transform: none; letter-spacing: 0; color: var(--muted); margin-top: 2px; }
+.lanes .l0 { border-top-color: var(--lane-ui); color: var(--lane-ui); }
+.lanes .l1 { border-top-color: var(--lane-vm); color: var(--lane-vm); }
+.lanes .l2 { border-top-color: var(--lane-client); color: var(--lane-client); }
+.lanes .l3 { border-top-color: var(--lane-server); color: var(--lane-server); }
+.rows { max-height: min(72vh, 820px); overflow-y: auto; position: relative; scroll-behavior: smooth; }
+@media (max-width: 980px) { .rows { max-height: 56vh; } }
+.row { position: relative; min-height: 44px; cursor: pointer; transition: opacity .2s; }
+.row::before { /* lifelines */
+  content: ""; position: absolute; inset: 0 0 0 34px; pointer-events: none;
+  background-image: linear-gradient(var(--line-2), var(--line-2)), linear-gradient(var(--line-2), var(--line-2)), linear-gradient(var(--line-2), var(--line-2)), linear-gradient(var(--line-2), var(--line-2));
+  background-size: 1px 100%; background-repeat: no-repeat;
+  background-position: 12.5% 0, 37.5% 0, 62.5% 0, 87.5% 0; }
+.row.future { opacity: .3; }
+.row.cur { background: var(--accent-soft); }
+.row:hover:not(.cur) { background: var(--surface-2); }
+.row .idx { grid-column: 1; align-self: center; text-align: right; padding-right: 6px; font: 500 11px var(--f-mono); color: var(--muted); font-variant-numeric: tabular-nums; }
+.row.cur .idx { color: var(--accent); font-weight: 700; }
+.track { grid-column: 2 / 6; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); align-items: center; min-height: 44px; }
+.arrow { position: relative; align-self: stretch; display: flex; align-items: flex-end; justify-content: center; padding: 8px 6px 15px; }
+.arrow .ln { position: absolute; left: var(--in); right: var(--in); bottom: 9px; border-top: 1.5px solid var(--c); }
+.arrow.wire .ln { border-top-width: 2.5px; }
+.arrow.lost .ln { border-top: 2px dashed var(--lost); right: calc(var(--in) + 18%); }
+.arrow .hd { position: absolute; bottom: 4px; width: 0; height: 0; border-top: 5.5px solid transparent; border-bottom: 5.5px solid transparent; }
+.arrow.r .hd { right: calc(var(--in) - 1px); border-left: 9px solid var(--c); }
+.arrow.l .hd { left: calc(var(--in) - 1px); border-right: 9px solid var(--c); }
+.arrow.lost .hd { display: none; }
+.arrow.lost .x { position: absolute; right: calc(var(--in) + 12%); bottom: 1px; color: var(--lost); font: 700 14px var(--f-mono); }
+.arrow .lb { text-align: center; font: 500 11.5px/1.25 var(--f-mono); color: var(--ink); overflow-wrap: anywhere; position: relative; background: transparent; }
+.arrow.wire .lb { font-weight: 600; }
+.arrow.lost .lb { color: var(--lost); }
+.selfbox { margin: 7px 4px; text-align: center; border: 1px solid var(--c); background: var(--surface); border-radius: 5px; font: 500 11px/1.25 var(--f-mono); padding: 5px 6px; color: var(--ink); overflow-wrap: anywhere; position: relative; }
+.selfbox.timer { border-style: dashed; }
+.selfbox.timer::before { content: "⏱ "; color: var(--c); }
+.dscroll { overflow-x: auto; }
+.dscroll-in { min-width: 600px; }
+
+/* readout panel */
+.panel { position: sticky; top: 92px; display: grid; gap: 12px; min-width: 0; }
+@media (max-width: 980px) { .panel { position: static; } }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 16px 18px; min-width: 0; }
+.step-head { display: flex; gap: 10px; align-items: baseline; flex-wrap: wrap; }
+.step-kind { font: 700 10.5px/1 var(--f-mono); letter-spacing: .08em; text-transform: uppercase; padding: 4px 7px; border-radius: 4px; color: #fff; background: var(--muted); }
+.step-kind.wire-up { background: var(--wire-up); } .step-kind.wire-down { background: var(--wire-down); }
+.step-kind.lost { background: var(--lost); } .step-kind.call { background: var(--lane-vm); } .step-kind.self, .step-kind.timer { background: var(--muted); }
+.step-head h3 { font-size: 19px; font-family: var(--f-mono); font-weight: 600; letter-spacing: -.01em; overflow-wrap: anywhere; }
+.step-title { margin-top: 8px; font: 600 18px/1.3 var(--f-mono); letter-spacing: -.01em; overflow-wrap: anywhere; }
+.who { font: 500 12px var(--f-mono); color: var(--muted); margin-top: 6px; overflow-wrap: anywhere; }
+.route { font: 600 12px var(--f-display); letter-spacing: .04em; text-transform: uppercase; color: var(--muted); }
+.txt { margin: 10px 0 0; max-width: 72ch; }
+.refs { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; }
+.chip { font: 500 12px var(--f-mono); padding: 3px 8px; border-radius: 4px; border: 1px solid var(--line-2); color: var(--ink); background: var(--surface-2); text-decoration: none; cursor: pointer; }
+.chip:hover { border-color: var(--accent); color: var(--accent); }
+.chip.m-client { border-left: 3px solid var(--lane-client); } .chip.m-server { border-left: 3px solid var(--lane-server); } .chip.m-shared { border-left: 3px solid var(--muted); } .chip.m-sec { border-left: 3px solid var(--lane-vm); }
+pre.json { margin: 0; background: var(--code-bg); border: 1px solid var(--line); border-radius: 6px; padding: 12px 14px; overflow: auto; max-height: 340px; font: 12.5px/1.55 var(--f-mono); }
+.jk { color: var(--j-key); } .js { color: var(--j-str); } .jn { color: var(--j-num); } .jl { color: var(--j-lit); font-weight: 600; }
+.sub { display: flex; justify-content: space-between; align-items: center; gap: 8px; margin-bottom: 8px; }
+.sub h4 { font-size: 13px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); font-weight: 600; }
+.copy { font: 500 11px var(--f-mono); border: 1px solid var(--line); background: var(--surface-2); color: var(--muted); border-radius: 4px; padding: 3px 8px; cursor: pointer; }
+.state { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; }
+@media (max-width: 560px) { .state { grid-template-columns: minmax(0, 1fr); } }
+.state h5 { margin: 0 0 6px; font: 700 11.5px var(--f-display); letter-spacing: .08em; text-transform: uppercase; }
+.state .p h5 { color: var(--lane-client); } .state .i h5 { color: var(--lane-server); }
+.kv { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 2px 10px; font: 12px/1.45 var(--f-mono); }
+.kv dt { color: var(--muted); }
+.kv dd { margin: 0; overflow-wrap: anywhere; font-variant-numeric: tabular-nums; }
+.kv .chg { background: var(--chg); color: var(--chg-ink); border-radius: 3px; padding-inline: 3px; margin-inline: -3px; }
+.empty { color: var(--muted); font-style: italic; font-size: 13px; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font: 500 11.5px var(--f-mono); color: var(--muted); padding: 10px 12px; border-top: 1px solid var(--line); background: var(--surface-2); }
+.legend i { display: inline-block; width: 22px; height: 0; vertical-align: middle; margin-right: 6px; border-top: 2.5px solid var(--wire-up); }
+.legend .dn { border-top-color: var(--wire-down); } .legend .cl { border-top: 1.5px solid var(--lane-vm); } .legend .ls { border-top: 2px dashed var(--lost); }
+
+/* ===== INTERNALS TAB ===== */
+.manual { display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 32px; padding-top: 24px; }
+@media (max-width: 900px) { .manual { grid-template-columns: minmax(0, 1fr); } .toc { display: none; } }
+.toc { position: sticky; top: 96px; align-self: start; font-size: 13.5px; max-height: calc(100vh - 120px); overflow-y: auto; }
+.toc a { display: block; color: var(--muted); text-decoration: none; padding: 3px 0 3px 10px; border-left: 2px solid var(--line); }
+.toc a:hover { color: var(--ink); border-left-color: var(--accent); }
+.toc .t2 { padding-left: 22px; font-family: var(--f-mono); font-size: 12px; }
+.toc .tg { margin-top: 10px; color: var(--ink); font-weight: 600; }
+.man-sec { margin-bottom: 44px; scroll-margin-top: 100px; }
+.man-sec > h2 { font-size: 24px; margin-bottom: 6px; }
+.man-sec > .lead { color: var(--muted); max-width: 75ch; margin: 0 0 16px; }
+.prose { max-width: 75ch; }
+
+.arch { display: grid; grid-template-columns: minmax(0, 1fr) 120px minmax(0, 1fr); gap: 0; align-items: stretch; }
+@media (max-width: 760px) { .arch { grid-template-columns: minmax(0, 1fr); } .arch .wirecol { padding: 10px 0; } .arch .wirecol .wl { flex-direction: row; } }
+.proc { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 14px; display: flex; flex-direction: column; gap: 6px; }
+.proc > .eyebrow { margin-bottom: 4px; }
+.blk { border: 1px solid var(--line-2); border-radius: 6px; padding: 8px 10px; background: var(--surface-2); text-decoration: none; color: var(--ink); display: block; }
+.blk:hover { border-color: var(--accent); }
+.blk b { font: 600 13px var(--f-mono); display: block; }
+.blk span { font-size: 12.5px; color: var(--muted); }
+.blk.app { border-style: dashed; background: none; }
+.blk.c { border-left: 3px solid var(--lane-client); } .blk.s { border-left: 3px solid var(--lane-server); }
+.dn-ar { text-align: center; color: var(--muted); font: 12px var(--f-mono); line-height: 1; }
+.wirecol { display: flex; align-items: center; justify-content: center; padding: 0 8px; }
+.wl { display: flex; flex-direction: column; gap: 10px; align-items: center; font: 600 11px var(--f-mono); text-align: center; }
+.wl .up { color: var(--wire-up); } .wl .down { color: var(--wire-down); }
+.wl .bar { width: 100%; min-width: 80px; height: 0; border-top: 2.5px solid currentColor; position: relative; }
+
+table.t { border-collapse: collapse; width: 100%; font-size: 13.5px; }
+.tbl { overflow-x: auto; border: 1px solid var(--line); border-radius: var(--r); background: var(--surface); }
+table.t th, table.t td { text-align: left; padding: 8px 12px; border-bottom: 1px solid var(--line); vertical-align: top; }
+table.t th { font: 600 12px var(--f-display); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); background: var(--surface-2); }
+table.t tr:last-child td { border-bottom: 0; }
+table.t td:first-child { white-space: nowrap; }
+
+.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 440px), 1fr)); gap: 14px; }
+.tcard { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 16px 18px; scroll-margin-top: 100px; min-width: 0; }
+.tcard.flash { outline: 2px solid var(--accent); outline-offset: 2px; }
+.tcard header { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 10px; }
+.tcard h3 { font: 600 16px var(--f-mono); letter-spacing: -.01em; overflow-wrap: anywhere; }
+.tcard .k { font: 500 11px var(--f-mono); color: var(--muted); border: 1px solid var(--line); border-radius: 4px; padding: 1px 6px; }
+.tcard .ly { font: 600 10.5px var(--f-display); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin-left: auto; }
+.tcard .file { font: 12px var(--f-mono); color: var(--muted); margin-top: 2px; overflow-wrap: anywhere; }
+.tcard .role { margin: 10px 0 6px; font-weight: 500; }
+.tcard ul { margin: 6px 0 0; padding-left: 18px; font-size: 14px; }
+.tcard li { margin: 4px 0; }
+.tcard .thr { font-size: 13px; color: var(--muted); margin-top: 8px; padding: 6px 10px; background: var(--surface-2); border-radius: 6px; }
+.tcard .meta { margin-top: 12px; display: grid; gap: 6px; }
+.tcard .meta span.lbl { font: 600 10.5px var(--f-display); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); margin-right: 6px; }
+.tcard .meta div { display: flex; flex-wrap: wrap; gap: 5px; align-items: center; }
+.tcard.c { border-top: 3px solid var(--lane-client); } .tcard.s { border-top: 3px solid var(--lane-server); } .tcard.x { border-top: 3px solid var(--line-2); }
+.gtitle { display: flex; align-items: baseline; gap: 10px; margin: 26px 0 4px; }
+.gtitle h3 { font-size: 19px; }
+
+.tools { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 360px), 1fr)); gap: 14px; }
+.tool h3 { font-size: 17px; margin-bottom: 4px; }
+.tool p { margin: 0 0 12px; color: var(--muted); font-size: 13.5px; }
+.toggles { display: grid; gap: 8px; }
+.toggles label { display: flex; justify-content: space-between; gap: 10px; align-items: center; font-size: 13.5px; }
+.toggles select, .tool input[type=text] { font: 13px var(--f-mono); background: var(--surface-2); color: var(--ink); border: 1px solid var(--line-2); border-radius: 5px; padding: 5px 8px; }
+.tool input[type=text] { width: 100%; }
+.verdict { margin-top: 14px; padding: 12px 14px; border-radius: 6px; background: var(--surface-2); border: 1px solid var(--line); }
+.verdict b { font: 700 17px var(--f-display); display: block; }
+.verdict span { font-size: 13px; color: var(--muted); }
+.v-ok b { color: var(--lane-ui); } .v-bad b { color: var(--lost); } .v-wait b { color: var(--lane-client); } .v-mid b { color: var(--lane-server); }
+.seqline { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 12px; }
+.seqline span { font: 600 11px var(--f-mono); width: 30px; text-align: center; padding: 4px 0; border-radius: 3px; background: var(--surface-2); border: 1px solid var(--line); color: var(--muted); }
+.seqline span.got { background: var(--lane-server); color: #fff; border-color: var(--lane-server); }
+.seqline span.miss { background: var(--chg); color: var(--chg-ink); border-color: var(--chg-ink); }
+.btnrow { display: flex; gap: 6px; flex-wrap: wrap; margin-top: 8px; }
+.btnrow button { font: 500 12px var(--f-mono); border: 1px solid var(--line-2); background: var(--surface); color: var(--ink); border-radius: 5px; padding: 4px 9px; cursor: pointer; }
+.note { border-left: 3px solid var(--lane-client); background: var(--surface); padding: 12px 16px; border-radius: 0 var(--r) var(--r) 0; margin-bottom: 10px; max-width: 85ch; }
+.note b { font-family: var(--f-display); }
+/* view toggle + architecture */
+.seg { display: inline-flex; border: 1px solid var(--line-2); border-radius: 6px; overflow: hidden; margin-right: 6px; }
+.seg button { border: 0; border-radius: 0; min-width: 0; background: var(--surface); color: var(--muted); padding: 7px 11px; font: 600 12.5px var(--f-body); cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--bg); }
+.bench.arch { grid-template-columns: minmax(0, 1fr); }
+.bench.arch .panel { position: static; grid-template-columns: repeat(auto-fit, minmax(min(100%, 380px), 1fr)); align-items: start; }
+@media (max-width: 1180px) { .bench.arch { grid-template-columns: minmax(0, 1fr); } .bench.arch .panel { position: static; } }
+.stage { min-width: 0; }
+.archwrap { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; }
+.ascroll { overflow-x: auto; }
+#archSvg { display: block; width: 100%; min-width: 680px; height: auto; }
+.a-frame { fill: var(--surface-2); stroke: var(--line); }
+.a-group { fill: none; stroke: var(--line-2); stroke-dasharray: 4 4; }
+.a-frame-t { font: 700 10.5px var(--f-mono); letter-spacing: .12em; fill: var(--muted); }
+.a-wire-t { font: 600 10.5px var(--f-mono); fill: var(--muted); }
+.a-cap { font: 600 13px var(--f-mono); fill: var(--ink); }
+.a-edge { fill: none; stroke: var(--line-2); stroke-width: 1.5; }
+.a-edge.wire { stroke-width: 4; stroke: var(--line-2); }
+.a-edge.on { stroke: var(--accent); stroke-width: 2.5; }
+.a-edge.wire.on { stroke-width: 4.5; }
+.a-node { cursor: pointer; transition: opacity .2s; }
+.a-node .a-box { fill: var(--surface); stroke: var(--line-2); stroke-width: 1; }
+.a-node .a-bar { fill: var(--c); }
+.a-node.l0 { --c: var(--lane-ui); } .a-node.l1 { --c: var(--lane-vm); } .a-node.l2 { --c: var(--lane-client); } .a-node.l3 { --c: var(--lane-server); }
+.a-node.act .a-box { stroke: var(--accent); stroke-width: 2.5; fill: var(--accent-soft); }
+.a-node.idle { opacity: .38; }
+.a-node:hover .a-box, .a-node:focus-visible .a-box { stroke: var(--accent); }
+.a-node:focus { outline: none; }
+.a-t { font: 700 15px var(--f-display); fill: var(--ink); letter-spacing: .01em; }
+.a-s { font: 400 11px var(--f-mono); fill: var(--ink); }
+.a-s.sub { fill: var(--muted); }
+.a-s.chg { fill: var(--chg-ink); font-weight: 700; }
+.a-strip { fill: var(--line); }
+.a-tick { fill: var(--c); opacity: .55; }
+.a-tick.now { fill: var(--accent); opacity: 1; }
+.a-cursor { fill: var(--ink); opacity: .55; }
+.a-node.pulse .a-box { animation: apulse .9s ease-out; }
+@keyframes apulse { 0% { stroke-width: 7; } 100% { stroke-width: 2.5; } }
+.a-packet circle { stroke: var(--surface); stroke-width: 2.5; }
+.a-packet.up circle { fill: var(--wire-up); } .a-packet.down circle { fill: var(--wire-down); } .a-packet.call circle { fill: var(--accent); } .a-packet.lost circle { fill: var(--lost); }
+.a-packet rect { fill: var(--ink); opacity: .92; }
+.a-packet text { font: 600 11px var(--f-mono); fill: var(--bg); }
+.arail-wrap { display: flex; gap: 10px; align-items: center; padding: 10px 12px; border-top: 1px solid var(--line); }
+.arail { display: flex; flex-wrap: wrap; gap: 4px; }
+.arail button { font: 600 11px var(--f-mono); min-width: 28px; padding: 4px 0; border-radius: 4px; border: 1px solid var(--line-2); background: var(--surface); color: var(--ink); cursor: pointer; font-variant-numeric: tabular-nums; }
+.arail button.fut { color: var(--muted); }
+.arail button.cur { background: var(--accent); border-color: var(--accent); color: #fff; }
+.legend b.tk { display: inline-block; width: 22px; height: 4px; background: linear-gradient(90deg, var(--lane-client) 0 30%, var(--line) 30% 45%, var(--accent) 45% 60%, var(--line) 60%); vertical-align: middle; margin-right: 6px; }
+@media (prefers-reduced-motion: reduce) { .a-node.pulse .a-box { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .rows { scroll-behavior: auto; } .row { transition: none; } }
+</style>
+
+<header class="top">
+  <div class="top-in">
+    <div class="brand"><span class="eyebrow">kosi-libs · VIE · protocol 1</span><h1>Time<span>Machine</span> internals</h1></div>
+    <div style="display:flex;gap:12px;align-items:end;flex-wrap:wrap">
+      <nav class="tabs" role="tablist">
+        <button role="tab" id="tab-flow" aria-selected="true" aria-controls="view-flow">Message flow</button>
+        <button role="tab" id="tab-int" aria-selected="false" aria-controls="view-int">Internals</button>
+      </nav>
+      <button class="theme-btn" id="themeBtn" type="button" title="Switch theme">◐ theme</button>
+    </div>
+  </div>
+</header>
+
+<main class="wrap">
+<!-- ================= FLOW ================= -->
+<section id="view-flow" role="tabpanel" aria-labelledby="tab-flow">
+  <div class="scen-bar" id="scenBar" aria-label="Scenarios"></div>
+  <div class="scen-head">
+    <div style="min-width:0"><h2 id="scenTitle"></h2><p id="scenBlurb"></p></div>
+    <div class="controls">
+      <div class="seg" role="group" aria-label="View">
+        <button type="button" id="vArch" aria-pressed="true">Architecture</button>
+        <button type="button" id="vSeq" aria-pressed="false">Sequence</button>
+      </div>
+      <button id="bReset" type="button" title="Back to the start">⟲</button>
+      <button id="bPrev" type="button" title="Previous step (←)">◀</button>
+      <span class="counter" id="counter">0 / 0</span>
+      <button id="bNext" type="button" class="primary" title="Next step (→)">Next ▶</button>
+      <button id="bPlay" type="button" title="Play (space)">Play</button>
+      <span class="kbd">← → space</span>
+    </div>
+  </div>
+  <div class="bench" id="bench">
+    <div class="stage">
+    <div class="archwrap" id="archWrap">
+      <div class="ascroll"><svg id="archSvg" viewBox="0 0 1000 340" role="img" aria-label="Architecture of the probe and the inspector, with the components involved in the current step highlighted"></svg></div>
+      <div class="arail-wrap"><span class="eyebrow">Steps</span><div class="arail" id="archRail"></div></div>
+      <div class="legend">
+        <span><i></i>frame probe → inspector</span>
+        <span><i class="dn"></i>frame inspector → probe</span>
+        <span><i class="cl"></i>in-process call</span>
+        <span><b class="tk"></b>strip under each box: the steps it takes part in · click a box to jump to its next one</span>
+      </div>
+    </div>
+    <div class="diagram" id="seqWrap" hidden><div class="dscroll"><div class="dscroll-in">
+      <div class="lanes" aria-hidden="true">
+        <div></div>
+        <div class="l0">UI<small>VIEView</small></div>
+        <div class="l1">ViewModel<small>VIEViewModel</small></div>
+        <div class="l2">TM client<small>probe, in app</small></div>
+        <div class="l3">TM server<small>inspector</small></div>
+      </div>
+      <div class="rows" id="rows"></div></div></div>
+      <div class="legend">
+        <span><i></i>frame probe → inspector</span>
+        <span><i class="dn"></i>frame inspector → probe</span>
+        <span><i class="cl"></i>in-process call</span>
+        <span><i class="ls"></i>frame lost</span>
+      </div>
+    </div>
+    </div>
+    <aside class="panel" aria-live="polite">
+      <div class="card" id="stepCard"></div>
+      <div class="card" id="jsonCard"></div>
+      <div class="card" id="stateCard"></div>
+    </aside>
+  </div>
+</section>
+
+<!-- ================= INTERNALS ================= -->
+<section id="view-int" role="tabpanel" aria-labelledby="tab-int" hidden>
+  <div class="manual">
+    <nav class="toc" id="toc"></nav>
+    <div style="min-width:0">
+
+      <section class="man-sec" id="map">
+        <h2>Two processes, one socket</h2>
+        <p class="lead">The application embeds the probe; the developer runs the inspector. The application is the WebSocket client and the inspector its server, which is why the modules are named after the WebSocket roles. Click a block to jump to its type.</p>
+        <div class="arch">
+          <div class="proc">
+            <span class="eyebrow">Application process</span>
+            <div class="blk app"><b>VIEView ⇄ VIEViewModel</b><span>your code, unchanged</span></div>
+            <div class="dn-ar">hooks ↓ · injections ↑</div>
+            <a class="blk c" href="#TimeMachineMiddleware"><b>TimeMachineMiddleware</b><span>one per ViewModel · observes, injects</span></a>
+            <div class="dn-ar">Entry (object ref + at) ↓</div>
+            <a class="blk c" href="#TimeMachineSink"><b>TimeMachineSink</b><span>deferred entries · live ViewModels</span></a>
+            <div class="dn-ar">offer ↓</div>
+            <a class="blk c" href="#TimeMachineOutbox"><b>TimeMachineOutbox</b><span>bounded queue · numbering · window · resend</span></a>
+            <div class="dn-ar">drain ↓ · acknowledge ↑</div>
+            <a class="blk c" href="#TimeMachineClient"><b>TimeMachineClient</b><span>ktor WebSocket · handshake · retry</span></a>
+          </div>
+          <div class="wirecol">
+            <div class="wl"><span class="up">timeline · vm-info · results →<span class="bar" style="display:block;margin-top:4px"></span></span>
+            <span class="down"><span class="bar" style="display:block;margin-bottom:4px"></span>← welcome · received · intervene</span>
+            <span style="color:var(--muted);font-weight:500">ws://host:13229<br>/timemachine</span></div>
+          </div>
+          <div class="proc">
+            <span class="eyebrow">Inspector process</span>
+            <a class="blk s" href="#TimeMachineServer"><b>TimeMachineServer</b><span>CIO · frames → events</span></a>
+            <div class="dn-ar">post(event) ↓</div>
+            <a class="blk s" href="#TimeMachineStore"><b>TimeMachineStore</b><span>single writer · batches</span></a>
+            <div class="dn-ar">on(batch) ↓ · Transition ↑</div>
+            <a class="blk s" href="#TimeMachineState"><b>TimeMachineState.on</b><span>pure core · state + commands</span></a>
+            <div class="dn-ar">commands → <a href="#TimeMachineConnections">TimeMachineConnections</a> · state ↓</div>
+            <a class="blk s" href="#InspectorUI"><b>Inspector panes</b><span>built with VIE · project store.state</span></a>
+          </div>
+        </div>
+      </section>
+
+      <section class="man-sec" id="vie-hooks">
+        <h2>Where the probe plugs into vie-mvi</h2>
+        <p class="lead">The probe uses only the public middleware contract and the ViewModel's public API. Each hook was chosen for a property the timeline depends on.</p>
+        <div class="tbl"><table class="t">
+          <thead><tr><th>vie-mvi entry point</th><th>Probe uses it to</th><th>Consequence</th></tr></thead>
+          <tbody>
+            <tr><td><code>middlewares</code>, folded with <code>foldRight</code></td><td>Sit last in the list, nearest the source</td><td>Intents are seen as posted and signals as emitted, before another middleware filters or maps them. An intent dropped by another middleware is still reported.</td></tr>
+            <tr><td><code>interceptIntents</code></td><td>Observe intents with <code>onEach</code></td><td>Order is exactly the order <code>process</code> handles them.</td></tr>
+            <tr><td><code>interceptSignals</code></td><td>Observe signals with <code>onEach</code></td><td>Never collects <code>signalFlow</code>, which would steal Effects from the view.</td></tr>
+            <tr><td><code>onModelUpdated</code></td><td>Observe every model</td><td>Called by the update consumer after each <code>update {}</code>, with or without a view, without <code>StateFlow</code> conflation. Must be quick and never throw: a failure would end the update loop.</td></tr>
+            <tr><td><code>onAttached(vm)</code></td><td>Report the start and first model; keep the ViewModel to drive it</td><td>Called during the base class's <code>init</code>, before the subclass is constructed: the probe only stores, registers and launches.</td></tr>
+            <tr><td><code>vm.addCloseable</code></td><td>Report the close</td><td>Only a real clear counts, not the intent flow ending because <code>process</code> threw.</td></tr>
+            <tr><td><code>update</code> / <code>post</code> / <code>signal</code></td><td>Inject interventions</td><td>Injected objects go through every middleware and the same serialization as app code; an injected model is the base of the next <code>update { copy(…) }</code>.</td></tr>
+            <tr><td><code>viewModelScope</code></td><td>Run injections</td><td>An injection dies with its ViewModel. On a multi-threaded dispatcher, the probe's injected-object slots must be atomic.</td></tr>
+          </tbody>
+        </table></div>
+      </section>
+
+      <section class="man-sec" id="types">
+        <h2>Types, by side</h2>
+        <p class="lead">Each card says what the type is for, how it works, and which steps of the message flow show it at work.</p>
+        <div id="cardGroups"></div>
+      </section>
+
+      <section class="man-sec" id="TimelineMarkers">
+        <h2>Why a timeline can have holes</h2>
+        <p class="lead">Four markers, four different causes. The inspector never guesses which messages are missing; it shows what the facts allow.</p>
+        <div class="tbl"><table class="t">
+          <thead><tr><th>Marker</th><th>Cause</th><th>Decided by</th></tr></thead>
+          <tbody>
+            <tr><td>Gap</td><td>The probe's queue overflowed. An <code>observations-dropped</code> row names the ViewModel and the count; it took the dropped messages' sequence slot, so there is no hole.</td><td><code>TimeMachineOutbox.build</code></td></tr>
+            <tr><td>Possibly incomplete</td><td>A sequence between the session's floor and highest never arrived: still in flight on an older connection, or undecodable. It names no ViewModel, so every ViewModel alive at that point is marked.</td><td><code>SequenceLedger.missing</code> × <code>aliveSpan</code></td></tr>
+            <tr><td>Earlier history unavailable</td><td>The ViewModel's start was never seen, and the session's floor is above 0 or the ViewModel is only known from a <code>vm-info</code>.</td><td><code>ViewModelRecord.historyUnavailable</code></td></tr>
+            <tr><td>Evicted</td><td>Inspector bounds: 1,000 rows or 32 Mi characters per ViewModel, oldest first. Not a protocol limit.</td><td><code>ViewModelRecord.place</code></td></tr>
+          </tbody>
+        </table></div>
+      </section>
+
+      <section class="man-sec" id="tools">
+        <h2>Try the rules</h2>
+        <p class="lead">Three small calculators that follow the same logic as the inspector's code.</p>
+        <div class="tools">
+          <div class="card tool">
+            <h3>Intervention status</h3>
+            <p>Mirrors <code>Intervention.status</code>. Set the facts in any order; the status depends only on which facts exist.</p>
+            <div class="toggles">
+              <label for="iv-sent">Sent (session connected) <select id="iv-sent"><option value="1">yes</option><option value="0">no</option></select></label>
+              <label for="iv-res">Probe's result <select id="iv-res"><option value="none">none yet</option><option value="ok">success</option><option value="fail">failure (BadJson)</option></select></label>
+              <label for="iv-tag">Tagged observation <select id="iv-tag"><option value="0">not arrived</option><option value="1">arrived (#14)</option></select></label>
+              <label for="iv-dl">5 s deadline <select id="iv-dl"><option value="0">not passed</option><option value="1">passed</option></select></label>
+            </div>
+            <div class="verdict" id="ivOut"></div>
+          </div>
+          <div class="card tool">
+            <h3>Sequence ledger</h3>
+            <p>Mirrors <code>SequenceLedger.receive</code>. Type sequences in arrival order, across connections; duplicates are ignored.</p>
+            <label for="lg-in" class="eyebrow" style="display:block;margin-bottom:6px">Arrivals</label>
+            <input type="text" id="lg-in" value="0 1 2 5 6 3 6 9">
+            <div class="btnrow">
+              <button type="button" data-lg="0 1 2 3 4">in order</button>
+              <button type="button" data-lg="0 1 2 5 6 3 4">reconnect, late frames</button>
+              <button type="button" data-lg="41 42 43 44">inspector restarted</button>
+              <button type="button" data-lg="10 11 10 12">resend duplicate</button>
+            </div>
+            <div class="kv" id="lgOut" style="margin-top:12px"></div>
+            <div class="seqline" id="lgLine"></div>
+          </div>
+          <div class="card tool">
+            <h3>Reconnect backoff</h3>
+            <p><code>TimeMachineClient.retryDelay(failures)</code>: 0.5 s × 2<sup>n</sup>, capped at 5 s, reset after a welcome. Both sides ping every 5 s and give up after 10 s.</p>
+            <div class="tbl"><table class="t" id="backoff"><thead><tr><th>Attempt</th><th>Wait before it</th><th>Elapsed</th></tr></thead><tbody></tbody></table></div>
+          </div>
+        </div>
+      </section>
+
+      <section class="man-sec" id="timeouts">
+        <h2>Timeouts and bounds</h2>
+        <div class="tbl"><table class="t">
+          <thead><tr><th>Value</th><th>Where</th><th>Effect</th></tr></thead>
+          <tbody>
+            <tr><td>10 s</td><td>Server, first frame</td><td>No decodable <code>hello</code> in time: close with <code>VIOLATED_POLICY</code>.</td></tr>
+            <tr><td>10 s</td><td>Client, handshake answer</td><td>No <code>welcome</code>/<code>rejected</code>: retry.</td></tr>
+            <tr><td>5 s / 10 s</td><td>Pings, both sides</td><td>A half-open connection is closed (browsers cannot send pings).</td></tr>
+            <tr><td>10 s</td><td><code>Command.Close</code></td><td>A closing session that does not end is cancelled.</td></tr>
+            <tr><td>5 s</td><td>Intervention deadline</td><td>Pending turns into Accepted, not observed, or Timed out.</td></tr>
+            <tr><td>1,024</td><td><code>bufferSize</code></td><td>Queued entries before the oldest drop.</td></tr>
+            <tr><td>256 Ki ch</td><td>Outbox window</td><td>Unacknowledged JSON in flight before the drain waits.</td></tr>
+            <tr><td>32</td><td><code>InjectedQueue</code></td><td>Injected intents or signals awaiting their observation.</td></tr>
+            <tr><td>1,000 rows · 32 Mi ch</td><td><code>Limits</code></td><td>Per ViewModel, in the inspector.</td></tr>
+          </tbody>
+        </table></div>
+      </section>
+
+      <section class="man-sec" id="notes">
+        <h2>Notes from reading the code</h2>
+        <p class="lead">Points that a reader of the README might not expect, and one that looks out of date.</p>
+        <div class="note"><b>Equal models are observed.</b> The README, <code>VIEInterventionResult.Success</code> and <code>InterventionStatus.AcceptedNotObserved</code> say an injected model that equals the current one, or is conflated away, is applied but never observed. The probe now observes models only through <code>onModelUpdated</code>, which <code>VIEViewModel</code> calls after every <code>update</code>, including one that leaves the model equal, and with no conflation. So that case appears not to occur any more; the remaining untagged-model case is the multi-threaded race the middleware's KDoc mentions. Worth re-checking the docs.</div>
+        <div class="note"><b>Sequences are assigned at send, not at observation.</b> A dropped message takes no number, which is why a drop report can stand in its place without a hole, and why <code>at</code> is never used for ordering.</div>
+        <div class="note"><b>The acknowledgement is per connection.</b> After an eviction, a frame from the old connection is still placed, but only the connection that carried a message acknowledges it; the probe's resend on the new connection is what clears it from <code>inFlight</code>.</div>
+        <div class="note"><b>A data object can steal a tag.</b> Matching is by identity. A <code>data object</code> intent is a singleton, so an app-produced instance can be observed first and take the injected one's tag.</div>
+        <div class="note"><b>Nothing bounds sessions.</b> Each run of an app in a debug loop leaves a disconnected session until the developer clears it. Per-ViewModel timelines are bounded; the number of ViewModels and sessions is not.</div>
+      </section>
+
+    </div>
+  </div>
+</section>
+</main>
+<script>
+/* ---------- Scenario data: every step is traced from the source ---------- */
+const U = 0, V = 1, C = 2, S = 3;
+const SID = "60a43ef3-a654-40e8-b044-fc157eeeac3e";
+const VMID = "539d46c4-49c2-4d73-8ef2-1d5a8af4cc11";
+const TASK = "82ec8127-77bc-4e7f-be8d-f985fe0cb662";
+const REQ = "ed4e2cdb-c7df-4255-a104-f9f29428b16d";
+const REQ2 = "4b1f9d0e-2c77-4a51-9b0e-61d3a7c5e902";
+const REQ3 = "bae7d251-0a27-47df-a99d-2dcfecbce052";
+const PK = "org.kodein.arch.vie.demo.vie.TaskListVIE";
+const VMINFO = {
+  id: VMID,
+  typeName: "org.kodein.arch.vie.demo.vie.vm.TaskListVM",
+  model: { typeName: PK + ".Model", isSerializable: true, sealedSubTypes: null },
+  intent: { typeName: PK + ".Intent", isSerializable: true, sealedSubTypes: [PK + ".Intent.DeleteTask", PK + ".Intent.UpdateTaskCompletion"] },
+  signal: { typeName: PK + ".Signal", isSerializable: true, sealedSubTypes: [PK + ".Signal.Error"] }
+};
+const TASKJ = { first: TASK, second: { title: "Buy milk", completed: false } };
+const TASKJ2 = { first: TASK, second: { title: "Buy milk", completed: true } };
+let clock = 331;
+const at = (ms) => "2026-10-06T15:30:" + (10 + Math.floor(ms / 1000)).toString().padStart(2, "0") + "." + String(ms % 1000).padStart(3, "0") + "Z";
+const obs = (seq, kind, typeName, asString, asJson, ms, extra = {}) => ({
+  "#type": "observed",
+  observation: Object.assign({ viewModelId: VMID, at: at(ms), kind, typeName, asString, asJson, interventionId: null, delivery: null }, extra),
+  sequence: seq
+});
+const recv = (n) => ({ "#type": "received", sequence: n });
+const hello = (v = 1) => ({ "#type": "hello", session: { id: SID, name: "Demo (desktop)" }, protocolVersion: v });
+
+/* step(from, to, kind, label, who, text, opts)
+   kind: call (in-process call), wire (WebSocket frame), lost (frame that never arrives), self (work inside one lane), timer */
+function st(f, t, k, lbl, who, txt, o = {}) { return Object.assign({ f, t, k, lbl, who, txt }, o); }
+
+const SCENARIOS = [
+/* ------------------------------------------------------------------ */
+{
+  id: "handshake",
+  title: "Startup & handshake",
+  blurb: "The probe starts, a ViewModel attaches its middleware, the WebSocket opens, and the first timeline messages are numbered, sent and acknowledged.",
+  init: {
+    "p:probe": "not started", "p:sink.live": "{}", "p:outbox.queue": "[]", "p:outbox.drops": "{}",
+    "p:inFlight": "[]", "p:acknowledged": "null", "p:nextSequence": "0",
+    "i:listener": "Listening(13229)", "i:connections": "{}", "i:sessions": "{}", "i:ledger": "–", "i:TaskListVM": "–"
+  },
+  steps: [
+    st(C, C, "self", "TimeMachine.start(config)", "TimeMachine · TimeMachineClient",
+      "The app calls <code>start</code> once, behind a debug flag. A disabled config returns at once: no socket, no allocation. Otherwise it builds a <code>TimeMachineClient</code>: a random session id, a <code>TimeMachineSink</code>, a <code>TimeMachineOutbox</code> bounded to <code>bufferSize</code> (1,024), and a ktor <code>HttpClient</code> pinging every 5 s. <code>running.compareAndSet</code> settles a double start. It prints the safety banner and launches <code>connectForever()</code> on <code>Dispatchers.Default</code>.",
+      { refs: ["TimeMachine", "TimeMachineConfig", "TimeMachineClient"], s: { "p:probe": "running · session 60a4…", "p:connection": "connecting" } }),
+    st(V, C, "call", "TimeMachine.middleware<M, I, S>()", "TimeMachine.middleware",
+      "Wherever the ViewModel is built (here a DI <code>provider</code>), the list ends with <code>TimeMachine.middleware()</code>. Because the probe runs, it introspects the three roles with <code>VIERole.of(typeOf&lt;T&gt;())</code>: serializer, serial name, sealed subtypes. It returns a new <code>TimeMachineMiddleware</code> with a random <code>viewModelId</code>. Had the probe not run, it would have returned the shared <code>NoOpMiddleware</code> without touching the types.",
+      { refs: ["TimeMachine", "VIERole", "TimeMachineMiddleware", "NoOpMiddleware"] }),
+    st(V, C, "call", "onAttached(vm)", "TimeMachineMiddleware.onAttached",
+      "<code>VIEViewModel</code>'s <code>init</code> folds the middlewares from the end (the last one wraps the raw source) and then calls <code>onAttached</code> on each. The probe builds a <code>VIEViewModelInjector</code>, calls <code>sink.started(info, intervener)</code>, registers an <code>AutoCloseable</code> on the ViewModel for its close, and reports the first model, which no <code>update {}</code> produced. Nothing is encoded here: an <code>Entry</code> keeps a reference and the capture time. No socket exists yet, so both entries wait in the queue.",
+      { refs: ["TimeMachineMiddleware", "TimeMachineSink", "VIEViewModelInjector", "TimeMachineOutbox"], s: { "p:sink.live": "{TaskListVM 539d…}", "p:outbox.queue": "[vm-started, Model]" } }),
+    st(C, S, "wire", "WS upgrade  /timemachine", "ktor client → CIO server",
+      "<code>http.webSocket(host, 13229, \"/timemachine\")</code>. The server's single route calls <code>serve(ConnectionId(n))</code>, which registers the session in <code>TimeMachineConnections</code> before posting any event for it.",
+      { refs: ["TimeMachineServer", "TimeMachineConnections"], s: { "i:connections": "{#0 → (no hello yet)}" } }),
+    st(C, S, "wire", "hello", "TimeMachineClient.handshake",
+      "The first frame of every connection. Its envelope is frozen across protocol versions. The probe then waits up to 10 s for <code>welcome</code> or <code>rejected</code>, skipping anything else.",
+      { json: hello(), refs: ["TimeMachineClientMessage", "TimeMachineConnection"] }),
+    st(S, S, "self", "first frame → HelloReceived", "TimeMachineServer.serve",
+      "<code>withTimeoutOrNull(10 s)</code> on the first frame. A frame that is not text, not decodable or not a <code>hello</code> closes the connection with <code>VIOLATED_POLICY</code>. Otherwise <code>store.post(HelloReceived(#0, hello, now))</code>: the transport never touches state itself.",
+      { refs: ["TimeMachineServer", "TimeMachineEvent", "TimeMachineStore"] }),
+    st(S, S, "self", "TimeMachineState.on(HelloReceived)", "TimeMachineStore writer → onHello",
+      "The single writer coroutine applies the batch through the pure <code>on()</code>. The version is compatible and the session unknown: a new <code>SessionRecord</code>, one <code>ConnectionSpan</code> (connected, after = null), and the command <code>Send(#0, Welcome)</code>. After publishing the state, the store hands the command to <code>TimeMachineConnections.execute</code>, which <code>trySend</code>s on the session's unlimited outgoing channel.",
+      { refs: ["TimeMachineState", "SessionRecord", "TimeMachineConnections"], s: { "i:connections": "{#0 → 60a4…}", "i:sessions": "{Demo (desktop): connected #0, 1 span}" } }),
+    st(S, C, "wire", "welcome", "Command.Send",
+      "Always the first thing the inspector sends on a connection.",
+      { json: { "#type": "welcome" }, refs: ["TimeMachineServerMessage"] }),
+    st(C, C, "self", "welcomed → stream()", "TimeMachineClient.connectForever",
+      "Handshake returns <code>null</code>: failures reset to 0. This is the first welcome, so there is no <code>vm-info</code> re-announce: everything since start is still in the queue. <code>stream()</code> launches <code>outbox.drain</code> and loops on incoming frames.",
+      { refs: ["TimeMachineClient"], s: { "p:connection": "connected" } }),
+    st(C, C, "self", "drain: build → seq 0", "TimeMachineOutbox.build",
+      "<code>drain</code> takes the oldest entry and only now numbers it: <code>Entry.describe(sequence 0)</code> builds the <code>ViewModelStarted</code>, then it is JSON-encoded, sent, and moved to <code>inFlight</code>. Sequences follow send order, not observation order.",
+      { refs: ["TimeMachineOutbox", "TimeMachineSequence"], s: { "p:outbox.queue": "[Model]", "p:inFlight": "[0 (≈720 ch)]", "p:nextSequence": "1" } }),
+    st(C, S, "wire", "vm-started  #0", "TimeMachineOutbox.drain",
+      "A timeline message. It describes the ViewModel and its three roles, which tells the inspector which roles accept interventions.",
+      { json: { "#type": "vm-started", info: VMINFO, at: at(331), sequence: 0 }, refs: ["VIEViewModelInfo", "VIETypeInfo"] }),
+    st(C, C, "self", "describe Model → seq 1", "TimeMachineSink.Entry.describe",
+      "The model is described on the probe's coroutine, not on the ViewModel's dispatcher: <code>toString()</code>, <code>role.encode</code> and <code>typeNameOf</code>. Any throw from app code is printed and the message is still built without the failed part.",
+      { refs: ["TimeMachineSink", "VIERole"], s: { "p:outbox.queue": "[]", "p:inFlight": "[0, 1]", "p:nextSequence": "2" } }),
+    st(C, S, "wire", "observed  #1 · Model", "TimeMachineOutbox.drain",
+      "<code>asJson</code> is present because the Model is <code>@Serializable</code>.",
+      { json: obs(1, "Model", PK + ".Model", "Model(tasks=null, work=[])", { tasks: null, work: [] }, 338), refs: ["VIEObservation"] }),
+    st(S, S, "self", "batch [#0, #1] → Received(1)", "TimeMachineStore · onTimeline",
+      "Both <code>MessageReceived</code> events were waiting when the writer woke, so they form one batch. <code>#0</code>: <code>SequenceLedger.receive</code> sets floor and highest; a <code>ViewModelRecord</code> is created with its info and <code>startSequence 0</code>. <code>#1</code>: a row, and <code>currentModel</code>. The batch ends with one <code>Received</code> per connection that carried timeline messages, at its highest sequence.",
+      { refs: ["TimeMachineStore", "TimeMachineState", "SequenceLedger", "ViewModelRecord"], s: { "i:ledger": "floor 0 · highest 1 · missing []", "i:TaskListVM": "rows 2 · started #0 · info ✓" } }),
+    st(S, C, "wire", "received  #1", "Command.Send",
+      "Cumulative: every timeline message this connection carried, up to 1, is applied.",
+      { json: recv(1), refs: ["TimeMachineServerMessage"] }),
+    st(C, C, "self", "acknowledge(1) → trim", "TimeMachineOutbox.acknowledge",
+      "Called from the receive loop; never suspends. It raises a <code>MutableStateFlow</code>; the drain's next wait trims <code>inFlight</code> up to it.",
+      { refs: ["TimeMachineOutbox"], s: { "p:inFlight": "[]", "p:acknowledged": "1" } })
+  ]
+},
+/* ------------------------------------------------------------------ */
+{
+  id: "tap",
+  title: "A tap: intent, models, signal",
+  blurb: "The user ticks a task. Follow where the probe hooks into the ViewModel, what it keeps, and how four observations become four numbered frames.",
+  init: {
+    "p:connection": "connected", "p:outbox.queue": "[]", "p:inFlight": "[]", "p:acknowledged": "1", "p:nextSequence": "2",
+    "i:ledger": "floor 0 · highest 1 · missing []", "i:TaskListVM": "rows 2 · currentModel #1"
+  },
+  steps: [
+    st(U, V, "call", "post(UpdateTaskCompletion)", "VIEViewModel.post",
+      "The view posts the intent. <code>post</code> launches <code>intentCollector.emit</code> on <code>viewModelScope</code>.",
+      { refs: ["vie-hooks"] }),
+    st(V, C, "call", "interceptIntents · onEach", "TimeMachineMiddleware.interceptIntents",
+      "Installed last, the probe wraps the raw intent flow, so it sees the intent as the view posted it, before <code>VIELoggingMiddleware</code> or any filter. <code>injectedIntents.take(it)</code> finds nothing (the app produced it), so <code>interventionId = null</code>. <code>sink.observed</code> captures only <code>at</code> and offers an <code>Entry</code> with <code>trySend</code>: it never suspends the ViewModel.",
+      { refs: ["TimeMachineMiddleware", "TimeMachineSink", "TimeMachineOutbox"], s: { "p:outbox.queue": "[Intent]" } }),
+    st(V, V, "self", "process(intent)", "TaskListVM.process",
+      "The flow continues through the other middlewares to the collector, which calls <code>process</code>. The probe already reported the intent, even if a middleware nearer the view drops it."),
+    st(V, C, "call", "update{} → onModelUpdated", "TimeMachineMiddleware.onModelUpdated",
+      "<code>update { copy(work = Updating) }</code> goes through the single update consumer, which emits the model and then calls <code>onModelUpdated(next)</code> on every middleware. This is the hook that sees every model, in order, whether or not a view collects. <code>injectedModel.exchange(null)</code> is empty: untagged.",
+      { refs: ["TimeMachineMiddleware", "vie-hooks"], s: { "p:outbox.queue": "[Intent, Model]" } }),
+    st(V, U, "call", "modelFlow (StateFlow)", "VIEViewModel.modelFlow",
+      "The view renders through <code>modelFlow</code>, a <code>StateFlow</code> that may thin out a burst. The probe does not depend on it."),
+    st(V, C, "call", "update{} → onModelUpdated", "TimeMachineMiddleware.onModelUpdated",
+      "The repository fails; the ViewModel clears the work flag. A second model is reported, even if the view never renders it.",
+      { refs: ["TimeMachineMiddleware"], s: { "p:outbox.queue": "[Intent, Model, Model]" } }),
+    st(V, C, "call", "interceptSignals · onEach", "TimeMachineMiddleware.interceptSignals",
+      "<code>signal(Error(…))</code> emits into the signal pipeline. The probe observes it in its intercept, with <code>delivery = Event</code> taken from the instance. It never collects <code>signalFlow</code> itself: that would steal Effects from the view.",
+      { refs: ["TimeMachineMiddleware", "TimeMachineSink"], s: { "p:outbox.queue": "[Intent, Model, Model, Signal]" } }),
+    st(V, U, "call", "signalFlow: Error (Event)", "VIEViewModel.signalFlow",
+      "After the middlewares, the ViewModel routes the Event to its broadcast flow and the view shows a snackbar."),
+    st(C, C, "self", "drain: describe ×4 → #2…#5", "TimeMachineOutbox.build · VIERole",
+      "Each entry is numbered as it is sent. For the sealed Intent, <code>typeNameOf</code> runs the serializer into a <code>SerialNameCapture</code> encoder that keeps only the discriminator, so the concrete serial name is found without encoding twice. All four share one millisecond on a browser clock; only <code>sequence</code> orders them.",
+      { refs: ["TimeMachineOutbox", "VIERole", "TimeMachineSequence"], s: { "p:outbox.queue": "[]", "p:inFlight": "[2, 3, 4, 5]", "p:nextSequence": "6" } }),
+    st(C, S, "wire", "observed  #2 · Intent", "frame",
+      "The intent's JSON carries the <code>#type</code> discriminator, which is the name an intervention would have to give back.",
+      { json: obs(2, "Intent", PK + ".Intent.UpdateTaskCompletion", "UpdateTaskCompletion(taskId=" + TASK + ", completed=true)", { "#type": PK + ".Intent.UpdateTaskCompletion", taskId: TASK, completed: true }, 1201), refs: ["VIEObservation"] }),
+    st(C, S, "wire", "observed  #3 · Model", "frame", "Work flag set.",
+      { json: obs(3, "Model", PK + ".Model", "Model(tasks=[…], work=[(82ec…, Updating)])", { tasks: [TASKJ], work: [{ first: TASK, second: "Updating" }] }, 1201) }),
+    st(C, S, "wire", "observed  #4 · Model", "frame", "Work flag cleared.",
+      { json: obs(4, "Model", PK + ".Model", "Model(tasks=[…], work=[])", { tasks: [TASKJ], work: [] }, 1202) }),
+    st(C, S, "wire", "observed  #5 · Signal", "frame", "<code>delivery</code> is only on Signals.",
+      { json: obs(5, "Signal", PK + ".Signal.Error", "Error(message=Network unavailable)", { "#type": PK + ".Signal.Error", message: "Network unavailable" }, 1202, { delivery: "Event" }), refs: ["VIESignalDelivery"] }),
+    st(S, S, "self", "batch → rows, indexes → Received(5)", "ViewModelRecord.place",
+      "Each row is placed by sequence. <code>place</code> also updates what survives eviction: <code>latestJson</code> per (kind, type) for the Composer's prefill, <code>signalDelivery</code> (Error → Event), <code>currentModel</code>, and the activity sparkline buckets.",
+      { refs: ["ViewModelRecord", "Activity"], s: { "i:ledger": "floor 0 · highest 5 · missing []", "i:TaskListVM": "rows 6 · currentModel #4 · Error→Event" } }),
+    st(S, C, "wire", "received  #5", "frame", "One acknowledgement for the batch.",
+      { json: recv(5), s: { "p:inFlight": "[]", "p:acknowledged": "5" } })
+  ]
+},
+/* ------------------------------------------------------------------ */
+{
+  id: "window",
+  title: "Flow control: the 256 Ki window",
+  blurb: "Large models in a burst. The probe never lets the transport buffer grow without bound: it waits on acknowledgements and leaves the backlog in its own bounded queue.",
+  init: { "p:outbox.queue": "[]", "p:inFlight": "[] · 0 ch", "p:acknowledged": "5", "p:nextSequence": "6", "p:window": "262 144 ch", "i:ledger": "floor 0 · highest 5" },
+  steps: [
+    st(V, C, "call", "3 × onModelUpdated (≈120 k ch each)", "TimeMachineMiddleware",
+      "The task list loads 3,000 tasks in three pages. Each model is about 120,000 characters of JSON. The queue holds references; nothing is encoded yet.",
+      { refs: ["TimeMachineMiddleware", "TimeMachineConfig"], s: { "p:outbox.queue": "[M, M, M]" } }),
+    st(C, C, "self", "0 ≤ window → send #6", "TimeMachineOutbox.drain",
+      "<code>acknowledged.first { trim(it); inFlightLength &lt;= window }</code> passes at once.",
+      { refs: ["TimeMachineOutbox"], s: { "p:outbox.queue": "[M, M]", "p:inFlight": "[6] · 120 k", "p:nextSequence": "7" } }),
+    st(C, S, "wire", "observed  #6 · 120 k", "frame", "", { json: '{"#type":"observed","observation":{… 120 000 characters …},"sequence":6}' }),
+    st(C, C, "self", "120 k ≤ window → send #7", "TimeMachineOutbox.drain", "Still under the window.",
+      { s: { "p:outbox.queue": "[M]", "p:inFlight": "[6, 7] · 240 k", "p:nextSequence": "8" } }),
+    st(C, S, "wire", "observed  #7 · 120 k", "frame", ""),
+    st(C, C, "self", "240 k ≤ window → send #8", "TimeMachineOutbox.drain",
+      "The check happens before sending, so one message always gets through: the window can be exceeded by a single large message.",
+      { s: { "p:outbox.queue": "[]", "p:inFlight": "[6, 7, 8] · 360 k", "p:nextSequence": "9" } }),
+    st(C, S, "wire", "observed  #8 · 120 k", "frame", ""),
+    st(C, C, "self", "360 k > window → suspend", "TimeMachineOutbox.drain",
+      "The drain waits for an acknowledgement. New observations pile up in the bounded channel, where the oldest drop and are reported, instead of in a browser's unbounded WebSocket buffer.",
+      { refs: ["TimeMachineOutbox"], s: { "p:drain": "waiting for ack" } }),
+    st(V, C, "call", "onModelUpdated", "TimeMachineMiddleware", "Meanwhile the app goes on.", { s: { "p:outbox.queue": "[M]" } }),
+    st(S, S, "self", "batch [#6, #7] → Received(7)", "TimeMachineStore",
+      "#8 is still being read when the writer wakes. The batch holds #6 and #7 only, so the acknowledgement covers 7.",
+      { refs: ["TimeMachineStore"], s: { "i:ledger": "floor 0 · highest 7" } }),
+    st(S, C, "wire", "received  #7", "frame", "", { json: recv(7) }),
+    st(C, C, "self", "trim → 120 k → send #9", "TimeMachineOutbox.acknowledge · drain",
+      "The wait condition re-evaluates, trims #6 and #7, and the drain resumes.",
+      { s: { "p:inFlight": "[8, 9] · 240 k", "p:acknowledged": "7", "p:outbox.queue": "[]", "p:nextSequence": "10", "p:drain": "sending" } }),
+    st(C, S, "wire", "observed  #9", "frame", ""),
+    st(S, S, "self", "batch [#8, #9] → Received(9)", "TimeMachineStore", "", { s: { "i:ledger": "floor 0 · highest 9" } }),
+    st(S, C, "wire", "received  #9", "frame", "", { json: recv(9), s: { "p:inFlight": "[] · 0", "p:acknowledged": "9" } })
+  ]
+},
+/* ------------------------------------------------------------------ */
+{
+  id: "reconnect",
+  title: "Network drop, reconnect & resend",
+  blurb: "The phone switches networks mid-stream. A frame and an acknowledgement are lost in a half-open socket. Nothing is lost for good, and a duplicate is ignored.",
+  init: { "p:connection": "connected #0", "p:outbox.queue": "[]", "p:inFlight": "[]", "p:acknowledged": "9", "p:nextSequence": "10", "i:connections": "{#0 → 60a4…}", "i:session.connection": "#0", "i:ledger": "floor 0 · highest 9 · missing []" },
+  steps: [
+    st(V, C, "call", "intent + model observed", "TimeMachineMiddleware", "", { s: { "p:outbox.queue": "[Intent, Model]" } }),
+    st(C, S, "wire", "observed  #10", "frame", "Arrives just before the wifi drops.",
+      { s: { "p:outbox.queue": "[Model]", "p:inFlight": "[10]", "p:nextSequence": "11" } }),
+    st(C, S, "lost", "observed  #11", "half-open socket",
+      "Written into a socket whose other end is gone. ktor reports success; only the ping will tell.",
+      { s: { "p:outbox.queue": "[]", "p:inFlight": "[10, 11]", "p:nextSequence": "12" } }),
+    st(S, S, "self", "apply #10 → Received(10)", "TimeMachineStore", "", { s: { "i:ledger": "floor 0 · highest 10 · missing []" } }),
+    st(S, C, "lost", "received  #10", "half-open socket", "The acknowledgement is lost too, so the probe still holds #10 in flight."),
+    st(V, C, "call", "observations during the outage", "TimeMachineMiddleware",
+      "Entries queue up without a sequence. With the default 1,024 slots, a long outage drops the oldest (see the overflow scenario).",
+      { s: { "p:outbox.queue": "[Model, Signal]" } }),
+    st(C, C, "timer", "pong late (> 10 s) → retry", "TimeMachineClient.connectForever",
+      "ktor pings every 5 s and closes when a pong takes more than twice that. The loop prints <i>lost the connection</i> (only when the message changes) and waits <code>retryDelay</code>: 0.5 s, 1 s, 2 s, 4 s, then 5 s. <code>inFlight</code> is kept until acknowledged. On js and wasmJs the browser cannot send pings, so the probe relies on it to notice.",
+      { refs: ["TimeMachineClient"], s: { "p:connection": "retrying (0.5 s)" } }),
+    st(S, S, "self", "#0 still looks alive", "TimeMachineServer",
+      "The server's own ping (5 s, 10 s timeout) has not fired yet, so the state still maps the session to connection #0."),
+    st(C, S, "wire", "hello  (same session id) on #1", "TimeMachineClient.handshake",
+      "Same session id. A <code>hello</code> for a known session can only come from a probe whose previous connection is dead.",
+      { json: hello(), s: { "i:connections": "{#0, #1 (no hello yet)}" } }),
+    st(S, S, "self", "onHello: revive session, evict #0", "TimeMachineState.onHello",
+      "Commands: <code>Send(#1, Welcome)</code>, <code>Close(#0)</code>, and one <code>RequestViewModelInfo</code> per open ViewModel still <code>awaitingInfo</code> (none here). A new span starts after sequence 10. Connection #0 stays in <code>connections</code> until its own disconnect, so frames already received on it are still placed. <code>Close</code> sends a close frame and cancels the session if it has not ended within 10 s.",
+      { refs: ["TimeMachineState", "SessionRecord", "TimeMachineConnections"], s: { "i:session.connection": "#1", "i:connections": "{#0 (evicted), #1}", "i:spans": "[connected@–, reconnected@after 10]" } }),
+    st(S, C, "wire", "welcome", "frame", "", { json: { "#type": "welcome" }, s: { "p:connection": "connected #1" } }),
+    st(C, S, "wire", "vm-info  (re-announce)", "TimeMachineClient.connectForever",
+      "<code>welcomedBefore</code> is true, so every live ViewModel is described again: the inspector may have restarted. It is not a <code>vm-started</code>: a re-announce is not a timeline event and must not take a position ahead of what the queue still holds.",
+      { json: { "#type": "vm-info", viewModelId: VMID, info: VMINFO }, refs: ["TimeMachineClientMessage"] }),
+    st(C, S, "wire", "observed  #10  (resend)", "TimeMachineOutbox.drain",
+      "<code>drain</code> starts with <code>trim(acknowledged = 9)</code>, then sends every in-flight message again with its original sequence.",
+      { refs: ["TimeMachineOutbox"] }),
+    st(C, S, "wire", "observed  #11  (resend)", "TimeMachineOutbox.drain", ""),
+    st(C, S, "wire", "observed  #12, #13", "TimeMachineOutbox.build", "Then the queued entries, numbered now.",
+      { s: { "p:outbox.queue": "[]", "p:inFlight": "[10, 11, 12, 13]", "p:nextSequence": "14" } }),
+    st(S, S, "self", "#10 duplicate · #11–13 placed → Received(13)", "SequenceLedger.receive",
+      "<code>receive(10)</code> returns <code>null</code>: already held, ignored, but still counted for the acknowledgement since the inspector holds it. #11 to #13 extend <code>highest</code>. The session timeline shows a <i>Reconnected</i> divider right after row 10.",
+      { refs: ["SequenceLedger", "SessionTimeline"], s: { "i:ledger": "floor 0 · highest 13 · missing []" } }),
+    st(S, C, "wire", "received  #13", "frame", "", { json: recv(13), s: { "p:inFlight": "[]", "p:acknowledged": "13" } }),
+    st(S, S, "self", "#0 ends → Disconnected(#0)", "TimeMachineState.onDisconnected",
+      "The session's current connection is #1, so the session is untouched: an evicted span keeps no disconnect edge, and the next span's start is its only divider. #0 leaves <code>connections</code>; any later frame from it is ignored.",
+      { s: { "i:connections": "{#1}" } })
+  ]
+},
+/* ------------------------------------------------------------------ */
+{
+  id: "overflow",
+  title: "Queue overflow & gaps",
+  blurb: "The app runs before the inspector does, with bufferSize = 4 for readability. Dropped messages never take a sequence; a drop report takes their place.",
+  init: { "p:connection": "cannot reach the inspector", "p:outbox.queue": "[] (capacity 4)", "p:outbox.drops": "{}", "p:nextSequence": "0", "i:listener": "not running" },
+  steps: [
+    st(V, C, "call", "vm-started, Model", "TimeMachineMiddleware.onAttached", "", { s: { "p:outbox.queue": "[started, M]" } }),
+    st(V, C, "call", "Intent, Model", "TimeMachineMiddleware", "The queue is full.", { s: { "p:outbox.queue": "[started, M, I, M]" } }),
+    st(V, C, "call", "Model → DROP_OLDEST", "TimeMachineOutbox.offer",
+      "The channel drops its oldest entry, here the <code>vm-started</code> itself. <code>onUndeliveredElement</code> counts it against its ViewModel. The reporting thread never waits, and the dropped object is released.",
+      { refs: ["TimeMachineOutbox"], s: { "p:outbox.queue": "[M, I, M, M]", "p:outbox.drops": "{TaskListVM: 1}" } }),
+    st(V, C, "call", "Intent, Model → 2 more dropped", "TimeMachineOutbox.offer", "",
+      { s: { "p:outbox.queue": "[M, M, I, M]", "p:outbox.drops": "{TaskListVM: 3}" } }),
+    st(C, S, "wire", "hello", "TimeMachineClient", "The inspector starts; the next retry gets through.", { json: hello(), s: { "i:listener": "Listening(13229)" } }),
+    st(S, C, "wire", "welcome", "frame", "", { json: { "#type": "welcome" }, s: { "p:connection": "connected" } }),
+    st(C, C, "self", "build: drops first → #0", "TimeMachineOutbox.build",
+      "After taking the next entry, <code>drops.exchange(emptyMap())</code> turns every count into an <code>ObservationsDropped</code>, numbered ahead of the entry. The report takes the dropped messages' place: there is no hole in the sequence. The count is kept until the report is actually built.",
+      { refs: ["TimeMachineOutbox"], s: { "p:outbox.drops": "{}", "p:nextSequence": "2" } }),
+    st(C, S, "wire", "observations-dropped  #0", "frame", "<code>count</code> covers any timeline message, including the <code>vm-started</code>.",
+      { json: { "#type": "observations-dropped", viewModelId: VMID, count: 3, at: at(5004), sequence: 0 }, refs: ["TimeMachineClientMessage"] }),
+    st(C, S, "wire", "observed  #1…#4", "frame", "", { s: { "p:outbox.queue": "[]", "p:inFlight": "[0…4]", "p:nextSequence": "5" } }),
+    st(S, S, "self", "Gap row · VM unknown → ask", "TimeMachineState.onTimeline",
+      "The ViewModel was never described: a record with <code>info = null</code>. A drop report may also hide a <code>vm-closed</code>, so the ViewModel is marked <code>awaitingInfo</code> and a <code>RequestViewModelInfo</code> is sent. A timeline row naming an unknown ViewModel would trigger the same request once.",
+      { refs: ["TimeMachineState", "ViewModelRecord"], s: { "i:ledger": "floor 0 · highest 4", "i:TaskListVM": "info ✗ · awaitingInfo · rows: Gap(3), 4 obs" } }),
+    st(S, C, "wire", "request-vm-info", "frame", "", { json: { "#type": "request-vm-info", viewModelId: VMID } }),
+    st(S, C, "wire", "received  #4", "frame", "", { json: recv(4), s: { "p:inFlight": "[]", "p:acknowledged": "4" } }),
+    st(C, S, "wire", "vm-info", "TimeMachineClient.answer",
+      "Answered from <code>sink.liveViewModels</code>. Had the ViewModel closed meanwhile, <code>info</code> would be <code>null</code> and the inspector would close it, ending its life at the session's highest sequence (<code>inferredEnd</code>).",
+      { json: { "#type": "vm-info", viewModelId: VMID, info: VMINFO } }),
+    st(S, S, "self", "onInfo → described", "TimeMachineState.onInfo",
+      "The ViewModel is known. Its start is not: the session was seen from 0, so the Gap row is its explanation, not <i>Earlier history unavailable</i>.",
+      { refs: ["ViewModelRecord", "TimelineMarkers"], s: { "i:TaskListVM": "info ✓ · rows: Gap(3), 4 obs" } })
+  ]
+},
+/* ------------------------------------------------------------------ */
+{
+  id: "restart",
+  title: "Inspector restart",
+  blurb: "The developer restarts the inspector while the app keeps running. The probe re-announces its ViewModels and resends what was never acknowledged.",
+  init: { "p:connection": "connected", "p:inFlight": "[41, 42]", "p:acknowledged": "40", "p:nextSequence": "43", "p:outbox.queue": "[Model]", "i:sessions": "{Demo (desktop) …}" },
+  steps: [
+    st(S, S, "self", "process ends; new one starts empty", "main · TimeMachineServer.start",
+      "Version 1 keeps nothing on disk. The new process binds 13229 again and posts <code>ListenerChanged(Listening)</code>. If the port were still taken, the window would show the failure and offer <code>retry()</code>.",
+      { refs: ["TimeMachineServer"], s: { "i:sessions": "{}", "i:listener": "Listening(13229)" } }),
+    st(C, C, "timer", "connection closed → retry", "TimeMachineClient.connectForever", "",
+      { s: { "p:connection": "retrying" } }),
+    st(C, S, "wire", "hello", "frame", "Same session id, unknown to this inspector.", { json: hello() }),
+    st(S, S, "self", "new SessionRecord", "TimeMachineState.onHello", "", { s: { "i:sessions": "{Demo (desktop): connected}" } }),
+    st(S, C, "wire", "welcome", "frame", "", { json: { "#type": "welcome" } }),
+    st(C, S, "wire", "vm-info  (re-announce)", "TimeMachineClient", "This is why the re-announce exists.", { json: { "#type": "vm-info", viewModelId: VMID, info: VMINFO } }),
+    st(C, S, "wire", "observed  #41, #42 (resend), #43", "TimeMachineOutbox.drain", "", { s: { "p:outbox.queue": "[]", "p:inFlight": "[41, 42, 43]", "p:nextSequence": "44" } }),
+    st(S, S, "self", "floor = 41 → history unavailable", "ViewModelRecord.historyUnavailable",
+      "The ViewModel came from a <code>vm-info</code>, so <code>seenOnTimeline</code> was false; and the session's floor is 41, above 0. Its timeline opens with <i>Earlier history unavailable</i>.",
+      { refs: ["ViewModelRecord", "TimelineMarkers"], s: { "i:ledger": "floor 41 · highest 43", "i:TaskListVM": "info ✓ · HistoryUnavailable · rows 3" } }),
+    st(S, C, "wire", "received  #43", "frame", "", { json: recv(43), s: { "p:inFlight": "[]", "p:acknowledged": "43" } })
+  ]
+},
+/* ------------------------------------------------------------------ */
+{
+  id: "intervene",
+  title: "Intervention: inject an intent",
+  blurb: "From the Composer, the developer posts an intent into the live ViewModel. The result and the tagged observation travel separately; the status is computed from both.",
+  init: { "p:inFlight": "[]", "p:acknowledged": "13", "p:nextSequence": "14", "p:injectedIntents": "[]", "i:ledger": "highest 13", "i:intervention": "–" },
+  steps: [
+    st(S, S, "self", "Composer → store.intervene(…)", "ComposerVM.send · TimeMachineStore.intervene",
+      "The Composer pane prefills from <code>latestJson</code> and offers the role's <code>sealedSubTypes</code>. <code>intervene</code> picks a random <code>requestId</code> and posts a <code>TimeMachineEvent.Intervene</code>.",
+      { refs: ["InspectorUI", "TimeMachineStore"] }),
+    st(S, S, "self", "onIntervene → Send + StartDeadline", "TimeMachineState.onIntervene",
+      "The session is connected: an <code>Intervention(sent = true)</code> is recorded on the ViewModel and in the session's <code>interventionIndex</code>. Commands: <code>Send(Intervene)</code> and <code>StartDeadline</code>, which the store runs itself (<code>delay(5 s)</code>, then <code>DeadlinePassed</code>) so the core stays free of clocks.",
+      { refs: ["TimeMachineState", "Intervention", "TimeMachineStore"], s: { "i:intervention": "ed4e… · Pending" } }),
+    st(S, C, "wire", "intervene", "frame", "",
+      { json: { "#type": "intervene", requestId: REQ, viewModelId: VMID, kind: "Intent", typeName: PK + ".Intent.UpdateTaskCompletion", asJson: { "#type": PK + ".Intent.UpdateTaskCompletion", taskId: TASK, completed: true } }, refs: ["TimeMachineServerMessage"] }),
+    st(C, C, "self", "decodeForIntervention", "TimeMachineClient.answer · VIERole",
+      "The client looks the ViewModel up in <code>sink.liveViewModels</code> and calls its <code>intervener</code>. Checks in order: the role is serializable, the type is one of its sealed subtypes, the JSON's own <code>#type</code> matches, and strict decoding (unknown keys fail) succeeds.",
+      { refs: ["TimeMachineClient", "VIERole", "TimeMachineMiddleware"] }),
+    st(C, V, "call", "injectIntent → post()", "VIEViewModelInjector.injectIntent",
+      "<code>viewModelScope.launch { entering(); vm.post(intent) }</code>. <code>entering</code> adds <code>Injected(intent, requestId)</code> to the bounded queue (32) just before the object enters, so the observation can recognise it. Going through the public <code>post</code> means every middleware sees it.",
+      { refs: ["VIEViewModelInjector", "vie-hooks"], s: { "p:injectedIntents": "[(UpdateTaskCompletion@7f3a, ed4e…)]" } }),
+    st(C, S, "wire", "intervention-result · success", "TimeMachineClient.answer",
+      "Sent right away. It means <i>accepted and scheduled</i>, not <i>delivered</i>. Never resent.",
+      { json: { "#type": "intervention-result", requestId: REQ, result: { "#type": "success" } }, refs: ["VIEInterventionResult"] }),
+    st(S, S, "self", "result stored · still Pending", "Intervention.status",
+      "The first result wins. Success alone is not proof: without a tagged row and before the deadline, the status stays Pending.",
+      { refs: ["Intervention"], s: { "i:intervention": "ed4e… · result=success · Pending" } }),
+    st(V, C, "call", "interceptIntents · take(it) ✓", "TimeMachineMiddleware.interceptIntents",
+      "<code>injectedIntents.take</code> finds the very same instance (<code>===</code>, not equality) and removes it: <code>interventionId = ed4e…</code>.",
+      { refs: ["TimeMachineMiddleware"], s: { "p:injectedIntents": "[]", "p:outbox.queue": "[Intent ⚑]" } }),
+    st(V, C, "call", "process → update → onModelUpdated", "TaskListVM", "The resulting model is the app's own: untagged.",
+      { s: { "p:outbox.queue": "[Intent ⚑, Model]" } }),
+    st(C, S, "wire", "observed  #14 · Intent ⚑", "frame", "",
+      { json: obs(14, "Intent", PK + ".Intent.UpdateTaskCompletion", "UpdateTaskCompletion(taskId=" + TASK + ", completed=true)", { "#type": PK + ".Intent.UpdateTaskCompletion", taskId: TASK, completed: true }, 9120, { interventionId: REQ }), s: { "p:outbox.queue": "[Model]", "p:nextSequence": "15" } }),
+    st(C, S, "wire", "observed  #15 · Model", "frame", "", { s: { "p:outbox.queue": "[]", "p:nextSequence": "16" } }),
+    st(S, S, "self", "tag → Succeeded(14)", "TimeMachineState.onTimeline",
+      "The tag sets <code>taggedSequence</code> whether the row was placed or evicted. A tagged row outranks everything once sent.",
+      { refs: ["Intervention"], s: { "i:intervention": "ed4e… · Succeeded(#14)", "i:ledger": "highest 15" } }),
+    st(S, C, "wire", "received  #15", "frame", "", { json: recv(15), s: { "p:acknowledged": "15" } }),
+    st(S, S, "timer", "5 s later: DeadlinePassed", "TimeMachineStore",
+      "<code>deadlinePassedAt</code> is recorded, and the status does not change. Had the row not come, this is where it would turn into <i>Accepted, not observed</i>.",
+      { refs: ["Intervention"] })
+  ]
+},
+/* ------------------------------------------------------------------ */
+{
+  id: "intervene2",
+  title: "Model injection & refusals",
+  blurb: "A model injected through update {}, then a request refused for bad JSON, then one asked while the app is disconnected.",
+  init: { "p:acknowledged": "15", "p:nextSequence": "16", "p:injectedModel": "null", "i:interventions": "–" },
+  steps: [
+    st(S, C, "wire", "intervene · Model", "Composer → store",
+      "A non-sealed role: <code>typeName</code> must equal the role's own, and the JSON carries no discriminator.",
+      { json: { "#type": "intervene", requestId: REQ2, viewModelId: VMID, kind: "Model", typeName: PK + ".Model", asJson: { tasks: [TASKJ2], work: [] } }, s: { "i:interventions": "4b1f… Pending" } }),
+    st(C, V, "call", "injectModel → update { entering(); model }", "VIEViewModelInjector.injectModel",
+      "Through the ViewModel's own <code>update</code>, serialized against every other update, so the next <code>update { copy(…) }</code> computes from the injected model. <code>entering</code> stores it in <code>injectedModel</code>.",
+      { refs: ["VIEViewModelInjector"], s: { "p:injectedModel": "(Model@91c2, 4b1f…)" } }),
+    st(C, S, "wire", "intervention-result · success", "frame", "", { json: { "#type": "intervention-result", requestId: REQ2, result: { "#type": "success" } } }),
+    st(V, C, "call", "onModelUpdated(model) · === ✓", "TimeMachineMiddleware.observeModel",
+      "<code>injectedModel.exchange(null)</code>: the next model after an injection settles it, tagged if it is the same instance, untagged if another update superseded it.",
+      { refs: ["TimeMachineMiddleware"], s: { "p:injectedModel": "null" } }),
+    st(C, S, "wire", "observed  #16 · Model ⚑", "frame", "",
+      { json: obs(16, "Model", PK + ".Model", "Model(tasks=[…completed=true…], work=[])", { tasks: [TASKJ2], work: [] }, 14400, { interventionId: REQ2 }), s: { "p:nextSequence": "17" } }),
+    st(S, S, "self", "Succeeded(16)", "Intervention.status", "", { s: { "i:interventions": "4b1f… Succeeded" } }),
+    st(S, C, "wire", "intervene · Intent (typo)", "Composer",
+      "The developer typed <code>complete</code> instead of <code>completed</code>.",
+      { json: { "#type": "intervene", requestId: REQ3, viewModelId: VMID, kind: "Intent", typeName: PK + ".Intent.UpdateTaskCompletion", asJson: { "#type": PK + ".Intent.UpdateTaskCompletion", taskId: TASK, complete: true } }, s: { "i:interventions": "4b1f… Succeeded · bae7… Pending" } }),
+    st(C, C, "self", "StrictJson throws → BadJson", "VIERole.decodeForIntervention",
+      "App objects are decoded with <code>ignoreUnknownKeys = false</code>: a mistyped key fails instead of silently leaving a field at its default. Nothing is injected.",
+      { refs: ["VIERole"] }),
+    st(C, S, "wire", "intervention-result · failure", "frame", "",
+      { json: { "#type": "intervention-result", requestId: REQ3, result: { "#type": "failure", reason: "BadJson", message: "Encountered an unknown key 'complete' at path: $…" } } }),
+    st(S, S, "self", "Failed(BadJson)", "Intervention.status", "", { s: { "i:interventions": "4b1f… Succeeded · bae7… Failed(BadJson)" } }),
+    st(S, S, "self", "app disconnected → NotSent", "TimeMachineState.onIntervene",
+      "With no current connection, the intervention is recorded with <code>sent = false</code> and no command is issued. Try the status calculator under Internals for the other outcomes.",
+      { refs: ["Intervention"], s: { "i:interventions": "… · 77c0… NotSent" } })
+  ]
+},
+/* ------------------------------------------------------------------ */
+{
+  id: "closed",
+  title: "ViewModel cleared",
+  blurb: "The screen is popped. The close travels as a timeline message; a late intervention is refused; the developer clears it from the inspector.",
+  init: { "p:sink.live": "{TaskListVM 539d…}", "p:nextSequence": "17", "i:TaskListVM": "open" },
+  steps: [
+    st(U, V, "call", "navigate back → onCleared", "ViewModelStore.clear",
+      "The ViewModel is cleared; its closeables run."),
+    st(V, C, "call", "AutoCloseable → sink.closed", "TimeMachineMiddleware.onAttached (closeable)",
+      "<code>closed = true</code>; the ViewModel leaves <code>sink.liveViewModels</code>; a <code>vm-closed</code> entry is queued. The probe uses a closeable, not the intent flow's completion, which also ends when <code>process</code> throws.",
+      { refs: ["TimeMachineMiddleware", "TimeMachineSink"], s: { "p:sink.live": "{}" } }),
+    st(C, S, "wire", "vm-closed  #17", "frame", "",
+      { json: { "#type": "vm-closed", viewModelId: VMID, at: at(20110), sequence: 17 }, s: { "p:nextSequence": "18" } }),
+    st(S, S, "self", "closed (terminal)", "ViewModelRecord", "Nothing reopens a closed ViewModel.", { s: { "i:TaskListVM": "closed @#17" } }),
+    st(S, C, "wire", "intervene (late)", "Composer", "", { json: { "#type": "intervene", requestId: REQ3, viewModelId: VMID, kind: "Intent", typeName: PK + ".Intent.DeleteTask", asJson: { "#type": PK + ".Intent.DeleteTask", taskId: TASK } } }),
+    st(C, S, "wire", "intervention-result · UnknownViewModel", "TimeMachineClient.answer",
+      "No live entry. <code>ClosedViewModel</code> is only returned when the close races the request inside the middleware.",
+      { json: { "#type": "intervention-result", requestId: REQ3, result: { "#type": "failure", reason: "UnknownViewModel", message: "No live ViewModel " + VMID } } }),
+    st(S, S, "self", "Clear → ClearSession", "TimeMachineState.onClearSession",
+      "For a connected session, only closed ViewModels are removed, and their ids go to <code>cleared</code>: a later message naming one still updates the ledger (no false missing range) and is otherwise ignored. A disconnected session is removed whole.",
+      { refs: ["TimeMachineState", "SessionRecord"], s: { "i:TaskListVM": "cleared" } })
+  ]
+},
+/* ------------------------------------------------------------------ */
+{
+  id: "reject",
+  title: "Protocol version mismatch",
+  blurb: "An app ships a newer probe than the inspector checkout. The frozen envelope lets both sides recognise each other and say who must update.",
+  init: { "p:connection": "connecting", "i:rejections": "{}" },
+  steps: [
+    st(C, S, "wire", "hello · protocolVersion 2", "TimeMachineClient.handshake",
+      "Any later <code>hello</code> decodes as a version 1 one, since unknown keys are ignored and the envelope never loses a field.",
+      { json: hello(2), refs: ["TimeMachineProtocolVersion", "TimeMachineJson"] }),
+    st(S, S, "self", "isCompatible(2) = false", "TimeMachineState.onHello",
+      "A <code>Rejection</code> record for the session id, attempts 1. Commands: <code>Send(Rejected)</code>, then <code>Close</code>. No session record is created.",
+      { refs: ["TimeMachineState", "SessionRecord"], s: { "i:rejections": "{60a4…: v2, attempts 1}" } }),
+    st(S, C, "wire", "rejected", "frame", "Carries the inspector's own version.",
+      { json: { "#type": "rejected", reason: "IncompatibleProtocol", protocolVersion: 1 } }),
+    st(S, C, "wire", "close frame", "TimeMachineConnections.execute", ""),
+    st(C, C, "self", "\"Update the inspector\" (printed once)", "TimeMachineClient.rejectionNotice",
+      "Theirs (1) is lower than ours (2), so the inspector must be updated; the other way round, the app's <code>vie-timemachine-client</code> dependency. The notice prints once however often it retries, and it keeps retrying: the inspector may be restarted with a compatible version.",
+      { refs: ["TimeMachineClient"], s: { "p:connection": "rejected · retrying" } }),
+    st(C, S, "wire", "hello · protocolVersion 2 (retry)", "frame", "",
+      { json: hello(2), s: { "i:rejections": "{60a4…: v2, attempts 2}" } })
+  ]
+}
+];
+/* ---------- Internals: one card per type ---------- */
+const ALIAS = { VIETypeInfo: "VIEViewModelInfo", VIESignalDelivery: "VIEObservation" };
+const GROUPS = [
+  { id: "g-client", module: "client", title: "Probe (vie-timemachine-client)", lead: "Runs inside the application, on every VIE target. One session and one WebSocket per process; one middleware per ViewModel. Its rule: never throw into the app, never slow the ViewModel down, never lose a count." },
+  { id: "g-server", module: "server", title: "Inspector (timemachine-server)", lead: "A Compose Desktop app. Transport turns frames into events, a pure core turns events into state and commands, and the UI reads the state. No locks: one writer coroutine owns every change." },
+  { id: "g-shared", module: "shared", title: "Contract (vie-timemachine-shared)", lead: "The wire messages and the constants both sides must agree on. It knows nothing about VIE's runtime or any UI." }
+];
+const CARDS = [
+/* ---- client ---- */
+{ id: "TimeMachine", g: "g-client", kind: "object", file: "client/TimeMachine.kt", layer: "Entry point",
+  role: "The public face of the probe: <code>start</code>, <code>stop</code>, and <code>middleware()</code>.",
+  how: [
+    "Holds the running <code>TimeMachineClient</code> in an <code>AtomicReference</code>; <code>compareAndSet</code> settles a racing double start, and a second start prints a notice instead of replacing the probe.",
+    "<code>middleware&lt;M, I, S&gt;()</code> is <code>inline reified</code>: it checks <code>isStarted</code> first, so a disabled probe never even introspects the role types, and returns the shared <code>NoOpMiddleware</code>.",
+    "While running, it captures <code>typeOf&lt;T&gt;()</code> for the three roles and asks the client for a new <code>TimeMachineMiddleware</code>.",
+    "A middleware returned while stopped stays a no-op forever: a probe started later only sees ViewModels built from then on. <code>stop()</code> leaves installed middlewares inert.",
+    "Every failure to build, start or stop is printed and swallowed (<code>guarded</code>)."
+  ], links: ["TimeMachineClient", "TimeMachineConfig", "NoOpMiddleware", "TimeMachineMiddleware", "VIERole"] },
+{ id: "TimeMachineConfig", g: "g-client", kind: "class", file: "client/TimeMachineConfig.kt", layer: "Entry point",
+  role: "What <code>start</code> needs: <code>appName</code>, <code>host</code> (localhost), <code>port</code> (13229), <code>enabled</code>, <code>bufferSize</code> (1,024).",
+  how: [
+    "<code>enabled = false</code> means no socket, no allocation: the switch for release builds.",
+    "<code>bufferSize</code> bounds the outbox queue. A queued entry holds the object itself, so while no inspector is connected up to this many past models stay reachable.",
+    "The WebSocket path is not configurable: it is part of the protocol."
+  ], links: ["TimeMachine", "TimeMachineOutbox"] },
+{ id: "NoOpMiddleware", g: "g-client", kind: "object", file: "client/NoOpMiddleware.kt", layer: "Entry point",
+  role: "What a disabled probe hands out: a stateless identity middleware shared by every ViewModel.",
+  how: ["Overrides nothing; <code>typed()</code> casts the single instance to any role triple, so a disabled probe allocates nothing per ViewModel."],
+  links: ["TimeMachine"] },
+{ id: "TimeMachineMiddleware", g: "g-client", kind: "internal class", file: "client/TimeMachineMiddleware.kt", layer: "Per ViewModel",
+  role: "The probe's foot inside one ViewModel: reports its start, every model, intent and signal, and its close; and places intervened objects into it.",
+  how: [
+    "Owns a random <code>viewModelId</code>. <i>Started</i> is reported in <code>onAttached</code>, not at construction, so a middleware built but never installed reports nothing. The ViewModel is named after its own runtime class.",
+    "Intents and signals: observed in <code>interceptIntents</code> / <code>interceptSignals</code> with <code>onEach</code>. Installed last, it sits nearest the source. It never collects <code>signalFlow</code>, which would steal Effects.",
+    "Models: observed in <code>onModelUpdated</code>, which sees every <code>update {}</code> result in order, with or without a view. The first model is reported from <code>onAttached</code>.",
+    "Close: an <code>AutoCloseable</code> registered with <code>vm.addCloseable</code>, so only a real clear counts.",
+    "Interventions: <code>intervene()</code> decodes with the role's <code>VIERole</code>, then hands the object to <code>VIEViewModelInjector</code>. Injected objects wait in <code>injectedModel</code> (one slot) or <code>InjectedQueue</code>s (32, copy-on-write) and are matched by identity (<code>===</code>) when observed, which yields the <code>interventionId</code> tag.",
+    "One instance serves one ViewModel: each hook is guarded by an <code>AtomicBoolean</code>; a second <code>onAttached</code> prints a notice and is ignored. Models still flow under the first identity, so sharing remains a mistake (e.g. a DI singleton)."
+  ], threads: "Hooks run on the ViewModel's dispatcher. The injected-object slots are atomics because <code>viewModelScope</code> may run on several threads (e.g. <code>Dispatchers.Default</code>).",
+  links: ["TimeMachineSink", "VIEViewModelInjector", "VIERole", "vie-hooks"] },
+{ id: "VIERole", g: "g-client", kind: "internal class", file: "client/VIERole.kt", layer: "Per ViewModel",
+  role: "Introspection of one role type (Model, Intent or Signal), built once and reused for every observation and intervention.",
+  how: [
+    "<code>of(KType)</code> looks up <code>serializerOrNull</code>. An open polymorphic serializer counts as none: without a <code>SerializersModule</code> it could never encode.",
+    "<code>typeName</code> is the serial name; a non-serializable type falls back to its class name (simple name only on web).",
+    "<code>sealedSubTypes</code>: the leaf serial names from the sealed descriptor, or <code>null</code> when not sealed.",
+    "<code>typeNameOf(value)</code>: for a sealed role, runs the serializer into <code>SerialNameCapture</code>, an encoder that keeps only element 0 (the discriminator) and drops the payload.",
+    "<code>decodeForIntervention</code> returns a reason, not an exception: <code>NotSerializable</code>, <code>UnknownType</code>, <code>BadJson</code> on a <code>#type</code> mismatch or any decode failure. Decoding uses <code>StrictJson</code> (<code>ignoreUnknownKeys = false</code>), unlike protocol frames.",
+    "Respects a type's own <code>@JsonClassDiscriminator</code> when reading the concrete type from JSON."
+  ], links: ["TimeMachineMiddleware", "TimeMachineJson", "VIEViewModelInfo", "VIEInterventionResult"] },
+{ id: "VIEViewModelInjector", g: "g-client", kind: "internal class", file: "client/VIEViewModelInjector.kt", layer: "Per ViewModel",
+  role: "Places an intervened object into the ViewModel through its own public entry points.",
+  how: [
+    "<code>injectModel</code>: <code>launch { vm.update { entering(); model } }</code>, serialized with every other update.",
+    "<code>injectIntent</code>: <code>launch { entering(); vm.post(intent) }</code>, as a view would.",
+    "<code>injectSignal</code>: refuses a Signal that is neither Event nor Effect (reported as <code>UnknownType</code>), else <code>launch { entering(); vm.signal(s) }</code>.",
+    "Everything runs on <code>viewModelScope</code>, so an injection dies with its ViewModel. <code>entering</code> records the object just before it enters, so it can be matched on observation."
+  ], links: ["TimeMachineMiddleware", "vie-hooks"] },
+{ id: "TimeMachineSink", g: "g-client", kind: "internal class", file: "client/TimeMachineSink.kt", layer: "Per process",
+  role: "Turns middleware reports into deferred timeline entries, and keeps the registry of live ViewModels.",
+  how: [
+    "<code>started</code>, <code>observed</code>, <code>closed</code> capture only <code>at</code> on the calling thread, and hand an <code>Entry</code> to the outlet (the outbox's <code>offer</code>).",
+    "An <code>Entry</code> is a closure <code>(sequence) → TimelineMessage</code>: <code>toString()</code>, JSON encoding and type naming run later in <code>describe</code>, on the probe's coroutine. VIE objects are immutable, so describing late is safe and keeps large models off the ViewModel's dispatcher.",
+    "<code>describing { }</code> swallows anything app code throws, <code>Error</code> and cancellation included; the message is still built without the failed part.",
+    "<code>liveViewModels</code>: an atomic map of <code>LiveViewModel(info, intervener)</code>, read to answer <code>request-vm-info</code>, to re-announce after reconnect, and to route <code>intervene</code>.",
+    "<code>TimeMachineIntervener</code> is a <code>fun interface</code> the middleware provides: never throws, never suspends."
+  ], links: ["TimeMachineOutbox", "TimeMachineMiddleware", "TimeMachineClient", "VIEObservation"] },
+{ id: "TimeMachineOutbox", g: "g-client", kind: "internal class", file: "client/TimeMachineOutbox.kt", layer: "Per process",
+  role: "The outbound queue: bounded buffering, numbering, flow control, acknowledgement and resend.",
+  how: [
+    "<code>queue</code>: a <code>Channel(capacity, DROP_OLDEST)</code>. <code>offer</code> is <code>trySend</code>: never suspends, never throws. <code>onUndeliveredElement</code> counts each dropped entry per ViewModel in <code>drops</code>.",
+    "<code>build</code>: after receiving an entry, <code>drops.exchange(empty)</code> becomes one <code>ObservationsDropped</code> per ViewModel, numbered just ahead of it. Sequences are assigned here, at send time, so a dropped message takes none.",
+    "<code>inFlight</code> holds sent messages until a <code>received</code> covers them; <code>inFlightLength</code> counts their characters.",
+    "<code>drain</code>: first resends everything in flight (original sequences), then loops: wait until <code>inFlightLength ≤ window</code> (256 Ki), take or build the next message, send, move to in flight. One message is always admitted.",
+    "A message whose send throws stays in <code>unsent</code> with its number and goes first on the next drain, right after the resends.",
+    "<code>acknowledge</code> raises a <code>MutableStateFlow</code>; the drain trims on its next check."
+  ], threads: "<code>offer</code> from any thread; <code>drain</code> runs on one coroutine and is the only one to touch <code>inFlight</code>, <code>unsent</code> and <code>nextSequence</code>.",
+  links: ["TimeMachineSink", "TimeMachineClient", "TimeMachineSequence", "TimeMachineServerMessage"] },
+{ id: "TimeMachineClient", g: "g-client", kind: "internal class", file: "client/TimeMachineClient.kt", layer: "Per process",
+  role: "The connection: session, sink, outbox and the WebSocket, retried for as long as the probe runs.",
+  how: [
+    "<code>connectForever</code>: connect, <code>hello</code>, wait 10 s for an answer, then <code>stream()</code> until the socket breaks. Backoff: 0.5 s doubling to a 5 s cap, reset after a welcome. Problems print only when the message changes.",
+    "A rejection is retried too. Its notice names who to update: this app's client dependency if the inspector speaks a newer protocol, the inspector otherwise.",
+    "After a reconnect (not the first welcome) it sends <code>vm-info</code> for every live ViewModel before draining.",
+    "<code>stream()</code> runs <code>outbox.drain</code> beside a receive loop that answers <code>request-vm-info</code>, <code>intervene</code> (an <code>intervention-result</code> right away) and <code>received</code>.",
+    "Undecodable frames are skipped. A <code>CoroutineExceptionHandler</code> backstops the rule that nothing reaches the host's uncaught handler (which would kill an Android app).",
+    "Engine per platform via <code>expect val timeMachineEngine</code>: CIO on jvm and android, Darwin on iOS, Js on the web. Browsers cannot send pings."
+  ], threads: "One <code>CoroutineScope(SupervisorJob + Dispatchers.Default)</code>.",
+  links: ["TimeMachineOutbox", "TimeMachineSink", "TimeMachineClientMessage", "TimeMachineServerMessage", "TimeMachineConnection"] },
+/* ---- server ---- */
+{ id: "TimeMachineServer", g: "g-server", kind: "class", file: "server/transport/TimeMachineServer.kt", layer: "Transport",
+  role: "The ktor CIO WebSocket server on <code>0.0.0.0:13229/timemachine</code>. It turns frames into events and never touches state.",
+  how: [
+    "Each connection gets a <code>ConnectionId</code> and is registered in <code>TimeMachineConnections</code> before any event is posted.",
+    "The first frame must be a decodable <code>hello</code> within 10 s, else close with <code>VIOLATED_POLICY</code>. Then <code>HelloReceived</code>.",
+    "Later frames: <code>MessageReceived(id, message, length, now)</code>; undecodable frames and further hellos are printed and skipped.",
+    "<code>finally</code>: posts <code>Disconnected</code>, then unregisters, so a command is never routed to a gone socket.",
+    "Pings every 5 s, closes after 10 s without a pong. <code>start</code> reports <code>ListenerChanged</code> (Listening or Failed, e.g. port taken); <code>retry</code> builds a new engine only after a failure."
+  ], links: ["TimeMachineConnections", "TimeMachineStore", "TimeMachineEvent"] },
+{ id: "TimeMachineConnections", g: "g-server", kind: "class", file: "server/transport/TimeMachineConnections.kt", layer: "Transport",
+  role: "Live sockets by <code>ConnectionId</code>, and the executor of the store's transport commands.",
+  how: [
+    "<code>Send</code>: encode with <code>TimeMachineJson</code> and <code>trySend</code> on the session's unlimited outgoing channel, so order is kept and nothing waits.",
+    "<code>Close</code>: queue a close frame, then cancel the session if it is still there after 10 s (a half-open peer never answers a close).",
+    "A command for an unregistered id is ignored."
+  ], links: ["TimeMachineServer", "TimeMachineStore", "TimeMachineEvent"] },
+{ id: "TimeMachineStore", g: "g-server", kind: "class", file: "server/store/TimeMachineStore.kt", layer: "Core",
+  role: "The single writer: applies posted events in order through the pure core and publishes <code>state: StateFlow</code>.",
+  how: [
+    "<code>post</code> is a non-suspending <code>trySend</code> on an unlimited channel, from any thread.",
+    "The writer takes every event waiting when it wakes as one batch, applies <code>on(batch)</code>, publishes the state once, then executes the commands in order.",
+    "It runs <code>StartDeadline</code> itself (<code>delay(5 s)</code> → <code>DeadlinePassed</code>), keeping the core free of clocks.",
+    "Resilience: if the core throws on a batch, it re-applies event by event and skips only the culprit. A stalled writer would stop every <code>received</code> and stall every probe.",
+    "<code>intervene(…)</code> picks the <code>requestId</code> and posts the event. Bounds per ViewModel: 1,000 rows, 32 Mi characters."
+  ], threads: "One coroutine owns all writes; no lock anywhere.",
+  links: ["TimeMachineState", "TimeMachineEvent", "TimeMachineConnections", "InspectorUI"] },
+{ id: "TimeMachineEvent", g: "g-server", kind: "sealed interface", file: "server/store/TimeMachineEvent.kt", layer: "Core",
+  role: "Every input to the core, plus the <code>Command</code>s it returns and the <code>Transition</code> that carries both.",
+  how: [
+    "Events: <code>HelloReceived</code>, <code>MessageReceived</code>, <code>Disconnected</code>, <code>ClearSession</code>, <code>ClearDisconnected</code>, <code>DismissRejection</code>, <code>Intervene</code>, <code>DeadlinePassed</code>, <code>ListenerChanged</code>. Clock-dependent ones carry <code>now</code>, so <code>on()</code> stays pure.",
+    "Commands: <code>Send</code> and <code>Close</code> (transport) and <code>StartDeadline</code> (store).",
+    "<code>Transition(state, commands)</code>: the result of every event."
+  ], links: ["TimeMachineState", "TimeMachineStore", "TimeMachineConnections"] },
+{ id: "TimeMachineState", g: "g-server", kind: "data class", file: "server/store/TimeMachineState.kt", layer: "Core",
+  role: "Everything the inspector knows, immutable, changed only by <code>on(event)</code>.",
+  how: [
+    "<code>sessions</code> by id, <code>connections</code> (accepted connection → session; an evicted one stays mapped until its own disconnect), <code>rejections</code>, <code>listener</code>, <code>limits</code>.",
+    "<code>on(List)</code> appends one <code>Received</code> per connection that delivered timeline messages, at the highest sequence, duplicates included.",
+    "<code>onHello</code>: version check; new session, or revive a known one in place (close the old connection, re-ask pending <code>request-vm-info</code>, open a new span).",
+    "<code>onTimeline</code>: ledger first (duplicate → ignore); <code>cleared</code> ViewModels only update the ledger; rows placed; unknown ViewModel or drop report → <code>request-vm-info</code>; tagged observation → <code>taggedSequence</code>.",
+    "<code>onInfo</code>: a description, or <code>info = null</code> meaning the probe forgot it: closed, with <code>inferredEnd</code>.",
+    "<code>timeline(session, vm)</code> and <code>sessionTimeline(session)</code> project the rows and markers the UI shows."
+  ], links: ["TimeMachineEvent", "SessionRecord", "ViewModelRecord", "SequenceLedger", "Intervention", "SessionTimeline"] },
+{ id: "SessionRecord", g: "g-server", kind: "data class", file: "server/store/SessionRecord.kt", layer: "Records",
+  role: "One probe session: identity, current connection, connection spans, ledger, ViewModels, cleared ids and the intervention index. Also defines <code>ConnectionSpan</code>, <code>Rejection</code>, <code>ListenerState</code> and <code>TimelineEntry</code>.",
+  how: [
+    "<code>connection</code> is <code>null</code> while disconnected; requests always go to the current one.",
+    "<code>ConnectionSpan(connected, disconnected?)</code>: each edge records <code>at</code> and the highest sequence at that moment, which is where its divider sorts.",
+    "<code>Rejection</code>: one per session id, counting attempts; a dismissal sticks for that id.",
+    "<code>sparkline</code>: the sum of its ViewModels' activity."
+  ], links: ["TimeMachineState", "ViewModelRecord", "SequenceLedger", "SessionTimeline"] },
+{ id: "ViewModelRecord", g: "g-server", kind: "data class", file: "server/store/ViewModelRecord.kt", layer: "Records",
+  role: "One ViewModel as the inspector knows it: description, life span, bounded rows, and indexes that survive eviction.",
+  how: [
+    "<code>info</code> is <code>null</code> while unknown. <code>startSequence</code>, <code>closeSequence</code>, <code>closed</code> (terminal), <code>inferredEnd</code>, <code>awaitingInfo</code>.",
+    "<code>place(row, limits)</code>: insert by sequence (binary search), then evict the oldest beyond 1,000 rows or 32 Mi characters. A single row heavier than the limit is counted as evicted without being placed.",
+    "Kept even after eviction: <code>latestJson</code> per (kind, type) for the Composer's prefill, <code>signalDelivery</code> per Signal type for the Effect warning, <code>currentModel</code>, <code>lastActivity</code>, <code>activity</code>, <code>interventions</code>.",
+    "<code>historyUnavailable</code>: start never seen, and either the session's floor is above 0 or the ViewModel came only from a re-announce.",
+    "<code>aliveSpan</code>: from its start (or the floor) to its close, inferred end, or open."
+  ], links: ["TimeMachineState", "Intervention", "Activity", "TimelineMarkers"] },
+{ id: "SequenceLedger", g: "g-server", kind: "data class", file: "server/store/SequenceLedger.kt", layer: "Records",
+  role: "Which sequences a session received, across all its connections: <code>floor</code>, <code>highest</code>, and sorted disjoint <code>missing</code> ranges.",
+  how: [
+    "<code>receive(n)</code> returns the new ledger, or <code>null</code> for a duplicate.",
+    "Below the floor: extends down and opens a range. Above the highest: extends up and opens a range for the skipped numbers. Inside: heals the range it falls in, or is a duplicate.",
+    "Missing ranges drive the <i>Possibly incomplete</i> marker. Try it in the playground below."
+  ], links: ["TimeMachineState", "TimelineMarkers", "TimeMachineSequence"] },
+{ id: "Intervention", g: "g-server", kind: "data class", file: "server/store/Intervention.kt", layer: "Records",
+  role: "One request and the facts known about it; <code>status</code> is computed from the facts, never from their arrival order.",
+  how: [
+    "Facts: <code>sent</code>, <code>result</code> (first answer wins), <code>taggedSequence</code> (first tagged row), <code>deadlinePassedAt</code>.",
+    "Precedence: NotSent → Succeeded (tagged) → Failed → Pending (before deadline) → Accepted, not observed (success, no row) → Timed out.",
+    "A late row turns <i>Timed out</i> or <i>Accepted, not observed</i> into <i>Succeeded</i>. Eviction never changes a status."
+  ], links: ["ViewModelRecord", "TimeMachineState", "VIEInterventionResult"] },
+{ id: "Activity", g: "g-server", kind: "data class", file: "server/store/Activity.kt", layer: "Records",
+  role: "The sparkline: ten 3-second buckets aligned to absolute time, counted at placement so eviction does not thin them.",
+  how: ["A row ahead of now (a fast probe clock) counts in the last bucket; a row older than the oldest bucket is not counted."],
+  links: ["ViewModelRecord"] },
+{ id: "SessionTimeline", g: "g-server", kind: "functions", file: "server/store/SessionTimeline.kt", layer: "Projection",
+  role: "Merges every ViewModel's timeline of a session into one list ordered by sequence, with connection dividers.",
+  how: [
+    "Top: one <i>History unavailable</i> and one <i>Evicted</i> marker per affected ViewModel, each naming it.",
+    "Rows by sequence, one shared <i>Possibly incomplete</i> per missing range, and a divider (Connected, Reconnected, Disconnected) right after the row its edge's <code>after</code> names."
+  ], links: ["TimeMachineState", "SessionRecord", "TimelineMarkers"] },
+{ id: "InspectorUI", g: "g-server", kind: "UI", file: "server/ui/…", layer: "UI",
+  role: "The window. It is itself built with VIE: every pane is a <code>PaneViewModel</code> (a <code>VIEViewModel</code>) shown through <code>VIEView</code>.",
+  how: [
+    "<code>Inspector</code> bundles the store, <code>InspectorSelection</code>, <code>PaneVisibility</code>, the panes' <code>ViewModelStore</code>, the compute dispatcher and the clock; closed as a whole.",
+    "<code>whileShown(key, inputs, projector)</code>: a pane projects <code>store.state</code> only while composed, conflated, on <code>Dispatchers.Default</code>.",
+    "<code>PaneViewModel</code>: controls are set at once in <code>process</code>; projections are merged in with <code>update</code> as they land.",
+    "Panes: sessions rail, timeline (filter, follow), detail with JSON diff, current model, Composer (prefill from <code>latestJson</code>, type menu from <code>sealedSubTypes</code>, history and resend of interventions)."
+  ], links: ["TimeMachineStore", "TimeMachineState"] },
+/* ---- shared ---- */
+{ id: "TimeMachineClientMessage", g: "g-shared", kind: "sealed interface", file: "shared/TimeMachineClientMessage.kt", layer: "Messages",
+  role: "Probe → inspector: <code>hello</code>, <code>vm-info</code>, <code>intervention-result</code>, and the four timeline messages.",
+  how: [
+    "<code>TimeMachineTimelineMessage</code> (sealed sub-interface) adds <code>sequence</code>: <code>vm-started</code>, <code>vm-closed</code>, <code>observed</code>, <code>observations-dropped</code>. Only these are acknowledged and resent.",
+    "<code>hello</code>'s envelope is frozen across versions."
+  ], links: ["TimeMachineServerMessage", "TimeMachineSequence", "VIEObservation", "VIEViewModelInfo"] },
+{ id: "TimeMachineServerMessage", g: "g-shared", kind: "sealed interface", file: "shared/TimeMachineServerMessage.kt", layer: "Messages",
+  role: "Inspector → probe: <code>welcome</code>, <code>rejected</code>, <code>received</code>, <code>request-vm-info</code>, <code>intervene</code>.",
+  how: [
+    "<code>rejected</code> carries the inspector's version and a frozen envelope. <code>DuplicateSession</code> exists but a version 1 inspector never sends it.",
+    "<code>received</code> is cumulative per connection."
+  ], links: ["TimeMachineClientMessage", "VIEInterventionResult"] },
+{ id: "VIEViewModelInfo", g: "g-shared", kind: "data class", file: "shared/VIEViewModelInfo.kt · VIETypeInfo.kt", layer: "Payloads",
+  role: "A ViewModel's id and type name, and one <code>VIETypeInfo</code> (serial name, serializable, sealed subtypes) per role.",
+  how: ["Only a serializable role can be intervened on and carries <code>asJson</code> in observations."], links: ["VIERole"] },
+{ id: "VIEObservation", g: "g-shared", kind: "data class", file: "shared/VIEObservation.kt · VIESignalDelivery.kt", layer: "Payloads",
+  role: "One observed object: kind, concrete type name, <code>toString()</code>, optional JSON, <code>interventionId</code>, and for Signals the <code>delivery</code> (Event or Effect).",
+  how: ["<code>at</code> is display only. <code>delivery</code> travels on the instance because a serial descriptor cannot tell an Event from an Effect; the inspector uses it to warn that injecting an Effect into a ViewModel no view collects blocks it."],
+  links: ["TimeMachineSink", "ViewModelRecord"] },
+{ id: "VIEInterventionResult", g: "g-shared", kind: "sealed interface", file: "shared/VIEInterventionResult.kt", layer: "Payloads",
+  role: "<code>success</code> (accepted and scheduled) or <code>failure(reason, message)</code>: <code>UnknownViewModel</code>, <code>ClosedViewModel</code>, <code>NotSerializable</code>, <code>UnknownType</code>, <code>BadJson</code>.",
+  how: ["Delivery is proven only by a tagged observation."], links: ["Intervention", "VIERole"] },
+{ id: "TimeMachineSequence", g: "g-shared", kind: "value class", file: "shared/TimeMachineSequence.kt", layer: "Constants",
+  role: "A timeline position (<code>Long</code>), the only order the inspector trusts. One counter per session, from 0, assigned at send.",
+  how: ["No validation in the constructor, so decoding never throws. Only <code>inc</code>/<code>dec</code>: a position plus a count means nothing."],
+  links: ["TimeMachineOutbox", "SequenceLedger"] },
+{ id: "TimeMachineProtocolVersion", g: "g-shared", kind: "value class", file: "shared/TimeMachineProtocolVersion.kt", layer: "Constants",
+  role: "The wire version (1), bumped by hand. Compatible means equal.", how: ["Accepts any Int so a foreign version decodes cleanly and can be rejected."], links: ["TimeMachineConnection"] },
+{ id: "TimeMachineConnection", g: "g-shared", kind: "object", file: "shared/TimeMachineConnection.kt", layer: "Constants",
+  role: "Port 13229, path <code>/timemachine</code>, <code>protocolVersion</code>, <code>isCompatible</code>.", how: [], links: ["TimeMachineProtocolVersion"] },
+{ id: "TimeMachineJson", g: "g-shared", kind: "val", file: "shared/TimeMachineJson.kt", layer: "Constants",
+  role: "The one <code>Json</code> both sides use: discriminator <code>#type</code>, <code>ignoreUnknownKeys</code>, <code>encodeDefaults</code>.",
+  how: ["<code>#type</code> because the app's own sealed types are encoded too, and one may well have a <code>type</code> property. Ignoring unknown keys is what lets a later <code>hello</code> decode."],
+  links: ["VIERole"] }
+];
+/* ---------- Architecture view: which components each step touches ---------- */
+/* Spec per step: "a>b>c|x,y" = the message travels a → b → c; x, y are also involved. A single node pulses. */
+const ARCH = {
+  handshake: ["tm>client|sink,outbox", "vm>tm>mw|role", "vm>mw>sink>outbox|inj", "client>server|conns", "client>server", "server>store",
+    "store>state>session|conns", "conns>server>client", "client>outbox", "outbox|sink", "outbox>client>server", "outbox|sink,role",
+    "outbox>client>server", "server>store>state>ledger>vmrec", "conns>server>client", "client>outbox"],
+  tap: ["view>vm", "vm>mw>sink>outbox", "vm", "vm>mw>sink>outbox", "vm>view", "vm>mw>sink>outbox", "vm>mw>sink>outbox", "vm>view",
+    "outbox|sink,role", "outbox>client>server", "outbox>client>server", "outbox>client>server", "outbox>client>server",
+    "server>store>state>vmrec|ledger", "conns>server>client>outbox"],
+  window: ["vm>mw>sink>outbox", "outbox", "outbox>client>server", "outbox", "outbox>client>server", "outbox", "outbox>client>server", "outbox",
+    "vm>mw>sink>outbox", "server>store>state>ledger", "conns>server>client>outbox", "outbox", "outbox>client>server",
+    "server>store>state>ledger", "conns>server>client>outbox"],
+  reconnect: ["vm>mw>sink>outbox", "outbox>client>server", "outbox>client>server", "server>store>state>ledger", "conns>server>client",
+    "vm>mw>sink>outbox", "client|outbox", "server|session,conns", "client>server|conns", "server>store>state>session|conns",
+    "conns>server>client", "sink>client>server", "outbox>client>server", "outbox>client>server", "outbox>client>server",
+    "server>store>state>ledger|vmrec", "conns>server>client>outbox", "server>store>state>session|conns"],
+  overflow: ["vm>mw>sink>outbox", "vm>mw>sink>outbox", "vm>mw>sink>outbox", "vm>mw>sink>outbox", "client>server", "conns>server>client",
+    "outbox", "outbox>client>server", "outbox>client>server", "server>store>state>vmrec|ledger", "conns>server>client",
+    "conns>server>client>outbox", "sink>client>server", "server>store>state>vmrec"],
+  restart: ["server|store,state", "client", "client>server", "server>store>state>session", "conns>server>client", "sink>client>server",
+    "outbox>client>server", "server>store>state>ledger>vmrec", "conns>server>client>outbox"],
+  intervene: ["ui>store", "store>state>intervention|conns", "conns>server>client", "client>sink>mw>role", "mw>inj>vm",
+    "client>server", "server>store>state>intervention", "vm>mw>sink>outbox|inj", "vm>mw>sink>outbox", "outbox>client>server",
+    "outbox>client>server", "server>store>state>intervention|vmrec", "conns>server>client>outbox", "store>state>intervention"],
+  intervene2: ["conns>server>client|ui,store,intervention", "client>sink>mw>inj>vm|role", "client>server", "vm>mw>sink>outbox",
+    "outbox>client>server", "server>store>state>intervention", "conns>server>client|ui,store", "client>sink>mw>role",
+    "client>server", "server>store>state>intervention", "ui>store>state>intervention"],
+  closed: ["view>vm", "vm>mw>sink>outbox", "outbox>client>server", "server>store>state>vmrec", "conns>server>client|ui",
+    "client>server|sink", "ui>store>state>vmrec|session"],
+  reject: ["client>server", "server>store>state|session", "conns>server>client", "conns>server>client", "client", "client>server|session"]
+};
+
+/* Merged boxes: each detailed component maps onto one of five boxes per row. */
+const MERGE = { view: "view", vm: "vm", tm: null, mw: "mw", role: "mw", inj: "mw", sink: "out", outbox: "out", client: "client",
+  server: "server", conns: "server", store: "store", state: "state", session: "rec", vmrec: "rec", ledger: "rec", intervention: "rec", ui: "ui" };
+const BW = 160, BH = 62, TOPY = 64, BOTY = 236;
+const NODES = {
+  view:   { x: 40,  y: TOPY, t: "UI", sub: "VIEView", lane: 0 },
+  vm:     { x: 230, y: TOPY, t: "ViewModel", sub: "VIEViewModel", lane: 1 },
+  mw:     { x: 420, y: TOPY, t: "Middleware", sub: "+ VIERole · Injector", lane: 2 },
+  out:    { x: 610, y: TOPY, t: "Sink · Outbox", sub: "queue · seq · window", lane: 2 },
+  client: { x: 800, y: TOPY, t: "Client", sub: "TimeMachineClient", lane: 2 },
+  ui:     { x: 40,  y: BOTY, t: "Inspector UI", sub: "panes · Composer", lane: 3 },
+  rec:    { x: 230, y: BOTY, t: "Records", sub: "session · VM · ledger", lane: 3 },
+  state:  { x: 420, y: BOTY, t: "State core", sub: "TimeMachineState.on", lane: 3 },
+  store:  { x: 610, y: BOTY, t: "Store", sub: "single writer", lane: 3 },
+  server: { x: 800, y: BOTY, t: "Server", sub: "+ Connections", lane: 3 }
+};
+for (const n of Object.values(NODES)) { n.w = BW; n.h = BH; }
+const MID = (n) => n.y + BH / 2;
+const EDGES = [
+  ["view", "vm"], ["vm", "mw"], ["mw", "out"], ["out", "client"],
+  ["client", "server", [[880, TOPY + BH], [880, BOTY]], "wire"],
+  ["server", "store"], ["store", "state"], ["state", "rec"], ["rec", "ui"],
+  ["ui", "store", [[120, BOTY + BH], [120, BOTY + BH + 14], [690, BOTY + BH + 14], [690, BOTY + BH]]]
+];
+const ctr = (n) => [n.x + n.w / 2, n.y + n.h / 2];
+function clip(n, from, to) {
+  const [cx, cy] = from, dx = to[0] - cx, dy = to[1] - cy;
+  const tx = dx ? (dx > 0 ? (n.x + n.w - cx) / dx : (n.x - cx) / dx) : Infinity;
+  const ty = dy ? (dy > 0 ? (n.y + n.h - cy) / dy : (n.y - cy) / dy) : Infinity;
+  const t = Math.min(tx, ty);
+  return [cx + dx * t, cy + dy * t];
+}
+function straight(a, b) { const A = NODES[a], B = NODES[b]; return [clip(A, ctr(A), ctr(B)), clip(B, ctr(B), ctr(A))]; }
+function edgePts(a, b) {
+  for (const e of EDGES) {
+    if (e[0] === a && e[1] === b) return e[2] ? e[2] : straight(a, b);
+    if (e[0] === b && e[1] === a) return (e[2] ? e[2] : straight(b, a)).slice().reverse();
+  }
+  return straight(a, b);
+}
+function parseSpec(s) {
+  const [p, x] = s.split("|");
+  const path = [];
+  for (const n of p.split(">").map((k) => MERGE[k]).filter(Boolean)) if (path[path.length - 1] !== n) path.push(n);
+  const extra = (x ? x.split(",") : []).map((k) => MERGE[k]).filter(Boolean);
+  return { path, all: new Set(path.concat(extra)) };
+}
+
+let archAnim = null, archLastKey = "";
+function trunc(s, n) { return s.length > n ? s.slice(0, n - 1) + "…" : s; }
+
+function renderArch() {
+  const host = $("#archSvg"); if (!host || $("#archWrap").hidden) return;
+  const s = scen(), specs = (ARCH[s.id] || []).map(parseSpec), spec = specs[cur] || { path: [], all: new Set() };
+  const st = s.steps[cur], N = s.steps.length;
+  const involved = {}; specs.forEach((sp, i) => sp.all.forEach((n) => (involved[n] = involved[n] || []).push(i)));
+  const activeEdges = new Set(); for (let i = 0; i + 1 < spec.path.length; i++) { activeEdges.add(spec.path[i] + ">" + spec.path[i + 1]); activeEdges.add(spec.path[i + 1] + ">" + spec.path[i]); }
+  const isWire = st.k === "wire" || st.k === "lost";
+  let h = "";
+  h += `<rect class="a-frame" x="15" y="34" width="970" height="${BH + 50}" rx="10"/><text class="a-frame-t" x="30" y="53">APPLICATION · vie-timemachine-client</text>`;
+  h += `<rect class="a-frame" x="15" y="${BOTY - 30}" width="970" height="${BH + 64}" rx="10"/><text class="a-frame-t" x="30" y="${BOTY - 11}">INSPECTOR · timemachine-server</text>`;
+  h += `<text class="a-wire-t" x="892" y="164">WebSocket :13229</text>`;
+  for (const e of EDGES) {
+    const pts = e[2] || straight(e[0], e[1]);
+    h += `<polyline class="a-edge${e[3] ? " wire" : ""}${activeEdges.has(e[0] + ">" + e[1]) ? " on" : ""}" points="${pts.map((p) => p.join(",")).join(" ")}"/>`;
+  }
+  for (const [id, n] of Object.entries(NODES)) {
+    const act = spec.all.has(id), inv = involved[id] || [];
+    h += `<g class="a-node l${n.lane}${act ? " act" : ""}${inv.length ? "" : " idle"}" data-node="${id}" tabindex="0" role="button"><title>${esc(n.t)} — ${inv.length ? "steps " + inv.map((i) => i + 1).join(", ") : "not involved in this scenario"}. Click to jump to its next step.</title>`;
+    h += `<rect class="a-box" x="${n.x}" y="${n.y}" width="${n.w}" height="${n.h}" rx="6"/><rect class="a-bar" x="${n.x}" y="${n.y}" width="4" height="${n.h}" rx="2"/>`;
+    h += `<text class="a-t" x="${n.x + 14}" y="${n.y + 23}">${esc(n.t)}</text><text class="a-s sub" x="${n.x + 14}" y="${n.y + 39}">${esc(n.sub)}</text>`;
+    const sx = n.x + 12, sw = n.w - 22, sy = n.y + n.h - 12, cw = sw / N;
+    h += `<rect class="a-strip" x="${sx}" y="${sy}" width="${sw}" height="5" rx="1"/>`;
+    inv.forEach((i) => { h += `<rect class="a-tick${i === cur ? " now" : ""}" x="${(sx + i * cw + .5).toFixed(1)}" y="${sy}" width="${Math.max(1.5, cw - 1).toFixed(1)}" height="5"/>`; });
+    h += `<rect class="a-cursor" x="${(sx + cur * cw + cw / 2 - .75).toFixed(1)}" y="${sy - 3}" width="1.5" height="11"/></g>`;
+  }
+  h += `<g id="aPacket" class="a-packet ${isWire ? (st.t > st.f ? "up" : "down") : "call"}${st.k === "lost" ? " lost" : ""}" style="opacity:0"><circle id="aDot" r="7"/><rect id="aLblR" rx="4" height="20" y="173"/><text id="aLblT" y="187"></text></g>`;
+  h += `<text class="a-cap" x="20" y="22">Step ${cur + 1}/${N} · ${esc(trunc(st.lbl, 80))}</text>`;
+  host.innerHTML = h;
+  host.querySelectorAll("[data-node]").forEach((g) => {
+    const jump = () => { const inv = involved[g.dataset.node] || []; if (!inv.length) return; stop(); cur = inv.find((i) => i > cur) ?? inv[0]; render(); };
+    g.addEventListener("click", jump);
+    g.addEventListener("keydown", (e) => { if (e.key === "Enter") { e.preventDefault(); jump(); } });
+  });
+  $("#archRail").innerHTML = s.steps.map((x, i) => `<button type="button" class="${i === cur ? "cur" : ""}${i > cur ? " fut" : ""}" data-rail="${i}" title="${esc(x.lbl)}">${i + 1}</button>`).join("");
+  const key = s.id + ":" + cur;
+  if (key !== archLastKey) { archLastKey = key; animatePacket(spec.path, st); } else placePacketEnd(spec.path, st);
+}
+
+function polyFor(path) {
+  if (path.length < 2) return null;
+  let pts = [];
+  for (let i = 0; i + 1 < path.length; i++) { const seg = edgePts(path[i], path[i + 1]); pts = pts.concat(i ? seg.slice(1) : seg); }
+  return pts;
+}
+function along(pts, f) {
+  const L = []; let tot = 0;
+  for (let i = 1; i < pts.length; i++) { const d = Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]); L.push(d); tot += d; }
+  let d = f * tot;
+  for (let i = 0; i < L.length; i++) { if (d <= L[i] || i === L.length - 1) { const t = L[i] ? Math.min(1, d / L[i]) : 1; return [pts[i][0] + (pts[i + 1][0] - pts[i][0]) * t, pts[i][1] + (pts[i + 1][1] - pts[i][1]) * t]; } d -= L[i]; }
+  return pts[pts.length - 1];
+}
+function setPacket(p, label, show, xmark) {
+  const g = $("#aPacket"); if (!g) return;
+  g.style.opacity = show ? 1 : 0;
+  $("#aDot").setAttribute("transform", `translate(${p[0].toFixed(1)},${p[1].toFixed(1)})`);
+  const t = $("#aLblT"), r = $("#aLblR");
+  t.textContent = (xmark ? "✕ " : "") + label;
+  const w = t.textContent.length * 6.6 + 14;
+  let x = p[0] - w / 2; x = Math.max(20, Math.min(x, 870 - w));
+  t.setAttribute("x", (x + 7).toFixed(1)); r.setAttribute("x", x.toFixed(1)); r.setAttribute("width", w.toFixed(1));
+}
+function pulse(path) { const g = $(`#archSvg [data-node="${path[0]}"]`); if (!g) return; g.classList.remove("pulse"); void g.getBBox(); g.classList.add("pulse"); }
+function animatePacket(path, st) {
+  if (archAnim) cancelAnimationFrame(archAnim);
+  const pts = polyFor(path), label = trunc(st.lbl, 38);
+  if (!pts) { setPacket([0, 0], "", false); pulse(path); return; }
+  const lost = st.k === "lost", end = lost ? 0.6 : 1;
+  if (matchMedia("(prefers-reduced-motion: reduce)").matches) { setPacket(along(pts, end), label, true, lost); return; }
+  const dur = Math.min(1500, 420 * (path.length - 1) + 250), t0 = performance.now();
+  const step = (now) => {
+    const f = Math.min(1, (now - t0) / dur), e = f < .5 ? 2 * f * f : 1 - Math.pow(-2 * f + 2, 2) / 2;
+    setPacket(along(pts, e * end), label, true, lost && f === 1);
+    archAnim = f < 1 ? requestAnimationFrame(step) : null;
+  };
+  archAnim = requestAnimationFrame(step);
+}
+function placePacketEnd(path, st) { const pts = polyFor(path); if (pts) setPacket(along(pts, st.k === "lost" ? .6 : 1), trunc(st.lbl, 38), true, st.k === "lost"); }
+/* ---------- Engine ---------- */
+const $ = (s, r = document) => r.querySelector(s);
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const LANES = ["UI", "ViewModel", "TM client", "TM server"];
+const LANE_VAR = ["--lane-ui", "--lane-vm", "--lane-client", "--lane-server"];
+const SECTIONS = { "vie-hooks": "vie-mvi hooks", "TimelineMarkers": "timeline markers" };
+const cardById = Object.fromEntries(CARDS.map((c) => [c.id, c]));
+const modOf = (id) => { const c = cardById[ALIAS[id] || id]; if (!c) return "sec"; return GROUPS.find((g) => g.id === c.g).module; };
+
+function jsonHtml(v) {
+  if (typeof v === "string") return esc(v);
+  const s = JSON.stringify(v, null, 2);
+  return esc(s).replace(/(&quot;(?:[^&]|&(?!quot;))*?&quot;)(\s*:)?|\b(true|false|null)\b|(-?\d+(?:\.\d+)?)/g, (m, str, colon, lit, num) => {
+    if (str) return colon ? `<span class="jk">${str}</span>${colon}` : `<span class="js">${str}</span>`;
+    if (lit) return `<span class="jl">${lit}</span>`;
+    return `<span class="jn">${num}</span>`;
+  });
+}
+function refChip(id, extra = "") {
+  const target = ALIAS[id] || id;
+  const label = SECTIONS[id] ? "§ " + SECTIONS[id] : id;
+  return `<a class="chip m-${modOf(id)}" href="#${target}" data-goto="${target}"${extra}>${esc(label)}</a>`;
+}
+
+let sc = 0, cur = 0, timer = null;
+const scen = () => SCENARIOS[sc];
+
+function buildBar() {
+  $("#scenBar").innerHTML = SCENARIOS.map((s, i) =>
+    `<button type="button" data-sc="${i}" aria-pressed="${i === sc}"><span class="n">${String(i + 1).padStart(2, "0")}</span>${esc(s.title)}</button>`).join("");
+}
+function rowHtml(step, i) {
+  let inner;
+  if (step.f === step.t) {
+    inner = `<div class="selfbox ${step.k === "timer" ? "timer" : ""}" style="--c:var(${LANE_VAR[step.f]});grid-column:${step.f + 1}">${esc(step.lbl)}</div>`;
+  } else {
+    const a = Math.min(step.f, step.t), b = Math.max(step.f, step.t), n = b - a + 1;
+    const dir = step.t > step.f ? "r" : "l";
+    let col = `var(${LANE_VAR[step.f]})`;
+    if (step.k === "wire" || step.k === "lost") col = step.t > step.f ? "var(--wire-up)" : "var(--wire-down)";
+    const cls = step.k === "wire" ? "wire" : step.k === "lost" ? "lost" : "call";
+    inner = `<div class="arrow ${cls} ${dir}" style="--c:${col};--in:${(50 / n).toFixed(3)}%;grid-column:${a + 1} / ${b + 2}"><div class="ln"></div><div class="hd"></div>${step.k === "lost" ? '<span class="x">✕</span>' : ""}<div class="lb">${esc(step.lbl)}</div></div>`;
+  }
+  return `<div class="row" data-i="${i}" role="button" tabindex="-1" aria-label="Step ${i + 1}: ${esc(step.lbl)}"><div class="idx">${i + 1}</div><div class="track">${inner}</div></div>`;
+}
+function stateAt(i) {
+  const s = scen(); const acc = Object.assign({}, s.init); const changed = new Set();
+  for (let k = 0; k <= i; k++) { const p = s.steps[k].s || {}; for (const key in p) { acc[key] = p[key]; if (k === i) changed.add(key); } }
+  return { acc, changed };
+}
+function kindLabel(st) {
+  if (st.k === "wire") return [st.t > st.f ? "wire-up" : "wire-down", "frame"];
+  if (st.k === "lost") return ["lost", "lost"];
+  if (st.k === "call") return ["call", "call"];
+  if (st.k === "timer") return ["timer", "timer"];
+  return ["self", "inside"];
+}
+function render(scroll = true) {
+  const s = scen(), st = s.steps[cur];
+  $("#scenTitle").textContent = s.title;
+  $("#scenBlurb").textContent = s.blurb;
+  $("#counter").textContent = `${cur + 1} / ${s.steps.length}`;
+  $("#bPrev").disabled = cur === 0;
+  $("#bNext").disabled = cur === s.steps.length - 1;
+  document.querySelectorAll("#rows .row").forEach((r) => {
+    const i = +r.dataset.i; r.classList.toggle("cur", i === cur); r.classList.toggle("future", i > cur);
+  });
+  if (scroll) { const r = $(`#rows .row[data-i="${cur}"]`); const box = $("#rows"); if (r) { const top = r.offsetTop - box.clientHeight / 2 + r.offsetHeight / 2; box.scrollTop = Math.max(0, top); } }
+  const [kc, kl] = kindLabel(st);
+  const route = st.f === st.t ? `in ${LANES[st.f]}` : `${LANES[st.f]} → ${LANES[st.t]}`;
+  $("#stepCard").innerHTML = `
+    <div class="step-head"><span class="step-kind ${kc}">${kl}</span><span class="route">${esc(route)}</span></div>
+    <h3 class="step-title">${esc(st.lbl)}</h3>
+    <div class="who">${esc(st.who)}</div>
+    ${st.txt ? `<p class="txt">${st.txt}</p>` : ""}
+    ${st.refs && st.refs.length ? `<div class="refs">${st.refs.map((r) => refChip(r)).join("")}</div>` : ""}`;
+  if (st.json !== undefined) {
+    $("#jsonCard").hidden = false;
+    $("#jsonCard").innerHTML = `<div class="sub"><h4>Frame on the wire</h4><button class="copy" type="button" id="copyJson">copy</button></div><pre class="json" id="jsonPre">${jsonHtml(st.json)}</pre>`;
+    $("#copyJson").onclick = () => {
+      const t = typeof st.json === "string" ? st.json : JSON.stringify(st.json);
+      const done = () => { $("#copyJson").textContent = "copied"; setTimeout(() => { const b = $("#copyJson"); if (b) b.textContent = "copy"; }, 1400); };
+      try { navigator.clipboard.writeText(t).then(done, () => selectPre()); } catch (e) { selectPre(); }
+    };
+  } else {
+    $("#jsonCard").hidden = true;
+  }
+  const { acc, changed } = stateAt(cur);
+  const col = (pfx) => Object.keys(acc).filter((k) => k.startsWith(pfx)).map((k) =>
+    `<dt>${esc(k.slice(2))}</dt><dd><span class="${changed.has(k) ? "chg" : ""}">${esc(acc[k])}</span></dd>`).join("") || `<dt></dt><dd class="empty">nothing tracked</dd>`;
+  $("#stateCard").innerHTML = `<div class="sub"><h4>State after this step</h4><span class="kbd">highlight = changed</span></div>
+    <div class="state"><div class="p"><h5>Probe</h5><dl class="kv">${col("p:")}</dl></div><div class="i"><h5>Inspector</h5><dl class="kv">${col("i:")}</dl></div></div>`;
+  renderArch();
+}
+function selectPre() { const r = document.createRange(); r.selectNodeContents($("#jsonPre")); const s = getSelection(); s.removeAllRanges(); s.addRange(r); }
+function loadScenario(i, step = 0) {
+  stop(); sc = i; cur = step;
+  buildBar();
+  $("#rows").innerHTML = scen().steps.map(rowHtml).join("");
+  render();
+  try { localStorage.setItem("tm-scen", String(i)); } catch (e) {}
+}
+function go(d) { const n = cur + d; if (n < 0 || n >= scen().steps.length) return false; cur = n; render(); return true; }
+function stop() { if (timer) { clearInterval(timer); timer = null; } const b = $("#bPlay"); if (b) b.textContent = "Play"; }
+function play() {
+  if (timer) return stop();
+  if (cur === scen().steps.length - 1) { cur = 0; render(); }
+  $("#bPlay").textContent = "Pause";
+  timer = setInterval(() => { if (!go(1)) stop(); }, 1700);
+}
+
+$("#scenBar").addEventListener("click", (e) => { const b = e.target.closest("button[data-sc]"); if (b) loadScenario(+b.dataset.sc); });
+$("#rows").addEventListener("click", (e) => { const r = e.target.closest(".row"); if (r) { stop(); cur = +r.dataset.i; render(false); } });
+$("#bNext").onclick = () => { stop(); go(1); };
+$("#bPrev").onclick = () => { stop(); go(-1); };
+$("#bReset").onclick = () => { stop(); cur = 0; render(); };
+$("#bPlay").onclick = play;
+document.addEventListener("keydown", (e) => {
+  if ($("#view-flow").hidden || e.target.matches("input,select,textarea")) return;
+  if (e.key === "ArrowRight") { stop(); go(1); e.preventDefault(); }
+  else if (e.key === "ArrowLeft") { stop(); go(-1); e.preventDefault(); }
+  else if (e.key === " ") { play(); e.preventDefault(); }
+});
+
+$("#archRail").addEventListener("click", (e) => { const b = e.target.closest("[data-rail]"); if (b) { stop(); cur = +b.dataset.rail; render(); } });
+function setView(v) {
+  const arch = v === "arch";
+  $("#archWrap").hidden = !arch; $("#seqWrap").hidden = arch;
+  $("#bench").classList.toggle("arch", arch);
+  $("#vArch").setAttribute("aria-pressed", arch); $("#vSeq").setAttribute("aria-pressed", !arch);
+  try { localStorage.setItem("tm-view", v); } catch (e) {}
+  archLastKey = ""; render();
+}
+$("#vArch").onclick = () => setView("arch");
+$("#vSeq").onclick = () => setView("seq");
+
+/* ---------- Tabs & cross links ---------- */
+function showTab(which) {
+  const flow = which === "flow";
+  $("#view-flow").hidden = !flow; $("#view-int").hidden = flow;
+  $("#tab-flow").setAttribute("aria-selected", flow); $("#tab-int").setAttribute("aria-selected", !flow);
+  if (!flow) stop();
+}
+$("#tab-flow").onclick = () => showTab("flow");
+$("#tab-int").onclick = () => { showTab("int"); window.scrollTo(0, 0); };
+function gotoCard(id) {
+  showTab("int");
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.scrollIntoView({ block: "start", behavior: matchMedia("(prefers-reduced-motion: reduce)").matches ? "auto" : "smooth" });
+  if (el.classList.contains("tcard")) { el.classList.add("flash"); setTimeout(() => el.classList.remove("flash"), 1600); }
+}
+document.addEventListener("click", (e) => {
+  const a = e.target.closest("[data-goto]");
+  if (a) { e.preventDefault(); gotoCard(a.dataset.goto); return; }
+  const s = e.target.closest("[data-step]");
+  if (s) { e.preventDefault(); const [si, step] = s.dataset.step.split(":").map(Number); showTab("flow"); loadScenario(si, step); window.scrollTo(0, 0); return; }
+  const h = e.target.closest('a[href^="#"]');
+  if (h && !$("#view-int").hidden) { const id = h.getAttribute("href").slice(1); if (document.getElementById(id)) { e.preventDefault(); gotoCard(id); } }
+});
+
+/* ---------- Internals: cards ---------- */
+function seenIn(id) {
+  const hits = [];
+  SCENARIOS.forEach((s, si) => {
+    const k = s.steps.findIndex((st) => (st.refs || []).some((r) => (ALIAS[r] || r) === id));
+    if (k >= 0) hits.push(`<a class="chip" href="#" data-step="${si}:${k}" title="Open step ${k + 1}">${String(si + 1).padStart(2, "0")} · ${esc(s.title)}</a>`);
+  });
+  return hits;
+}
+function buildCards() {
+  $("#cardGroups").innerHTML = GROUPS.map((g) => {
+    const cls = g.module === "client" ? "c" : g.module === "server" ? "s" : "x";
+    const cards = CARDS.filter((c) => c.g === g.id).map((c) => {
+      const seen = seenIn(c.id);
+      return `<article class="tcard ${cls}" id="${c.id}">
+        <header><h3>${c.id}</h3><span class="k">${esc(c.kind)}</span><span class="ly">${esc(c.layer)}</span></header>
+        <div class="file">${esc(c.file)}</div>
+        <p class="role">${c.role}</p>
+        ${c.how.length ? `<ul>${c.how.map((h) => `<li>${h}</li>`).join("")}</ul>` : ""}
+        ${c.threads ? `<div class="thr"><b>Threads.</b> ${c.threads}</div>` : ""}
+        <div class="meta">
+          ${c.links.length ? `<div><span class="lbl">Talks to</span>${c.links.map((l) => refChip(l)).join("")}</div>` : ""}
+          ${seen.length ? `<div><span class="lbl">See it in</span>${seen.join("")}</div>` : ""}
+        </div></article>`;
+    }).join("");
+    return `<div class="gtitle" id="${g.id}"><h3>${esc(g.title)}</h3></div><p class="prose" style="color:var(--muted);margin:0 0 12px">${g.lead}</p><div class="cards">${cards}</div>`;
+  }).join("");
+  const toc = [["map", "Two processes"], ["vie-hooks", "vie-mvi hooks"], ["types", "Types"]];
+  let html = toc.map(([id, t]) => `<a href="#${id}">${t}</a>`).join("");
+  GROUPS.forEach((g) => {
+    html += `<a class="tg" href="#${g.id}">${esc(g.title.split(" (")[0])}</a>`;
+    html += CARDS.filter((c) => c.g === g.id).map((c) => `<a class="t2" href="#${c.id}">${c.id}</a>`).join("");
+  });
+  html += [["TimelineMarkers", "Timeline holes"], ["tools", "Try the rules"], ["timeouts", "Timeouts & bounds"], ["notes", "Notes"]].map(([id, t]) => `<a class="tg" href="#${id}">${t}</a>`).join("");
+  $("#toc").innerHTML = html;
+}
+
+/* ---------- Tools ---------- */
+function ivStatus() {
+  const sent = $("#iv-sent").value === "1", res = $("#iv-res").value, tag = $("#iv-tag").value === "1", dl = $("#iv-dl").value === "1";
+  let v;
+  if (!sent) v = ["v-bad", "Not sent", "The session was disconnected, so nothing went out. Every other fact is moot."];
+  else if (tag) v = ["v-ok", "Succeeded(#14)", "A tagged observation outranks everything, whatever the result said."];
+  else if (res === "fail") v = ["v-bad", "Failed(BadJson)", "The probe refused it; nothing was placed."];
+  else if (!dl) v = ["v-wait", "Pending", res === "ok" ? "Success means scheduled, not delivered: still waiting for the tagged row." : "Neither a result nor a tagged row yet."];
+  else if (res === "ok") v = ["v-mid", "Accepted, not observed", "Accepted, but no tagged row before the deadline. A late row would still turn this into Succeeded."];
+  else v = ["v-bad", "Timed out", "Neither a result nor a tagged row before the deadline."];
+  $("#ivOut").className = "verdict " + v[0];
+  $("#ivOut").innerHTML = `<b>${v[1]}</b><span>${v[2]}</span>`;
+}
+["iv-sent", "iv-res", "iv-tag", "iv-dl"].forEach((id) => $("#" + id).addEventListener("change", ivStatus));
+
+function ledger() {
+  const nums = $("#lg-in").value.split(/[\s,]+/).filter(Boolean).map(Number).filter((n) => Number.isInteger(n) && n >= 0 && n < 100000);
+  let floor = null, high = null, missing = [], dups = 0; const got = new Set();
+  const norm = (rs) => rs.filter(([a, b]) => a <= b);
+  for (const n of nums) {
+    if (floor === null) { floor = high = n; got.add(n); continue; }
+    if (n < floor) { missing = norm([[n + 1, floor - 1]]).concat(missing); floor = n; got.add(n); }
+    else if (n > high) { missing = missing.concat(norm([[high + 1, n - 1]])); high = n; got.add(n); }
+    else {
+      const i = missing.findIndex(([a, b]) => n >= a && n <= b);
+      if (i < 0) { dups++; continue; }
+      const [a, b] = missing[i];
+      missing = missing.slice(0, i).concat(norm([[a, n - 1], [n + 1, b]]), missing.slice(i + 1)); got.add(n);
+    }
+  }
+  const rs = missing.map(([a, b]) => a === b ? `${a}` : `${a}..${b}`).join(", ");
+  $("#lgOut").innerHTML = `<dt>floor</dt><dd>${floor ?? "null"}</dd><dt>highest</dt><dd>${high ?? "null"}</dd><dt>missing</dt><dd>[${rs}]</dd><dt>duplicates ignored</dt><dd>${dups}</dd>`;
+  let line = "";
+  if (floor !== null && high - floor <= 60) for (let n = floor; n <= high; n++) line += `<span class="${got.has(n) ? "got" : "miss"}" title="${got.has(n) ? "received" : "missing"}">${n}</span>`;
+  $("#lgLine").innerHTML = line;
+}
+$("#lg-in").addEventListener("input", ledger);
+document.querySelectorAll("[data-lg]").forEach((b) => b.onclick = () => { $("#lg-in").value = b.dataset.lg; ledger(); });
+
+(function backoff() {
+  let t = 0, rows = "";
+  for (let f = 0; f < 7; f++) { const d = Math.min(0.5 * 2 ** f, 5); t += d; rows += `<tr><td>${f + 2}</td><td>${d} s</td><td>${t.toFixed(1)} s</td></tr>`; }
+  $("#backoff tbody").innerHTML = rows + `<tr><td>…</td><td>5 s</td><td>for as long as the probe runs</td></tr>`;
+})();
+
+/* ---------- Theme toggle ---------- */
+$("#themeBtn").onclick = () => {
+  const r = document.documentElement;
+  const dark = r.dataset.theme ? r.dataset.theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+  r.dataset.theme = dark ? "light" : "dark";
+};
+
+/* ---------- Boot ---------- */
+buildCards(); ivStatus(); ledger();
+let start = 0; try { const v = +localStorage.getItem("tm-scen"); if (v >= 0 && v < SCENARIOS.length) start = v; } catch (e) {}
+let view = "arch"; try { if (localStorage.getItem("tm-view") === "seq") view = "seq"; } catch (e) {}
+loadScenario(start);
+setView(view);
+if (location.hash === "#internals") showTab("int");
+</script>
+
+</body></html>
