@@ -501,29 +501,38 @@ a bare constructor call, though — both handled by `runVMTest` (from `vie-test`
   wall-clock time.
 
 `runVMTest` builds the view model inside a `kotlinx.coroutines.test.runTest { }` with both
-already arranged: a signal collector subscribes before any of the view model's coroutines run
-(unless `newVM` itself advances the scheduler), and `block` gets the view model, the models
-`modelFlow` published and the signals collected so far. `models` starts with the model current when
-`newVM` returns, then holds one entry per model the view would render, in order; a model equal to the
-previous one is not recorded, so an intent that changes nothing leaves it as it was.
+already arranged: a collector subscribes to the models and the signals before any of the view model's
+coroutines run (unless `newVM` itself advances the scheduler).
+
+`block` is shaped like the `content` of `VIEView`: its receiver, a `VMTestScope`, shows what a view
+shows and never the view model itself. It posts intents with `post`, reads the current `model`, and drains
+what the view would have received:
+
+* `pendingModels()` returns the models published since the previous call, in order. The first call starts
+  with the model current when `newVM` returned. A model equal to the previous one is not recorded, so an
+  intent that changes nothing leaves it as it was.
+* `pendingSignals()` returns the signals emitted since the previous call, in order.
+
+Both drain, like `pendingIntents()` on `MockVIE`: view tests drain the intents a view posted, view model tests
+drain the models and signals it produced.
 
 [source,kotlin]
 ----
 @Test
 fun save_updatesModelAndSignalsSaved() = runVMTest(
     newVM = { CounterVM(FakeCounterStore()) },
-) { vm, models, signals ->
-    vm.post(CounterVIE.Intent.Save)
+) {
+    post(CounterVIE.Intent.Save)
     advanceUntilIdle()
 
-    assertEquals(listOf(Model(saving = false), Model(saving = true), Model(saving = false)), models)
-    assertEquals(CounterVIE.Signal.Saved, signals.single())
+    assertEquals(listOf(Model(saving = false), Model(saving = true), Model(saving = false)), pendingModels())
+    assertEquals(CounterVIE.Signal.Saved, pendingSignals().single())
 }
 ----
 
-`newVM` and `block` both run with `TestScope` as their receiver, so `advanceTimeBy`, `runCurrent`
-and `advanceUntilIdle` are all in scope directly, no `this@runTest` needed. The view model is
-cleared once `block` returns, cancelling `viewModelScope`.
+`newVM` runs with `TestScope` as its receiver, and `block` with a `VMTestScope`, which is a `CoroutineScope`
+and forwards `advanceTimeBy`, `runCurrent`, `advanceUntilIdle` and `testScheduler`; `testScope` gives
+the rest. The view model is cleared once `block` returns, cancelling `viewModelScope`.
 
 == Middlewares
 

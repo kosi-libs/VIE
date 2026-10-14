@@ -1,6 +1,5 @@
 package org.kodein.arch.vie.test
 
-import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -69,14 +68,16 @@ public class MockVIE<Model: VIE.Model, Intent : VIE.Intent, Signal : VIE.Signal>
  * @receiver The mock to drain posted intents from.
  * @return Every intent posted since the previous call, in order; an empty list if none were.
  */
-@OptIn(ExperimentalCoroutinesApi::class)
-public fun <Model: VIE.Model, Intent : VIE.Intent, Signal : VIE.Signal> MockVIE<Model, Intent, Signal>.pendingIntents(): List<Intent> {
-    if (intentsChannel.isEmpty) return emptyList()
-    val list = mutableListOf<Intent>()
-    do {
-        val r = intentsChannel.tryReceive()
-        if (r.isSuccess) list.add(r.getOrThrow())
-    } while (r.isSuccess)
-    return list
+public fun <Model: VIE.Model, Intent : VIE.Intent, Signal : VIE.Signal> MockVIE<Model, Intent, Signal>.pendingIntents(): List<Intent> =
+    intentsChannel.drain()
+
+/** Receives everything already buffered in this channel, in order, without suspending. */
+internal fun <T> ReceiveChannel<T>.drain(): List<T> {
+    val list = mutableListOf<T>()
+    while (true) {
+        val r = tryReceive()
+        if (!r.isSuccess) return list
+        list.add(r.getOrThrow())
+    }
 }
 
