@@ -42,7 +42,7 @@ import kotlinx.coroutines.launch
  * @param Intent The events the view sends up.
  * @param Signal The one-offs the view reacts to but does not render.
  * @param firstModel The model [modelFlow] starts with.
- * @param middlewares Intercept the flows; the first sits closest to the view.
+ * @param middlewares Intercept the flows; the last is closest to where values come from, the first to where they go.
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 public abstract class VIEViewModel<Model : VIE.Model, Intent : VIE.Intent, Signal : VIE.Signal>(
@@ -121,7 +121,9 @@ public abstract class VIEViewModel<Model : VIE.Model, Intent : VIE.Intent, Signa
         signalCollector = MutableSharedFlow()
         val allSignalsFlow =
             middlewares.foldRight(signalCollector.asFlow()) { middleware, flow -> middleware.interceptSignals(flow) }
-        val effectChannel = Channel<VIE.Signal.Effect /* & Signal */>()
+        // Buffered, so an Effect that no view collects yet waits in the channel, not in the dispatch loop:
+        // later signals, Events included, and `signal` callers do not wait behind it.
+        val effectChannel = Channel<VIE.Signal.Effect /* & Signal */>(Channel.UNLIMITED)
         val eventFlow = MutableSharedFlow<VIE.Signal.Event /* & Signal */>()
         viewModelScope.launch {
             allSignalsFlow.collect { signal ->

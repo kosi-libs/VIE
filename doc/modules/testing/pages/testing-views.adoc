@@ -1,0 +1,96 @@
+= Testing a view
+
+A view written as an xref:core:view.adoc#views-as-extensions[extension on `VIEViewScope`] can be tested without its ViewModel.
+`MockVIE`, from the xref:core:setup.adoc[`vie-test`] artifact, holds a model, records what the view posts, and sends it signals.
+
+
+== Asserting on posted intents
+
+[source,kotlin]
+.CounterTest.kt
+----
+@Test
+fun plusPostsIncrement() = runComposeUiTest {
+    val vie = MockVIE<Model, Intent, Signal>(
+        Model(count = 0),
+    )
+    setContent { vie.Counter(model = vie.model) } // <1>
+
+    onNodeWithText("+").performClick()
+    onNodeWithText("+").performClick()
+
+    assertEquals(
+        listOf(Intent.Increment, Intent.Increment),
+        vie.pendingIntents(), // <2>
+    )
+}
+----
+<1> The view under test is the `VIEViewScope` extension, called on the mock.
+<2> An extension function: import `org.kodein.arch.vie.test.pendingIntents`.
+
+`pendingIntents()` drains: it returns what the view posted since the previous call, in order, and an empty list if it posted nothing.
+
+`MockVIE` only records the intents.
+Nothing processes them: the model does not change, and no signal is emitted.
+What a ViewModel does with an intent is tested on its own, with xref:testing-viewmodels.adoc[`runVMTest`].
+
+
+== The mock
+
+`MockVIE` is a complete `VIE` implementation:
+
+[cols="2,3"]
+|===
+| Member | Purpose
+
+| `MockVIE(model)`
+| Builds the mock with the model to render.
+
+| `val model: Model`
+| The current model.
+
+| `val modelFlow: MutableStateFlow<Model>`
+| Assign `modelFlow.value` to change the model.
+
+| `fun post(intent: Intent)`
+| Records the intent.
+
+| `val intentsChannel: ReceiveChannel<Intent>`
+| Every recorded intent, in order.
+
+| `fun pendingIntents(): List<Intent>`
+| Drains `intentsChannel`.
+
+| `val signalFlow: MutableSharedFlow<Signal>`
+| Emit into it to send a signal to the view.
+
+| `fun signal(signal: Signal)`
+| Sends a signal without suspending.
+|===
+
+
+[#signals]
+== Driving signals
+
+`signal` sends a signal to the view's `SignalEffect`, to check how the view reacts:
+
+[source,kotlin]
+.CounterTest.kt
+----
+@Test
+fun errorShowsSnackbar() = runComposeUiTest {
+    val vie = MockVIE<Model, Intent, Signal>(
+        Model(count = 0),
+    )
+    setContent { vie.Counter(model = vie.model) }
+    waitForIdle() // <1>
+
+    vie.signal(Signal.Error("Disk full"))
+
+    waitUntilAtLeastOneExists(hasText("Disk full"))
+}
+----
+<1> Lets the view compose, so that `SignalEffect` collects before the signal is sent.
+
+WARNING: A signal sent before `SignalEffect` starts collecting is lost.
+Let the view compose first.

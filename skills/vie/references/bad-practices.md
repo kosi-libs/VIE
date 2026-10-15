@@ -144,9 +144,8 @@ construction — before the view has had a chance to compose and start its `Sign
 **Grep:** `signal(` inside `init {}`.
 
 **Why:** if the signal is an `Event`, it is dropped outright (`signalFlow` has no replay buffer).
-If it's an `Effect`, the emitting coroutine suspends on the underlying rendezvous channel until a
-collector eventually shows up — the signal is delivered late, and any signal emitted after it
-queues up behind it on the same channel.
+If it's an `Effect`, it waits in a buffer until a collector eventually shows up — it is delivered
+late, to whichever view collects first, which may not be the one it was meant for.
 
 **Fix:** don't signal from `init`. If the ViewModel must announce something as soon as it starts,
 put it in the initial `Model` instead (e.g. a `loading`/`error` field), or delay the emission
@@ -162,8 +161,7 @@ contract to see whether `Signal` is non-trivial, then read the view that renders
 view file(s) that take `VIEViewScope<XxxVIE.Intent, XxxVIE.Signal>` have no `SignalEffect(`.
 
 **Why:** an `Event` emitted with nobody collecting is silently dropped; an `Effect` emitted with
-nobody collecting leaves the emitting coroutine suspended forever, waiting for a collector that
-will never arrive. Either way, a `Signal` type with real members and no view handling it is very
+nobody collecting waits in a buffer forever, for a collector that will never arrive. Either way, a `Signal` type with real members and no view handling it is very
 likely a bug, not a deliberate design.
 
 **Fix:** add a `SignalEffect { }` with an exhaustive `when` (see #3, #4) to the view. If the
@@ -250,7 +248,8 @@ with no `key` argument.
 **Grep:** `VIEView(` calls inside `items(...)`/`forEach`/list-rendering code, check for a missing
 `key`.
 
-**Why:** without a distinct `key` per call site, `viewModel { }` keys by call site alone and the
+**Why:** `VIEView` files its ViewModel under the ViewModel's class, plus the `key` if any. Without
+a `key`, every `VIEView` of that class shares one ViewModel, wherever it is called from, so the
 instances collapse onto a single shared ViewModel.
 
 **Fix:** pass a `key` derived from the item's identity, e.g. `key = id.toString()`.

@@ -1,0 +1,121 @@
+= VIE
+
+[.lead]
+Model-View-Intent for Compose Multiplatform: one state flow down, intents up, signals sideways.
+
+VIE gives a screen three types and a contract between them.
+A _Model_ is the state the view renders.
+An _Intent_ is a UI event: most often something the user did, but not always.
+A _Signal_ is a one-off the view reacts to but does not render: a navigation, a snackbar, a toast.
+You declare the three in an interface, a `VIEViewModel` implements it, and a `VIEView` renders it.
+The view only ever sees the contract, never the ViewModel.
+
+The name is the French translation of MVI: **V**ue **I**ntention **É**tat, built on Compose **V**iew**M**odels.
+
+[source,kotlin]
+.CounterVIE.kt
+----
+interface CounterVIE : VIE<Model, Intent, Signal> {
+
+    data class Model(val count: Int, val saving: Boolean = false) : VIE.Model
+
+    sealed interface Intent : VIE.Intent {
+        data object Increment : Intent
+        data object Save : Intent
+    }
+
+    sealed interface Signal : VIE.Signal {
+        data object Saved : Signal, VIE.Signal.Event // <1>
+        data class Error(val message: String) : Signal, VIE.Signal.Effect // <2>
+    }
+}
+----
+<1> An _Event_ is broadcast to every view that listens.
+<2> An _Effect_ is handled once, by a single view.
+
+[source,kotlin]
+.CounterVM.kt
+----
+class CounterVM(
+    private val store: CounterStore,
+) : CounterVIE, VIEViewModel<Model, Intent, Signal>(
+    firstModel = Model(count = 0),
+) {
+    override suspend fun process(intent: Intent) {
+        when (intent) {
+            is Intent.Increment -> update { copy(count = count + 1) }
+            is Intent.Save -> {
+                update { copy(saving = true) }
+                store.save(model.count)
+                    .onSuccess { signal(Signal.Saved) }
+                    .onFailure { signal(Signal.Error(it.message ?: "Save failed")) }
+                update { copy(saving = false) }
+            }
+        }
+    }
+}
+----
+
+[source,kotlin]
+.Counter.kt
+----
+@Composable
+fun Counter(store: CounterStore, snackbar: SnackbarHostState) {
+    VIEView(newVM = { CounterVM(store) }) { model -> // <1>
+        SignalEffect { signal ->
+            when (signal) {
+                is Signal.Saved -> snackbar.showSnackbar("Saved")
+                is Signal.Error -> snackbar.showSnackbar(signal.message)
+            }
+        }
+        Column {
+            Text("Count: ${model.count}")
+            Button(onClick = { post(Intent.Increment) }) { Text("+") }
+            Button(
+                onClick = { post(Intent.Save) },
+                enabled = !model.saving,
+            ) { Text("Save") }
+        }
+    }
+}
+----
+<1> Inside the block, `this` is a `VIEViewScope`: it can post intents and listen to signals, nothing more.
+
+No navigation framework, no event bus, no manual `collectAsState`.
+An interface, a ViewModel, and a composable that is handed the model and a way to talk back.
+
+
+== Why VIE
+
+The contract is an interface::
+`CounterVIE` names the three types once.
+The ViewModel is one implementation of that interface, and the view depends on the interface, not on `CounterVM`.
+Rendering the view in a preview or a test is a different receiver, nothing more.
+
+The view never holds the ViewModel::
+Inside `VIEView`, the view sees a `VIEViewScope` with exactly two members: `post(intent)` and `signalFlow`.
+It cannot read `modelFlow`, call `update`, or reach `viewModelScope`.
+
+Events and Effects are different delivery channels::
+An Event is broadcast to every view that currently listens, and dropped if none does.
+An Effect reaches exactly one view, so a "navigate back" fires once even when two views observe the same ViewModel.
+
+Model updates are serialized::
+`update { }` hands its block to a single consumer and suspends until it is applied.
+Two coroutines incrementing the count at the same time cannot lose an increment.
+
+Built on `ViewModel`, not beside it::
+`VIEViewModel` extends `androidx.lifecycle.ViewModel`, so `viewModelScope`, `viewModel { }` and Navigation3 entry scoping work unchanged.
+VIE adds the MVI shape, it does not replace the lifecycle.
+
+Middlewares wrap the flows::
+A `VIEMiddleware` intercepts the model, intent and signal flows as plain `Flow` transformations: logging, filtering, inspecting.
+Neither the ViewModel nor the view knows it is there.
+
+
+== How to read this documentation
+
+* xref:getting-started.adoc[] gets a first screen running in a few minutes.
+* The *Core* section explains VIE from the ground up: the contract, the ViewModel, the view, then middlewares.
+* The *Testing* section shows how to preview a view and test both sides of a screen without running the other.
+* The *Guides* section covers the agent skill that teaches VIE to your coding assistant.

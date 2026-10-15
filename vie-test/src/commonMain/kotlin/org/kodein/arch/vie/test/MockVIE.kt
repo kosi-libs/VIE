@@ -48,9 +48,8 @@ public class MockVIE<Model: VIE.Model, Intent : VIE.Intent, Signal : VIE.Signal>
     }
 
     /**
-     * Mutable: `emit` into it (or call [signal]) to drive the view's [org.kodein.arch.vie.SignalEffect]. Has no
-     * replay, so a signal sent before the composition starts collecting is buffered but not
-     * replayed to a *later* collector that starts after it — send it after the view has composed.
+     * Mutable: `emit` into it (or call [signal]) to drive the view's [org.kodein.arch.vie.SignalEffect].
+     * A signal sent while nothing collects is lost: send it after the view has composed.
      */
     override val signalFlow: MutableSharedFlow<Signal> = MutableSharedFlow(extraBufferCapacity = 64)
 

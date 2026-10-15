@@ -1,0 +1,135 @@
+= The ViewModel
+
+A screen's ViewModel implements its contract: it turns intents into new models and signals.
+It extends `VIEViewModel`, which is an `androidx.lifecycle.ViewModel`.
+
+
+== Declaring a ViewModel
+
+[source,kotlin]
+.CounterVM.kt
+----
+class CounterVM(
+    private val store: CounterStore,
+) : CounterVIE, VIEViewModel<Model, Intent, Signal>( // <1>
+    firstModel = Model(count = 0), // <2>
+) {
+    override suspend fun process(intent: Intent) {
+        when (intent) {
+            is Intent.Increment -> update { copy(count = count + 1) }
+            is Intent.Save -> {
+                update { copy(saving = true) }
+                store.save(model.count)
+                    .onSuccess { signal(Signal.Saved) }
+                    .onFailure { signal(Signal.Error(it.message ?: "Save failed")) }
+                update { copy(saving = false) }
+            }
+        }
+    }
+}
+----
+<1> Implementing `CounterVIE` too is what lets a view of `CounterVIE` render this ViewModel.
+<2> The model `modelFlow` starts with.
+
+A ViewModel is a plain class: its dependencies are constructor parameters, with no dependency-injection framework required.
+Its members are:
+
+[cols="2,3"]
+|===
+| Member | Purpose
+
+| `abstract suspend fun process(intent: Intent)`
+| Handles each posted intent.
+
+| `suspend fun update(update: suspend Model.() -> Model)`
+| Replaces the model.
+
+| `protected val model: Model`
+| The latest model `update` applied.
+
+| `suspend fun <S> signal(signal: S)`
+| Emits a signal.
+
+| `final override fun post(intent: Intent)`
+| Sends an intent to `process`, as the view does.
+|===
+
+`viewModelScope` and the rest of `ViewModel` work as usual.
+
+
+[#process]
+== Processing intents
+
+`process` is called for every intent the view posts, one at a time, in order, on `viewModelScope`.
+While it runs, the next intent waits.
+
+Work that takes long, or that should run in parallel, goes in its own coroutine, so the screen keeps responding:
+
+[source,kotlin]
+----
+is Intent.Save -> {
+    update { copy(saving = true) }
+    viewModelScope.launch { // <1>
+        store.save(model.count)
+            .onSuccess { signal(Signal.Saved) }
+        update { copy(saving = false) }
+    }
+}
+----
+<1> `process` returns right away, and the next intent is handled while saving.
+
+
+[#update]
+== Updating the model
+
+`update` takes a block that receives the current model and returns the next one.
+It suspends until the new model is applied, so `model` reads it on the next line.
+
+Updates are serialized: every block runs after the previous one has been applied, whatever coroutine calls `update`.
+Two coroutines that both run `update { copy(count = count + 1) }` add two.
+
+Keep the block a quick function of the current model.
+Blocks run one at a time, so a suspending call inside one holds back every other update: call it before or after `update`, as `Save` does with `store.save`.
+
+If the block throws, `update` throws the same exception, and the model is left unchanged.
+
+`model` is protected: only the ViewModel reads it.
+It is the model as `update` applied it, before any xref:middlewares.adoc[middleware].
+
+
+[#signal]
+== Emitting signals
+
+`signal` emits a signal to the view:
+
+[source,kotlin]
+----
+signal(Signal.Saved)
+----
+
+Its type parameter must be both a `Signal` of the contract and an Event or an Effect.
+A signal type that picks neither does not compile here.
+
+
+[#collect]
+== Collecting a flow
+
+Two `Flow` extensions feed an external flow straight into the ViewModel, until the flow completes:
+
+* `collectToModel { value -> ... }` updates the model with each value, like `update`;
+* `collectToSignal { value -> ... }` turns each value into a signal, and emits it.
+
+They are called from inside the ViewModel, typically from a coroutine launched in `init`:
+
+[source,kotlin]
+.CounterVM.kt
+----
+init {
+    viewModelScope.launch {
+        store.savedCounts().collectToModel { saved -> copy(count = saved) } // <1>
+    }
+}
+----
+<1> `this` is the current model, and `saved` is the value the flow emitted.
+
+TIP: xref:testing:testing-viewmodels.adoc[] shows how to test a ViewModel without a view.
