@@ -1,0 +1,141 @@
+= The view
+
+A view renders a screen's model and posts its intents.
+`VIEView` connects it to its ViewModel, and hands it the model and a way to talk back, never the ViewModel itself.
+
+
+== Rendering a screen
+
+[source,kotlin]
+.Counter.kt
+----
+@Composable
+fun Counter(store: CounterStore) {
+    VIEView(newVM = { CounterVM(store) }) { model -> // <1>
+        Column {
+            Text("Count: ${model.count}")
+            Button(onClick = { post(Intent.Increment) }) { Text("+") } // <2>
+        }
+    }
+}
+----
+<1> `newVM` is only called the first time: the ViewModel is then kept by the current `ViewModelStoreOwner`, and the block recomposes with every new model.
+<2> `post` sends the intent to the ViewModel's `process`.
+
+`VIEView` takes:
+
+[cols="1,3"]
+|===
+| Parameter | Purpose
+
+| `newVM`
+| Creates the ViewModel, when the owner does not hold one yet.
+
+| `key`
+| Tells apart several ViewModels of the same class, see <<identity>>.
+
+| `content`
+| The view, called with the current model.
+|===
+
+Inside `content`, `this` is a `VIEViewScope<Intent, Signal>`, which has exactly two members:
+
+[cols="1,3"]
+|===
+| Member | Purpose
+
+| `fun post(intent: Intent)`
+| Sends an intent up to the ViewModel.
+
+| `val signalFlow: Flow<Signal>`
+| The signals the view reacts to, usually through <<signal-effect,`SignalEffect`>>.
+|===
+
+The view cannot read `modelFlow`, call `update` or reach `viewModelScope`: what it renders is the model it is given.
+
+
+[#identity]
+== ViewModel identity
+
+The ViewModel is kept by the `ViewModelStoreOwner` of the composition, like any `viewModel { }`: the activity or fragment on Android, or a navigation entry when the navigation library scopes ViewModels to its entries.
+Within one owner, it is identified by its class and by `key`:
+
+* Without `key`, every `VIEView` of the same ViewModel class shares one ViewModel.
+* With a `key`, each key gets its own ViewModel.
+* Two different ViewModel classes never share one, whatever their key.
+
+A key tells apart two screens of the same kind under one owner:
+
+[source,kotlin]
+----
+Row {
+    VIEView(newVM = { CounterVM(store) }, key = "left") { model -> /* ... */ }
+    VIEView(newVM = { CounterVM(store) }, key = "right") { model -> /* ... */ }
+}
+----
+
+WARNING: On the JVM, a ViewModel declared as a local class needs a `key`: without one, `VIEView` throws an `IllegalArgumentException`.
+
+
+[#signal-effect]
+== Reacting to signals
+
+`SignalEffect` collects `signalFlow` as long as the view is in the composition, and calls its block with each signal:
+
+[source,kotlin]
+----
+SignalEffect { signal ->
+    when (signal) {
+        is Signal.Saved -> snackbar.showSnackbar("Saved")
+        is Signal.Error -> snackbar.showSnackbar(signal.message)
+    }
+}
+----
+
+The block is a `suspend` function, so it can call `showSnackbar` or animate directly.
+An exhaustive `when` makes sure that every signal of the contract is handled.
+
+
+[#views-as-extensions]
+== Views as extensions
+
+Splitting a screen in two functions separates the wiring from the layout:
+
+[source,kotlin]
+.Counter.kt
+----
+@Composable
+fun Counter(store: CounterStore) { // <1>
+    VIEView(newVM = { CounterVM(store) }) { model ->
+        Counter(model)
+    }
+}
+
+@Composable
+fun VIEViewScope<Intent, Signal>.Counter(model: Model) { // <2>
+    val snackbar = remember { SnackbarHostState() }
+    SignalEffect { signal ->
+        when (signal) {
+            is Signal.Saved -> snackbar.showSnackbar("Saved")
+            is Signal.Error -> snackbar.showSnackbar(signal.message)
+        }
+    }
+    Scaffold(snackbarHost = { SnackbarHost(snackbar) }) { padding ->
+        Column(Modifier.padding(padding)) {
+            Text("Count: ${model.count}")
+            Button(onClick = { post(Intent.Increment) }) { Text("+") }
+            Button(
+                onClick = { post(Intent.Save) },
+                enabled = !model.saving,
+            ) { Text("Save") }
+        }
+    }
+}
+----
+<1> The wiring: creates the ViewModel and passes the model on.
+<2> The layout: an extension on `VIEViewScope`, so it only sees the model, `post` and the signals.
+
+The layout needs nothing but a `VIEViewScope` and a model, so it renders in a preview or a test without a ViewModel.
+The screens of the https://github.com/kosi-libs/VIE/tree/main/demo/demo-shared/src/commonMain/kotlin/org/kodein/arch/vie/demo/view[demo application] are all written this way.
+
+TIP: xref:testing:previews.adoc[] and xref:testing:testing-views.adoc[] show how to render the layout without its ViewModel.

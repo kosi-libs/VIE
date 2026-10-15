@@ -38,7 +38,7 @@ for — apply it in three ways:
 | `signal(s)` | Emits `s`; `s`'s type must be `Signal` and `VIE.Signal.Event`/`Effect` (enforced by a `where` bound). |
 | `collectToModel { … }` / `collectToSignal { … }` | `Flow<T>` extensions, called with a `VIEViewModel` in context (`init` block or `viewModelScope` coroutine) — feed an external flow straight into the model or a signal. |
 | `VIEView(newVM = { … }, key = null) { model -> … }` | The entry point: creates/remembers the ViewModel, collects `modelFlow` as Compose state, invokes `content` with a `VIEViewScope` receiver. |
-| `VIEMiddleware<Model, Intent, Signal>` | Intercepts the model/intent/signal flows as plain `Flow` transformations. A list folds from the end: the *last* middleware wraps the raw source, the *first* sits closest to the ViewModel/view. |
+| `VIEMiddleware<Model, Intent, Signal>` | Intercepts the model/intent/signal flows as plain `Flow` transformations. In a list, the *last* middleware is closest to where values come from, the *first* to where they go: models and signals run ViewModel → last → … → first → view; intents run view → last → … → first → `process`. |
 | `VIELoggingMiddleware(name)` | Ships in the box: prints every model/intent/signal plus `START`/`END`, prefixed with `name`. |
 | `MockVIE<Model, Intent, Signal>(model)` | A full `VIE` for tests: mutable `modelFlow`/`signalFlow`, records posted intents in `intentsChannel`. |
 | `MockVIE.pendingIntents()` | **Drains** `intentsChannel`: returns intents posted since the previous call, then empties. Not an accumulating log. |

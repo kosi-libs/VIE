@@ -20,7 +20,6 @@ import kotlinx.coroutines.test.setMain
 import org.kodein.arch.vie.VIE
 import org.kodein.arch.vie.VIEViewModel
 import kotlin.time.Duration
-import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * What a test sees of a [VIEViewModel] under [runVMTest]: what a view sees, never the ViewModel itself.
@@ -67,7 +66,7 @@ public class VMTestScope<Model : VIE.Model, Intent : VIE.Intent, Signal : VIE.Si
     /** Runs the tasks due now, without moving virtual time. */
     public fun runCurrent(): Unit = testScope.runCurrent()
 
-    /** Moves virtual time forward by [delayTimeMillis], running the tasks that come due. */
+    /** Moves virtual time forward by [delayTime], running the tasks that come due. */
     public fun advanceTimeBy(delayTime: Duration): Unit = testScope.advanceTimeBy(delayTime)
 }
 

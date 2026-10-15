@@ -1,0 +1,14 @@
+name: vie
+title: VIE
+version: '0.1.0'
+display_version: '0.1'
+nav:
+  - modules/ROOT/nav.adoc
+  - modules/core/nav.adoc
+  - modules/testing/nav.adoc
+  - modules/guides/nav.adoc
+asciidoc:
+  attributes:
+    version: '0.1.0'
+    kotlin-version: '2.4.20'
+    compose-multiplatform-version: '1.12.0'
