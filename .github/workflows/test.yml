@@ -20,15 +20,8 @@ jobs:
   check:
     runs-on: macOS-latest
     steps:
-      - name: Check out
-        uses: actions/checkout@v7
-      - name: Set up JDK Temurin 17
-        uses: actions/setup-java@v5
-        with:
-          distribution: temurin
-          java-version: 17
-      - name: Setup Gradle
-        uses: gradle/actions/setup-gradle@v6
+      - name: Setup
+        uses: KodeinKoders/kodein-github-actions/gradle-kotlin-setup@v0.3
       - name: Build
         run: ./gradlew --stacktrace --scan build
         shell: bash
