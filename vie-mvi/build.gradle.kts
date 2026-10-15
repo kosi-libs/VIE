@@ -64,6 +64,6 @@ tasks.matching { it.name.startsWith("checkComposeUiTestConfiguration") }.configu
 mavenPublishing {
     pom {
         name = "vie-mvi"
-        description = "View-Intent-Effect: an MVI architecture for Compose Multiplatform"
+        description = "Vue Intention État: an MVI architecture for Compose Multiplatform"
     }
 }

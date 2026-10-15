@@ -66,7 +66,7 @@ public interface VIE<Model : VIE.Model, Intent : VIE.Intent, Signal : VIE.Signal
     public interface Signal {
         /** Marker for the delivery kind a concrete [Signal] picks: [Event] or [Effect]. */
         public sealed interface Type
-        /** Delivered to exactly one collector of [VIEViewScope.signalFlow]. Use for one-shot navigation and other actions that must not happen twice. */
+        /** Delivered to exactly one collector of [VIEViewScope.signalFlow]; buffered until one collects, without holding back later signals. Use for one-shot navigation and other actions that must not happen twice. */
         public interface Effect: Signal, Type
         /** Broadcast to every active collector of [VIEViewScope.signalFlow]; dropped if none is currently collecting, since there is no replay buffer. Use for things every listener cares about. */
         public interface Event: Signal, Type

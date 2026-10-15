@@ -1,0 +1,167 @@
+= The contract
+
+A screen starts with its contract: one interface that names its model, its intents and its signals.
+The view depends on this interface, and the ViewModel implements it.
+
+
+== Declaring a contract
+
+[source,kotlin]
+.CounterVIE.kt
+----
+package com.example.counter
+
+import com.example.counter.CounterVIE.Intent // <1>
+import com.example.counter.CounterVIE.Model
+import com.example.counter.CounterVIE.Signal
+import org.kodein.arch.vie.VIE
+
+interface CounterVIE : VIE<Model, Intent, Signal> {
+
+    data class Model(val count: Int, val saving: Boolean = false) : VIE.Model // <2>
+
+    sealed interface Intent : VIE.Intent {
+        data object Increment : Intent
+        data object Save : Intent
+    }
+
+    sealed interface Signal : VIE.Signal {
+        data object Saved : Signal, VIE.Signal.Event
+        data class Error(val message: String) : Signal, VIE.Signal.Effect
+    }
+}
+----
+<1> The contract's own types are imported, here in its own file too, so that every file of the screen uses their bare names.
+<2> The library's markers keep their `VIE.` prefix, so they never collide with the screen's own types.
+
+Each type parameter of `VIE` is bound by a marker interface, `VIE.Model`, `VIE.Intent` or `VIE.Signal`, so a type cannot end up in the wrong slot.
+Declaring the three types inside the contract keeps a screen's vocabulary in one place.
+The ViewModel and view files import them the same way, which is why the samples of this documentation write `Model` or `Intent.Save` rather than `CounterVIE.Model` or `CounterVIE.Intent.Save`.
+
+`VIE` itself has three members:
+
+[cols="2,3"]
+|===
+| Member | Purpose
+
+| `val modelFlow: StateFlow<Model>`
+| The current model, after every middleware, then the models after it.
+A collector slower than the ViewModel sees only the latest one.
+
+| `fun post(intent: Intent)`
+| Sends an intent up to the ViewModel.
+
+| `val signalFlow: Flow<Signal>`
+| The signals the view reacts to.
+|===
+
+`VIE` extends `VIEViewScope`, which is all a view receives.
+That is why a ViewModel, a `MockVIE` or an `EmptyVIE` can be given to the same view.
+
+One contract describes one screen, or one section of a screen that works on its own.
+
+
+[#model]
+== Model
+
+The model is the state the view renders.
+Make it a `data class`: `modelFlow` relies on its equality to skip a model equal to the current one, so the view does not recompose for nothing.
+Its properties are `val`, and its collections are read-only (`List`, not `MutableList`).
+A model changed in place goes around `update`, and as it is the same instance, the equality check hides the change.
+
+A model is always complete.
+A ViewModel is built with a first model, so there is no "nothing yet" state to represent.
+Loading and in-progress states are ordinary fields:
+
+[source,kotlin]
+----
+data class Model(
+    val count: Int,
+    val saving: Boolean = false,
+) : VIE.Model
+----
+
+
+[#intent]
+== Intent
+
+An intent is a UI event.
+It is most often something the user did, but not always: a lifecycle callback, a timer firing in the view, or an incoming deep link are intents too.
+The view sends it with `post(intent)`.
+
+Make it a `sealed interface`, so that the ViewModel can handle it with an exhaustive `when`:
+
+[source,kotlin]
+----
+sealed interface Intent : VIE.Intent {
+    data object Increment : Intent
+    data class Add(val amount: Int) : Intent
+}
+----
+
+`Add` shows an intent that carries data.
+
+A screen that takes no input uses `NoIntent`, an alias of `VIE.Intent.None`.
+It cannot be instantiated, so `post` cannot be called:
+
+[source,kotlin]
+----
+interface ClockVIE : VIE<Model, NoIntent, NoSignal> { // <1>
+    data class Model(val time: String) : VIE.Model
+}
+----
+<1> Import `org.kodein.arch.vie.VIE.NoIntent` and `org.kodein.arch.vie.VIE.NoSignal` to use the bare names.
+
+Its ViewModel still overrides `process`, which is never called: `override suspend fun process(intent: NoIntent) = Unit`.
+
+
+[#signal]
+== Signal
+
+A signal is a one-off that the view acts on but does not render: a navigation, a snackbar, a toast.
+Make it a `sealed interface`, like intents.
+
+Every concrete signal also picks how it is delivered, by implementing `VIE.Signal.Event` or `VIE.Signal.Effect`, the two subtypes of the sealed `VIE.Signal.Type`:
+
+[cols="1,3"]
+|===
+| Kind | Delivery
+
+| `VIE.Signal.Event`
+| Broadcast to every view collecting `signalFlow`.
+Use it for what every listener cares about: "data saved", "logged out".
+
+| `VIE.Signal.Effect`
+| Delivered to exactly one collector of `signalFlow`.
+Use it for what must not happen twice: a navigation, a one-shot dialog.
+|===
+
+[source,kotlin]
+----
+sealed interface Signal : VIE.Signal {
+    data object Saved : Signal, VIE.Signal.Event
+    data class Error(val message: String) : Signal, VIE.Signal.Effect
+}
+----
+
+A collector is one `SignalEffect` call of a view (see xref:view.adoc#signal-effect[]).
+The difference shows when several of them observe the same ViewModel (see xref:view.adoc#identity[]): all of them receive `Saved`, but only one of them shows the `Error`.
+A screen therefore handles all its signals in a single `SignalEffect`.
+
+WARNING: An Event emitted while no view collects `signalFlow` is lost: there is no replay.
+
+An Effect emitted while no view collects `signalFlow` waits, in order, for the first view that does.
+It does not hold back the signals emitted after it.
+
+A signal is for what happens once.
+What must still show after the view is recomposed or recreated belongs in the model, as a field.
+A "saved" banner that stays visible is a model field, and a "saved" snackbar is a signal.
+
+Do not emit signals while the ViewModel starts: no view collects yet, and an Event is lost.
+A start-up outcome, such as a failed first load, goes in the model (see xref:viewmodel.adoc#start[]).
+
+A signal that implements neither interface does not compile when the ViewModel xref:viewmodel.adoc#signal[emits] it, so the choice cannot be forgotten.
+
+A screen with nothing to signal uses `NoSignal`, an alias of `VIE.Signal.None`, which cannot be instantiated either.
+
+TIP: xref:viewmodel.adoc[] shows how a ViewModel implements the contract, and xref:view.adoc[] how a view renders it.

@@ -105,9 +105,10 @@ import com.example.counter.CounterVIE.Signal
 
 class CounterVM(
     private val store: CounterStore,
+    debug: Boolean, // from the app: logging belongs to debug builds only
 ) : CounterVIE, VIEViewModel<Model, Intent, Signal>(
     firstModel = Model(count = 0),
-    middlewares = listOfNotNull(VIELoggingMiddleware("Counter").takeIf { isDebug }),
+    middlewares = if (debug) listOf(VIELoggingMiddleware("Counter")) else emptyList(),
 ) {
     override suspend fun process(intent: Intent) {
         when (intent) {
@@ -280,15 +281,15 @@ supplied by the caller, or as a `Signal.Effect` handled inside `SignalEffect { }
 reaching into the ViewModel or a navigation singleton directly.
 
 If several instances of the same ViewModel need to coexist in one composition (e.g. a list of
-detail screens), pass a distinct `key` to each `VIEView` call — without it, instances with the
-same call site collapse onto a single ViewModel.
+detail screens), pass a distinct `key` to each `VIEView` call — without it, every `VIEView` of
+the same ViewModel class shares a single ViewModel under one `ViewModelStoreOwner`.
 
 ### Signals in the view
 
 If a screen's `Signal` has any concrete member (i.e. it isn't `NoSignal`), its view should
 call `SignalEffect { }` somewhere — an `Event` emitted with nobody collecting is silently dropped,
-and an `Effect` emitted with nobody collecting leaves the emitting coroutine suspended forever
-waiting for a collector that will never arrive. If a screen truly has nothing to react to, prefer
+and an `Effect` emitted with nobody collecting waits in a buffer for a collector that will never
+arrive. If a screen truly has nothing to react to, prefer
 declaring `Signal = NoSignal` in the contract in the first place — that's exactly when the
 plain `model`/`post` view shape above becomes attractive.
 
@@ -331,23 +332,28 @@ view, remembering it *drains* (each call returns only what was posted since the 
 Emit into `MockVIE.signalFlow` only after the view has composed and started collecting — it has no
 replay, so an earlier emission is lost.
 
-Testing `process` itself — how a `VIEViewModel` subclass reacts to an intent — is a separate,
-ordinary unit test against that subclass; it has nothing to do with `MockVIE`.
+Testing `process` itself — how a `VIEViewModel` subclass reacts to an intent — is a separate test
+against that subclass, with `runVMTest` from `vie-test`: it builds the ViewModel in `newVM`, drives
+it on virtual time (`post`, `advanceUntilIdle()`), and asserts on `model`, `pendingModels()` and
+`pendingSignals()`. It has nothing to do with `MockVIE`. Return its result from the test function
+(`fun test() = runVMTest(...) { }`), or the test is not awaited on every target.
 
 ## Middlewares
 
 `VIEMiddleware` intercepts the three flows as plain `Flow` transformations; every method defaults
-to identity, so override only what you need. When several are supplied, the list folds from the
-end: the *last* middleware wraps the raw source flow and sees it first; the *first* sits closest
-to the ViewModel and view and sees whatever every other middleware already passed through.
+to identity, so override only what you need. When several are supplied, the *last* middleware is
+closest to where values come from and sees them first; the *first* is closest to where they go and
+sees whatever every other middleware already passed through. Models and signals go from the
+ViewModel to the view; intents go from the view to `process`, so the same order holds for all three
+flows.
 
 ```kotlin
 middlewares = listOf(
-    VIELoggingMiddleware("Counter"),  // first: closest to the VM/view, logs the final values
-    MetricsMiddleware(),              // last: wraps the raw source, sees it before logging does
+    VIELoggingMiddleware("Counter"),  // first: closest to where values go, logs the final values
+    MetricsMiddleware(),              // last: closest to where values come from, sees them first
 )
 ```
 
 Order the list by what each middleware needs to see, not by habit — a middleware that must
 observe the truly raw values (before any other middleware can filter or transform them) goes
-last; one that should reflect what actually reaches the ViewModel/view goes first.
+last; one that should reflect what actually reaches the view (or `process`) goes first.

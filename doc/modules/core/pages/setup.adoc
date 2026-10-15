@@ -1,0 +1,82 @@
+= Setup
+
+VIE ships two artifacts:
+
+[cols="2,3"]
+|===
+| Artifact | Purpose
+
+| `org.kodein.arch.vie:vie-mvi`
+| The library: the contract, the ViewModel, the view, middlewares, and `EmptyVIE` for previews.
+
+| `org.kodein.arch.vie:vie-test`
+| The test helpers: `MockVIE` to test a view, `runVMTest` to test a ViewModel.
+|===
+
+VIE {version} is built with Kotlin {kotlin-version} and Compose Multiplatform {compose-multiplatform-version}.
+Use these versions or newer.
+
+An Android target needs a `minSdk` of {android-min-sdk} or more, and the JVM artifact is built for Java {jdk}, so it needs a JDK {jdk} or later.
+A module that writes views also needs the Kotlin Compose compiler plugin, which Compose projects already apply.
+
+
+== Kotlin Multiplatform
+
+Add `vie-mvi` to the common code, and `vie-test` to the common tests:
+
+[source,kotlin,subs="verbatim,attributes"]
+.build.gradle.kts
+----
+kotlin {
+    sourceSets {
+        commonMain.dependencies {
+            implementation("org.kodein.arch.vie:vie-mvi:{version}")
+        }
+        commonTest.dependencies {
+            implementation("org.kodein.arch.vie:vie-test:{version}") // <1>
+        }
+    }
+}
+----
+<1> A separate artifact, so the test helpers never reach a production source set.
+
+
+[#jvm-or-android-only]
+== JVM or Android only
+
+A project with a single platform adds the same artifacts to its `dependencies`:
+
+[source,kotlin,subs="verbatim,attributes"]
+.build.gradle.kts
+----
+dependencies {
+    implementation("org.kodein.arch.vie:vie-mvi:{version}")
+    testImplementation("org.kodein.arch.vie:vie-test:{version}")
+}
+----
+
+
+[#what-comes-along]
+== What comes along
+
+VIE's own signatures use Compose, `ViewModel` and coroutines types, so these come along as transitive dependencies:
+
+* `org.jetbrains.compose.runtime:runtime`, since `VIEView` and `SignalEffect` are `@Composable`;
+* `org.jetbrains.androidx.lifecycle:lifecycle-viewmodel-compose`, since `VIEViewModel` extends `ViewModel`;
+* `org.jetbrains.kotlinx:kotlinx-coroutines-core`, since models and signals are flows.
+
+`vie-test` also brings `org.jetbrains.kotlinx:kotlinx-coroutines-test`, which `runVMTest` is built on.
+
+VIE does not bring Compose Foundation or Material: your views use whichever components you choose.
+
+
+[#platforms]
+== Supported platforms
+
+Both artifacts target:
+
+* JVM;
+* Android, API {android-min-sdk} and later;
+* iOS: `iosArm64` and `iosSimulatorArm64`;
+* JS, in the browser;
+* Wasm/JS, in the browser.

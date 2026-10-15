@@ -31,7 +31,7 @@ fun {{Name}}(
 
 /**
  * The layout, as an extension on [VIEViewScope] — no ViewModel in sight, so this can be
- * rendered against a real screen, an [EmptyVIE] preview, or a [org.kodein.arch.vie.MockVIE] in
+ * rendered against a real screen, an [EmptyVIE] preview, or a [org.kodein.arch.vie.test.MockVIE] in
  * tests.
  */
 @Composable

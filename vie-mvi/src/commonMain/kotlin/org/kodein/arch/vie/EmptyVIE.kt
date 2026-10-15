@@ -7,7 +7,7 @@ import kotlinx.coroutines.flow.emptyFlow
  * A [VIEViewScope] with nothing behind it, for previews: [post] discards the intent, and
  * [signalFlow] is an always-empty [kotlinx.coroutines.flow.Flow], so a [SignalEffect] in the view never fires.
  *
- * It carries no model — unlike [MockVIE], there is nothing to seed — so the model goes to the
+ * It carries no model — unlike `MockVIE`, there is nothing to seed — so the model goes to the
  * view's own `model` parameter, once:
  *
  * ```kotlin

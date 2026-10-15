@@ -1,0 +1,202 @@
+= Forms and text input
+
+A form raises two questions: where the text being typed lives, and how it reaches the ViewModel.
+This guide answers them with a profile screen, which has a name and a bio, and shares the sample contract below.
+
+
+[#contract]
+== The contract
+
+[source,kotlin]
+.ProfileVIE.kt
+----
+interface ProfileVIE : VIE<Model, Intent, Signal> {
+
+    data class Model(
+        val profile: Profile? = null, // <1>
+        val saving: Boolean = false,
+        val nameError: String? = null, // <2>
+    ) : VIE.Model
+
+    sealed interface Intent : VIE.Intent {
+        data class NameChanged(val name: String) : Intent
+        data class Save(val name: String, val bio: String) : Intent // <3>
+    }
+
+    sealed interface Signal : VIE.Signal {
+        data object Saved : Signal, VIE.Signal.Effect
+        data class Error(val message: String) : Signal, VIE.Signal.Effect // <4>
+    }
+}
+----
+<1> The saved profile, once loaded.
+<2> A failure that must stay visible is a model field.
+<3> The form is submitted as one intent, which carries every value.
+<4> A failed save is told once: it is a signal, and an Effect, since it must show only once.
+
+The sections below build its view and its ViewModel step by step.
+
+
+[#buffer]
+== The text lives in the view
+
+The text being typed belongs to the view, in a `TextFieldState` that `rememberTextFieldState` remembers.
+The ViewModel does not follow every keystroke: it receives the values when the user submits them.
+
+[source,kotlin]
+.Profile.kt
+----
+@Composable
+fun VIEViewScope<Intent, Signal>.Profile(model: Model, goBack: () -> Unit) {
+    val name = rememberTextFieldState()
+    val bio = rememberTextFieldState()
+
+    Column {
+        TextField(state = name)
+        TextField(state = bio)
+        Button(
+            onClick = { post(Intent.Save(name.text.toString(), bio.text.toString())) }, // <1>
+        ) { Text("Save") }
+    }
+}
+----
+<1> One intent, with the values read at that moment.
+
+
+[#prefill]
+== Prefilling once
+
+When the form edits something that loads, the fields receive the loaded values once.
+A flag that is saved with the state remembers that it was done, so that a model that arrives later, or a view that is recreated, does not overwrite what the user typed:
+
+[source,kotlin]
+----
+var prefilled by rememberSaveable { mutableStateOf(false) } // <1>
+LaunchedEffect(model.profile) {
+    val profile = model.profile
+    if (profile != null && !prefilled) {
+        name.setTextAndPlaceCursorAtEnd(profile.name)
+        bio.setTextAndPlaceCursorAtEnd(profile.bio)
+        prefilled = true
+    }
+}
+----
+<1> Without the flag, every new `model.profile` replaces the text.
+
+The ViewModel loads in `init`, as xref:core:viewmodel.adoc#start[] shows: `update { copy(profile = profiles.load()) }`.
+
+
+[#errors]
+== Showing errors
+
+A failed save is an Effect, shown by `SignalEffect` as a snackbar, and a successful one leaves the screen (see xref:navigation.adoc#navigating-out[]):
+
+[source,kotlin]
+----
+SignalEffect { signal ->
+    when (signal) {
+        is Signal.Saved -> goBack()
+        is Signal.Error -> snackbar.showSnackbar(signal.message)
+    }
+}
+----
+
+An error that belongs to a field stays displayed until the user fixes it: it is a model field, here `nameError`, that the field renders:
+
+[source,kotlin]
+----
+TextField(
+    state = name,
+    isError = model.nameError != null,
+    supportingText = { model.nameError?.let { Text(it) } },
+)
+----
+
+
+[#saving]
+== Disabling the form while saving
+
+`saving` is a model field, set around the work in `process`.
+The view disables what must not change meanwhile:
+
+[source,kotlin]
+----
+TextField(state = name, enabled = !model.saving)
+TextField(state = bio, enabled = !model.saving)
+Button(onClick = { /* ... */ }, enabled = !model.saving) { Text("Save") }
+----
+
+The ViewModel sets it:
+
+[source,kotlin]
+.ProfileVM.kt
+----
+override suspend fun process(intent: Intent) {
+    when (intent) {
+        is Intent.Save -> {
+            update { copy(saving = true) }
+            profiles.save(Profile(intent.name, intent.bio))
+                .onSuccess { signal(Signal.Saved) }
+                .onFailure { signal(Signal.Error(it.message ?: "Save failed")) }
+            update { copy(saving = false) }
+        }
+        // ...
+    }
+}
+----
+
+
+[#validation]
+== Validating while typing
+
+Some checks cannot wait for the submit: a name that must not be blank, a search that follows the query.
+The view posts each change, and the ViewModel decides when to react.
+
+[source,kotlin]
+.Profile.kt
+----
+LaunchedEffect(name) {
+    snapshotFlow { name.text.toString() }
+        .drop(1) // <1>
+        .collect { post(Intent.NameChanged(it)) }
+}
+----
+<1> `snapshotFlow` first emits the current text, which is not a change.
+
+The ViewModel waits for the user to stop typing, with `debounce`, and feeds the result to the model with `collectToModel`:
+
+[source,kotlin]
+.ProfileVM.kt
+----
+@OptIn(FlowPreview::class)
+class ProfileVM(
+    private val profiles: ProfileRepository,
+) : ProfileVIE, VIEViewModel<Model, Intent, Signal>(Model()) {
+
+    private val names = MutableSharedFlow<String>(extraBufferCapacity = 1)
+
+    init {
+        viewModelScope.launch {
+            names.debounce(300.milliseconds).collectToModel { name ->
+                copy(nameError = if (name.isBlank()) "A name is required" else null)
+            }
+        }
+    }
+
+    override suspend fun process(intent: Intent) {
+        when (intent) {
+            is Intent.NameChanged -> names.emit(intent.name)
+            // ...
+        }
+    }
+}
+----
+
+Debouncing in the ViewModel keeps the delay out of the view, and a test controls it with virtual time: `advanceTimeBy(300.milliseconds)` (see xref:testing:testing-viewmodels.adoc#time[]).
+
+
+[#testing]
+== Testing a form
+
+TIP: In a view test, `performTextInput` types in a field, and `pendingIntents()` returns what the view posted, as xref:testing:testing-views.adoc#intents[] shows.
+The https://github.com/kosi-libs/VIE/blob/main/demo/demo-shared/src/commonTest/kotlin/org/kodein/arch/vie/demo/view/EditTaskTest.kt[demo's `EditTaskTest`] types a title and a description, submits, and checks the posted `Intent.Edit`.

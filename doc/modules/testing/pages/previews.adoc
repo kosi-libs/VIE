@@ -1,0 +1,51 @@
+= Previews
+
+A view written as an xref:core:view.adoc#views-as-extensions[extension on `VIEViewScope`] needs a scope and a model to render, and no ViewModel.
+`EmptyVIE` is the scope to use in a preview.
+
+
+== Previewing a view
+
+`EmptyVIE<Intent, Signal>` is a `VIEViewScope` with nothing behind it: `post` discards the intent, and `signalFlow` never emits, so `SignalEffect` never fires.
+It holds no model, so the model goes straight to the view:
+
+[source,kotlin]
+.Counter.kt
+----
+@Preview
+@Composable
+fun CounterPreview() {
+    EmptyVIE<Intent, Signal>().Counter(
+        model = Model(count = 3, saving = true), // <1>
+    )
+}
+----
+<1> Any state of the screen can be previewed, here a save in progress.
+
+`EmptyVIE` is part of `vie-mvi`, so previews can live next to the views, in the main source set.
+
+
+== Preview dependencies
+
+`@Preview` comes from Compose's tooling, which VIE does not bring.
+With the Compose Multiplatform Gradle plugin applied:
+
+[source,kotlin,subs="verbatim,attributes"]
+.build.gradle.kts
+----
+kotlin {
+    sourceSets {
+        commonMain.dependencies {
+            implementation("org.jetbrains.compose.ui:ui-tooling-preview:{compose-multiplatform-version}") // <1>
+        }
+        jvmMain.dependencies {
+            runtimeOnly("org.jetbrains.compose.ui:ui-tooling:{compose-multiplatform-version}") // <2>
+        }
+    }
+}
+----
+<1> The `@Preview` annotation.
+<2> What the IDE uses to render the preview, here for the desktop target; add it to `androidMain` too for an Android target.
+It is only for the IDE, yet it ships with whatever depends on that source set: in an Android app module, use `debugImplementation`.
+
+TIP: To check what a view posts, or how it reacts to a signal, use xref:testing-views.adoc[`MockVIE`] instead.

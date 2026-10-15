@@ -1,0 +1,157 @@
+= Navigating between screens
+
+A VIE screen is a composable, so any navigation library can show it.
+This guide uses https://kotlinlang.org/docs/multiplatform/compose-navigation-3.html[Navigation 3], as the https://github.com/kosi-libs/VIE/tree/main/demo[demo application] does.
+It shows what VIE adds to it: one ViewModel per entry, screen arguments, and a screen that leaves when its ViewModel decides.
+
+The samples receive their dependencies as parameters, as in the xref:core:viewmodel.adoc[core pages].
+
+
+[#entries]
+== One ViewModel per entry
+
+Follow JetBrains' setup for `navigation3-ui`, then add the artifact that scopes ViewModels to entries:
+
+[source,kotlin,subs="verbatim,attributes"]
+.build.gradle.kts
+----
+commonMain.dependencies {
+    implementation("org.jetbrains.androidx.lifecycle:lifecycle-viewmodel-navigation3:{androidx-jb-lifecycle-version}")
+}
+----
+
+It brings `navigation3-runtime` along.
+Give `NavDisplay` the two entry decorators:
+
+[source,kotlin]
+.App.kt
+----
+@Serializable
+sealed interface AppScreen : NavKey {
+    @Serializable data object TaskList : AppScreen
+    @Serializable data class Task(val id: Uuid) : AppScreen
+}
+
+@Composable
+private fun rememberAppBackStack(vararg elements: AppScreen) = // <1>
+    rememberSerializable(serializer = NavBackStack.serializer(AppScreen.serializer())) {
+        NavBackStack(*elements)
+    }
+
+@Composable
+fun App(tasks: TaskRepository) {
+    val backStack = rememberAppBackStack(AppScreen.TaskList)
+    NavDisplay(
+        backStack = backStack,
+        entryDecorators = listOf(
+            rememberSaveableStateHolderNavEntryDecorator(), // <2>
+            rememberViewModelStoreNavEntryDecorator(),
+        ),
+    ) { screen ->
+        when (screen) {
+            is AppScreen.TaskList -> NavEntry(screen) {
+                TaskList(tasks, goToTask = { backStack.add(AppScreen.Task(it)) })
+            }
+            is AppScreen.Task -> NavEntry(screen) {
+                Task(screen.id, tasks, goBack = { backStack.removeLast() })
+            }
+        }
+    }
+}
+----
+<1> Remembers the back stack so that it survives a configuration change.
+Common code has no `rememberNavBackStack` without a `SavedStateConfiguration`, so the demo declares this helper.
+<2> The decorators wrap the content of every entry.
+The second one scopes the ViewModels to the entry.
+
+WARNING: Without `rememberViewModelStoreNavEntryDecorator`, every entry shares the ViewModel store of the window or the activity.
+Two unkeyed `VIEView` of one ViewModel class then share one ViewModel: opening task B shows the ViewModel of task A.
+
+With it, every entry holds its own ViewModels.
+Popping an entry clears them, so their `viewModelScope` is cancelled.
+The same `NavKey` pushed twice shares one ViewModel, which is cleared when the last of the two entries is popped.
+
+
+[#arguments]
+== Screen arguments
+
+An argument lives in the `NavKey`, and reaches the ViewModel through `newVM`:
+
+[source,kotlin]
+.Task.kt
+----
+@Composable
+fun Task(id: Uuid, tasks: TaskRepository, goBack: () -> Unit) {
+    VIEView(newVM = { TaskVM(id, tasks) }) { model -> // <1>
+        Task(model, goBack)
+    }
+}
+----
+<1> No `key` is needed: each entry has its own ViewModel store, and `newVM` runs once for it.
+
+See xref:core:view.adoc#screen-arguments[] for what happens when an argument changes without a new entry.
+
+
+[#navigating-out]
+== Leaving a screen
+
+The screen does not know the back stack.
+Its caller passes a callback, `goBack` above, and the view calls it.
+
+When the user triggers it, call it from `onClick`.
+When the ViewModel decides, such as once a save succeeded, emit an Effect:
+
+[source,kotlin]
+.TaskVIE.kt
+----
+sealed interface Signal : VIE.Signal {
+    data object Saved : Signal, VIE.Signal.Effect // <1>
+    data class Error(val message: String) : Signal, VIE.Signal.Effect
+}
+----
+<1> An Effect reaches one `SignalEffect` only, so the screen goes back once, even if two views observe the ViewModel.
+
+[source,kotlin]
+.Task.kt
+----
+@Composable
+fun VIEViewScope<Intent, Signal>.Task(model: Model, goBack: () -> Unit) {
+    val snackbar = remember { SnackbarHostState() }
+    SignalEffect { signal ->
+        when (signal) {
+            is Signal.Saved -> goBack()
+            is Signal.Error -> snackbar.showSnackbar(signal.message)
+        }
+    }
+    // ...
+}
+----
+
+TIP: xref:testing:testing-views.adoc#signals[] shows how to test it: send `Signal.Saved` to a `MockVIE`, and check that the callback ran.
+The https://github.com/kosi-libs/VIE/blob/main/demo/demo-shared/src/commonTest/kotlin/org/kodein/arch/vie/demo/view/EditTaskTest.kt[demo's `EditTaskTest`] does it.
+
+
+[#results]
+== Getting a result back
+
+A screen does not return a value to the previous one.
+Both read the same source instead: the list screen collects the repository, and the task screen writes to it.
+When the task is saved and the screen goes back, the list has already received the new data:
+
+[source,kotlin]
+.TaskListVM.kt
+----
+init {
+    viewModelScope.launch {
+        tasks.flow().collectToModel { all -> copy(tasks = all) }
+    }
+}
+----
+
+
+== Dialogs and other libraries
+
+A Navigation 3 entry shown as a dialog, with `DialogSceneStrategy.dialog()` in its metadata, is an entry like another: it has its own ViewModel.
+
+`VIEView` takes its ViewModel store from `LocalViewModelStoreOwner`, through `androidx.lifecycle.viewmodel.compose.viewModel`.
+Another navigation library works with VIE as far as it provides that owner per destination.

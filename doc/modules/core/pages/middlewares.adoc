@@ -1,0 +1,157 @@
+= Middlewares
+
+A middleware intercepts the models, intents and signals that flow through a ViewModel, without the ViewModel or the view knowing.
+It suits concerns that cut across screens: logging, analytics, debugging tools.
+
+
+[#logging]
+== Logging
+
+`VIELoggingMiddleware` prints everything that flows through a ViewModel, each line prefixed with its name:
+
+[source,kotlin]
+----
+middlewares = listOf(VIELoggingMiddleware("Counter")),
+----
+
+Here is what it prints when the view posts `Increment`, then `Save`, which emits `Saved`:
+
+[source,text]
+----
+Counter START
+Counter MODEL: Model(count=0, saving=false)
+Counter INTENT: Increment
+Counter MODEL: Model(count=1, saving=false)
+Counter INTENT: Save
+Counter MODEL: Model(count=1, saving=true)
+Counter SIGNAL: Saved
+Counter MODEL: Model(count=1, saving=false)
+Counter END
+----
+
+`START` is printed when the middleware is built, and `END` once the ViewModel is cleared, so each instance prints one pair.
+Models and signals travel through separate coroutines, so the order of their lines is not guaranteed.
+
+It prints with `println` in every build, release included.
+Install it in debug builds only, through a constructor parameter of the ViewModel:
+
+[source,kotlin]
+----
+class CounterVM(
+    private val store: CounterStore,
+    debug: Boolean,
+) : CounterVIE, VIEViewModel<Model, Intent, Signal>(
+    firstModel = Model(count = 0),
+    middlewares = if (debug) listOf(VIELoggingMiddleware("Counter")) else emptyList(),
+) {
+    // ...
+}
+----
+
+
+[#writing]
+== Writing a middleware
+
+A middleware implements `VIEMiddleware`, whose every method does nothing by default, so you override only what you need:
+
+[cols="2,3"]
+|===
+| Method | Purpose
+
+| `fun interceptModels(flow: Flow<Model>): Flow<Model>`
+| Transforms the models, on their way from the ViewModel to the view.
+
+| `fun interceptIntents(flow: Flow<Intent>): Flow<Intent>`
+| Transforms the intents, on their way from the view to `process`.
+
+| `fun interceptSignals(flow: Flow<Signal>): Flow<Signal>`
+| Transforms the signals, on their way from the ViewModel to the view.
+
+| `fun onAttached(vm: VIEViewModel<Model, Intent, Signal>)`
+| Receives the ViewModel the middleware is installed on.
+|===
+
+Each `intercept` method returns a plain `Flow`, so it can observe, map or filter its values.
+A middleware written for any screen keeps the three type parameters generic:
+
+[source,kotlin]
+.IntentTracker.kt
+----
+class IntentTracker<Model : VIE.Model, Intent : VIE.Intent, Signal : VIE.Signal>(
+    private val analytics: Analytics,
+) : VIEMiddleware<Model, Intent, Signal> {
+
+    override fun interceptIntents(flow: Flow<Intent>): Flow<Intent> =
+        flow.onEach { analytics.track(it.toString()) }
+}
+----
+
+The ViewModel installs its middlewares through its constructor:
+
+[source,kotlin]
+.CounterVM.kt
+----
+class CounterVM(
+    private val store: CounterStore,
+    analytics: Analytics,
+) : CounterVIE, VIEViewModel<Model, Intent, Signal>(
+    firstModel = Model(count = 0),
+    middlewares = listOf(IntentTracker(analytics)),
+) {
+    // ...
+}
+----
+
+`interceptModels`, not `modelFlow`, is where every model is seen.
+It sees every model that `update` applies, in order, even one equal to the previous one, and whether or not a view collects them.
+Only `modelFlow`, after every middleware, skips the models equal to the current one.
+`update` does not wait for the middlewares: a model they have not read yet is buffered.
+
+
+[#order]
+== Ordering middlewares
+
+The last middleware of the list is the closest to where values come from, and the first is the closest to where they go:
+
+* models and signals go from the ViewModel through the last middleware, then the others, up to the first, then the view;
+* intents go from the view through the last middleware, then the others, up to the first, then `process`.
+
+[source,kotlin]
+----
+middlewares = listOf(
+    VIELoggingMiddleware("Counter"),
+    IntentTracker(analytics),
+),
+----
+
+Here `IntentTracker` sees each value first, and `VIELoggingMiddleware` prints what `IntentTracker` lets through.
+
+
+[#on-attached]
+== Knowing the ViewModel
+
+`onAttached` is called once, first thing when the ViewModel is built, before any flow starts.
+It lets a middleware know which ViewModel it observes:
+
+[source,kotlin]
+.ModelPrinter.kt
+----
+class ModelPrinter<Model : VIE.Model, Intent : VIE.Intent, Signal : VIE.Signal> :
+    VIEMiddleware<Model, Intent, Signal> {
+
+    private var name = "?"
+
+    override fun onAttached(vm: VIEViewModel<Model, Intent, Signal>) {
+        name = vm::class.simpleName ?: "?"
+    }
+
+    override fun interceptModels(flow: Flow<Model>): Flow<Model> =
+        flow.onEach { println("$name: $it") }
+}
+----
+
+At that point, `modelFlow` and `signalFlow` are not assigned yet, and the ViewModel subclass is not constructed.
+So do not call `post`, `update` or anything of the subclass from `onAttached`, even from a coroutine launched there.
+A middleware that keeps state from `onAttached`, like `ModelPrinter`, must not be shared between ViewModels: give each its own instance.
+
+TIP: xref:testing:testing-viewmodels.adoc[] shows how to test a ViewModel with its middlewares: a test sees the models after every middleware.
