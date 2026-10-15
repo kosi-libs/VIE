@@ -3,18 +3,20 @@
 :toclevels: 2
 :idprefix:
 :idseparator: -
+:icons: font
 :source-highlighter: highlight.js
 
+[.lead]
 *Model-View-Intent for Compose Multiplatform — one state flow down, intents up, signals sideways.*
 
-VIE gives a screen three types and a contract between them. A *Model* is the state the view renders.
-An *Intent* is a UI event — most often something the user did, but not always. A *Signal* is a
-one-off the view should react to but not render — a navigation, a snackbar, a toast. You declare the
-three as an interface; a `VIEViewModel` implements it; a `VIEView` renders it. The view only ever
-sees the contract, never the ViewModel.
+VIE gives a screen three types and a contract between them.
+A *Model* is the state the view renders.
+An *Intent* is a UI event — most often something the user did, but not always.
+A *Signal* is a one-off the view should react to but not render — a navigation, a snackbar, a toast.
+You declare the three as an interface; a `VIEViewModel` implements it; a `VIEView` renders it.
+The view only ever sees the contract, never the ViewModel.
 
-The name is the French translation of MVI: **V**ue **I**ntention **É**tat, built on Compose
-**V**iew**M**odels.
+The name is the French translation of MVI: **V**ue **I**ntention **É**tat, built on Compose **V**iew**M**odels.
 
 .CounterVIE.kt
 [source,kotlin]
@@ -83,41 +85,39 @@ fun Counter(store: CounterStore) {
 }
 ----
 
-No navigation framework, no event bus, no manual `collectAsState`. An interface, a ViewModel, and a
-composable that is handed the model and a way to talk back.
+No navigation framework, no event bus, no manual `collectAsState`.
+An interface, a ViewModel, and a composable that is handed the model and a way to talk back.
 
 toc::[]
 
 == Why VIE
 
-*The contract is an interface.* `CounterVIE : VIE<Model, Intent, Signal>` names the three types once.
-The ViewModel is one implementation of that interface; the view function depends on the interface,
-not on `CounterVM`. Swapping in a fake for a preview or a test is a different constructor call,
-nothing more.
+*The contract is an interface.*
+`CounterVIE : VIE<Model, Intent, Signal>` names the three types once.
+The ViewModel is one implementation of that interface; the view function depends on the interface, not on `CounterVM`.
+Swapping in a fake for a preview or a test is a different constructor call, nothing more.
 
-*The view never holds the ViewModel.* Inside `VIEView { }`, the receiver is a
-`VIEViewScope<Intent, Signal>` — exactly two members, `post(intent)` and `signalFlow`. No
-`modelFlow`, no `update`, no `viewModelScope`, no `process`. A view written as an extension on
-`VIEViewScope` (see <<the-view,The view>>) can be rendered against one of VIE's ready-made scopes
-with zero Compose ViewModel machinery — see <<previews-and-testing,Previews and testing>>.
+*The view never holds the ViewModel.*
+Inside `VIEView { }`, the receiver is a `VIEViewScope<Intent, Signal>` — exactly two members, `post(intent)` and `signalFlow`.
+No `modelFlow`, no `update`, no `viewModelScope`, no `process`.
+A view written as an extension on `VIEViewScope` (see <<the-view,The view>>) can be rendered against one of VIE's ready-made scopes with zero Compose ViewModel machinery — see <<previews-and-testing,Previews and testing>>.
 
-*Events and Effects are different delivery channels.* A `Signal` that is a `VIE.Signal.Event` is
-broadcast to *every* collector of `signalFlow` that is currently active, and is dropped if there are
-none. A `Signal` that is a `VIE.Signal.Effect` goes to *exactly one* collector — useful when two
-views observe the same ViewModel and a "navigate back" must fire once, not twice.
+*Events and Effects are different delivery channels.*
+A `Signal` that is a `VIE.Signal.Event` is broadcast to *every* collector of `signalFlow` that is currently active, and is dropped if there are none.
+A `Signal` that is a `VIE.Signal.Effect` goes to *exactly one* collector — useful when two views observe the same ViewModel and a "navigate back" must fire once, not twice.
 
-*Model updates are serialized.* `update { }` takes a `suspend Model.() -> Model` and hands it to a
-single consumer coroutine, then suspends until it has been applied. Two `process` calls racing on
-`copy(count = count + 1)` cannot lose an increment.
+*Model updates are serialized.*
+`update { }` takes a `suspend Model.() -> Model` and hands it to a single consumer coroutine, then suspends until it has been applied.
+Two `process` calls racing on `copy(count = count + 1)` cannot lose an increment.
 
-*Built on `ViewModel`, not beside it.* `VIEViewModel` extends
-`androidx.lifecycle.ViewModel`, so `viewModelScope`, `viewModel { }` keying, and Navigation3 entry
-scoping all work unchanged. VIE adds the MVI shape; it does not replace the lifecycle.
+*Built on `ViewModel`, not beside it.*
+`VIEViewModel` extends `androidx.lifecycle.ViewModel`, so `viewModelScope`, `viewModel { }` keying, and Navigation3 entry scoping all work unchanged.
+VIE adds the MVI shape; it does not replace the lifecycle.
 
-*Middlewares wrap the flows.* A `VIEMiddleware` intercepts the model, intent and signal flows as
-plain `Flow` transformations — logging, filtering, replay — without the ViewModel or the view
-knowing.
+*Middlewares wrap the flows.*
+A `VIEMiddleware` intercepts the model, intent and signal flows as plain `Flow` transformations — logging, filtering, replay — without the ViewModel or the view knowing.
 
+[[setup]]
 == Setup
 
 VIE is published as a Kotlin Multiplatform artifact:
@@ -134,13 +134,9 @@ kotlin {
 }
 ----
 
-Compose runtime, `lifecycle-viewmodel-compose` and kotlinx-coroutines appear in VIE's own public
-signatures — `@Composable`, `ViewModel`, `StateFlow` — so they are `api` dependencies and come along
-transitively. Compose foundation is an `implementation` detail and does not.
+Compose runtime, `lifecycle-viewmodel-compose` and kotlinx-coroutines appear in VIE's own public signatures — `@Composable`, `ViewModel`, `StateFlow` — so they are `api` dependencies and come along transitively.
 
-Its test helpers — `MockVIE` and `runVMTest` (see <<previews-and-testing,Previews and testing>>) —
-live in a separate artifact, so pulling them in never adds test-only dependencies to a production
-source set:
+Its test helpers — `MockVIE` and `runVMTest` (see <<previews-and-testing,Previews and testing>>) — live in a separate artifact, so pulling them in never adds test-only dependencies to a production source set:
 
 .build.gradle.kts
 [source,kotlin]
@@ -154,14 +150,31 @@ kotlin {
 }
 ----
 
-NOTE: Neither artifact has been released yet — the coordinates above are the ones the build is
-configured to publish to Maven Central.
+The probe of <<timemachine,TimeMachine>>, which streams a running application's ViewModels to a desktop inspector, is a third artifact:
+
+.build.gradle.kts
+[source,kotlin]
+----
+kotlin {
+    sourceSets {
+        commonMain.dependencies {
+            implementation("org.kodein.arch.vie:vie-timemachine-client:0.1.0")
+        }
+    }
+}
+----
+
+NOTE: None of these artifacts has been released yet.
+The coordinates of `vie-mvi` and `vie-test` are the ones the build is configured to publish to Maven Central.
+The publication of `vie-timemachine-client` is switched off in its build until TimeMachine is ready, so for now it can only be used from a checkout of this repository.
+Its protocol types also expose experimental Kotlin APIs (`Uuid`, `Instant`) that a consumer must opt in to, as link:timemachine/README.adoc#_modules[the TimeMachine contract] explains.
 
 == Core concepts
 
 === `VIE<Model, Intent, Signal>`
 
-The contract. It is what a view depends on, and what a `VIEViewModel` implements.
+The contract.
+It is what a view depends on, and what a `VIEViewModel` implements.
 
 [source,kotlin]
 ----
@@ -174,16 +187,14 @@ interface VIE<Model : VIE.Model, Intent : VIE.Intent, Signal : VIE.Signal>
 }
 ----
 
-The three type parameters are bounded by three marker interfaces — `VIE.Model`, `VIE.Intent`,
-`VIE.Signal` — so a stray type cannot slip into the wrong slot.
+The three type parameters are bounded by three marker interfaces — `VIE.Model`, `VIE.Intent`, `VIE.Signal` — so a stray type cannot slip into the wrong slot.
 
 === Model
 
-The state the view renders. Always a `data class` — the view relies on its structural equality (to
-skip recomposition when an update produces an equal model). A model is always complete: a
-`VIEViewModel` is  constructed with a `firstModel`, so `modelFlow` never has to represent "nothing
-yet". Model "loading" states are ordinary fields — `val tasks: List<Task>? = null`,
-`val saving: Boolean = false`.
+The state the view renders.
+Always a `data class` — the view relies on its structural equality (to skip recomposition when an update produces an equal model).
+A model is always complete: a `VIEViewModel` is constructed with a `firstModel`, so `modelFlow` never has to represent "nothing yet".
+Model "loading" states are ordinary fields — `val tasks: List<Task>? = null`, `val saving: Boolean = false`.
 
 [source,kotlin]
 ----
@@ -195,9 +206,9 @@ data class Model(
 
 === Intent
 
-A UI event — most often something the user did, but not always (a lifecycle callback, a timer firing
-in the view, an incoming deep link). Sent from the view with `post(intent)`. Model it as a
-`sealed interface` so `process` can `when` over it exhaustively.
+A UI event — most often something the user did, but not always (a lifecycle callback, a timer firing in the view, an incoming deep link).
+Sent from the view with `post(intent)`.
+Model it as a `sealed interface` so `process` can `when` over it exhaustively.
 
 [source,kotlin]
 ----
@@ -207,28 +218,27 @@ sealed interface Intent : VIE.Intent {
 }
 ----
 
-A screen that takes no input at all can use the built-in `VIE.Intent.None` as its `Intent` type — it
-has a private constructor and cannot be instantiated, so `post` becomes uncallable. It is aliased
-`NoIntent` — import it directly and use the bare name: `VIE<Model, NoIntent, Signal>`.
+A screen that takes no input at all can use the built-in `VIE.Intent.None` as its `Intent` type — it has a private constructor and cannot be instantiated, so `post` becomes uncallable.
+It is aliased `NoIntent` — import it directly and use the bare name: `VIE<Model, NoIntent, Signal>`.
 
 === Signal
 
-A one-off the view should act on but not render. Every concrete signal must also pick a *delivery
-kind* by implementing one of:
+A one-off the view should act on but not render.
+Every concrete signal must also pick a *delivery kind* by implementing one of:
 
 [cols="1,3",options="header"]
 |===
 | Kind | Delivery
 
 | `VIE.Signal.Event`
-| Broadcast to *every* active collector of `signalFlow`. Emitted with no collector, it is dropped
-  (there is no replay buffer). Use for things every listener cares about: "data saved", "logged
-  out".
+| Broadcast to *every* active collector of `signalFlow`.
+  Emitted with no collector, it is dropped (there is no replay buffer).
+  Use for things every listener cares about: "data saved", "logged out".
 
 | `VIE.Signal.Effect`
-| Delivered to *exactly one* collector. If several views observe the same ViewModel, an `Effect`
-  reaches whichever one collects it first. Use for one-shot navigation and other actions that must
-  not happen twice.
+| Delivered to *exactly one* collector.
+  If several views observe the same ViewModel, an `Effect` reaches whichever one collects it first.
+  Use for one-shot navigation and other actions that must not happen twice.
 |===
 
 [source,kotlin]
@@ -239,13 +249,13 @@ sealed interface Signal : VIE.Signal {
 }
 ----
 
-A screen with nothing to signal can use `VIE.Signal.None` as its `Signal` type. It is aliased
-`NoSignal` — import it directly and use the bare name: `VIE<Model, Intent, NoSignal>`.
+A screen with nothing to signal can use `VIE.Signal.None` as its `Signal` type.
+It is aliased `NoSignal` — import it directly and use the bare name: `VIE<Model, Intent, NoSignal>`.
 
 == The ViewModel
 
-`VIEViewModel` is the abstract base. Subclass it, pass the first model and any middlewares up, and
-implement `process`.
+`VIEViewModel` is the abstract base.
+Subclass it, pass the first model and any middlewares up, and implement `process`.
 
 [source,kotlin]
 ----
@@ -260,18 +270,19 @@ abstract class VIEViewModel<Model : VIE.Model, Intent : VIE.Intent, Signal : VIE
 | Member | Purpose
 
 | `abstract suspend fun process(intent: Intent)`
-| Called for every posted intent, one at a time, on `viewModelScope`. Long or parallel work should
-  be launched into `viewModelScope` explicitly rather than blocking the intent stream.
+| Called for every posted intent, one at a time, on `viewModelScope`.
+  Long or parallel work should be launched into `viewModelScope` explicitly rather than blocking the intent stream.
 
 | `suspend fun update(update: suspend Model.() -> Model)`
-| Atomically replaces the model. Serialized against all other `update` calls; returns once applied.
+| Atomically replaces the model.
+  Serialized against all other `update` calls; returns once applied.
 
 | `protected val model: Model`
 | The latest model `update` applied, before any middleware: current as soon as `update` returns.
 
 | `suspend fun signal(signal: S) where S : Signal, S : VIE.Signal.Type`
-| Emits a signal. The bound forces `S` to be an `Event` or an `Effect` — a signal type that picked
-  neither will not compile at the call site.
+| Emits a signal.
+  The bound forces `S` to be an `Event` or an `Effect` — a signal type that picked neither will not compile at the call site.
 
 | `final override fun post(intent: Intent)`
 | Feeds an intent into the pipeline. Provided; not overridable.
@@ -290,9 +301,8 @@ override suspend fun process(intent: CounterVIE.Intent) {
 
 === Feeding a Flow into the model or a signal
 
-Two helpers collect an external `Flow` straight into the ViewModel. They are declared with a
-`context` parameter, so they are called from inside a `VIEViewModel` (typically an `init` block or a
-`viewModelScope` coroutine):
+Two helpers collect an external `Flow` straight into the ViewModel.
+They are declared with a `context` parameter, so they are called from inside a `VIEViewModel` (typically an `init` block or a `viewModelScope` coroutine):
 
 [source,kotlin]
 ----
@@ -314,21 +324,26 @@ init {
 }
 ----
 
+[[the-view]]
 == The view
 
-`VIEView` is the single entry point. It creates (and remembers, keyed) the ViewModel, collects
-`modelFlow` as Compose state, and invokes `content` with the current model and a
-`VIEViewScope` receiver.
+`VIEView` is the single entry point.
+It creates (and remembers, identified by its class and its `key`) the ViewModel, collects `modelFlow` as Compose state, and invokes `content` with the current model and a `VIEViewScope` receiver.
 
 [source,kotlin]
 ----
 @Composable
-inline fun <reified Model : VIE.Model, Intent : VIE.Intent, Signal : VIE.Signal> VIEView(
-    crossinline newVM: () -> VIEViewModel<Model, Intent, Signal>,
+inline fun <reified Model : VIE.Model, Intent : VIE.Intent, Signal : VIE.Signal,
+    reified VM : VIEViewModel<Model, Intent, Signal>> VIEView(
+    crossinline newVM: () -> VM,
     key: String? = null,
     content: @Composable VIEViewScope<Intent, Signal>.(Model) -> Unit,
 )
 ----
+
+`VM` is the ViewModel's concrete class, inferred from what `newVM` returns, so type the lambda with it.
+Two views of different classes never share a ViewModel, with or without a `key`.
+`key` tells apart several instances of one class under one owner, such as a list of detail screens.
 
 Inside `content`, `this` is a `VIEViewScope<Intent, Signal>`:
 
@@ -342,8 +357,7 @@ interface VIEViewScope<Intent : VIE.Intent, Signal : VIE.Signal> {
 
 === `SignalEffect`
 
-React to signals with the `SignalEffect` composable — it collects `signalFlow` for the lifetime of
-the composition:
+React to signals with the `SignalEffect` composable — it collects `signalFlow` for the lifetime of the composition:
 
 [source,kotlin]
 ----
@@ -355,11 +369,11 @@ SignalEffect { signal ->
 }
 ----
 
+[[views-as-extension-functions]]
 === Views as extension functions
 
-Splitting the wiring from the layout keeps the layout testable. The demo does this everywhere: a
-thin `@Composable` that calls `VIEView`, and a second `@Composable` extension on `VIEViewScope`
-that only takes `model` plus plain callbacks.
+Splitting the wiring from the layout keeps the layout testable.
+The demo does this everywhere: a thin `@Composable` that calls `VIEView`, and a second `@Composable` extension on `VIEViewScope` that only takes `model` plus plain callbacks.
 
 [source,kotlin]
 ----
@@ -379,27 +393,21 @@ fun VIEViewScope<TaskListVIE.Intent, TaskListVIE.Signal>.TaskList(
 }
 ----
 
-The second function can be exercised in a `@Preview` against an `EmptyVIE` or a test against a
-`MockVIE` — see <<previews-and-testing,Previews and testing>>.
+The second function can be exercised in a `@Preview` against an `EmptyVIE` or a test against a `MockVIE` — see <<previews-and-testing,Previews and testing>>.
 
+[[previews-and-testing]]
 == Previews and testing
 
-A view written as a `VIEViewScope` extension (see <<views-as-extension-functions,Views as extension
-functions>>) needs nothing more than a `VIEViewScope` to render — no `VIEViewModel`, no
-`viewModel { }` keying, no lifecycle. VIE ships two ready-made scopes for exactly that, one per job:
-`EmptyVIE` to look at the layout, `MockVIE` to assert on it.
+A view written as a `VIEViewScope` extension (see <<views-as-extension-functions,Views as extension functions>>) needs nothing more than a `VIEViewScope` to render — no `VIEViewModel`, no `viewModel { }` keying, no lifecycle.
+VIE ships two ready-made scopes for exactly that, one per job: `EmptyVIE` to look at the layout, `MockVIE` to assert on it.
 
-`EmptyVIE` lives in `commonMain` of the `vie` artifact itself, so it is reachable from `@Preview`
-functions in a main source set, not just from tests. `MockVIE` — along with `runVMTest`, for testing
-the ViewModel side — lives in the separate `vie-test` artifact (see <<setup,Setup>>), so a
-production source set never has to depend on it.
+`EmptyVIE` lives in `commonMain` of the `vie-mvi` artifact itself, so it is reachable from `@Preview` functions in a main source set, not just from tests.
+`MockVIE` — along with `runVMTest`, for testing the ViewModel side — lives in the separate `vie-test` artifact (see <<setup,Setup>>), so a production source set never has to depend on it.
 
 === Previews
 
-`EmptyVIE<Intent, Signal>` is a `VIEViewScope` with nothing behind it: `post` discards the intent,
-and `signalFlow` is an always-empty `Flow`, so a `SignalEffect { }` in the view never fires. It
-carries no model — unlike `MockVIE` below, there is nothing to seed — so the model goes to the
-view's own `model` parameter, once:
+`EmptyVIE<Intent, Signal>` is a `VIEViewScope` with nothing behind it: `post` discards the intent, and `signalFlow` is an always-empty `Flow`, so a `SignalEffect { }` in the view never fires.
+It carries no model — unlike `MockVIE` below, there is nothing to seed — so the model goes to the view's own `model` parameter, once:
 
 [source,kotlin]
 ----
@@ -412,24 +420,20 @@ fun CounterPreview() {
 }
 ----
 
-`@Preview` needs `org.jetbrains.compose.ui:ui-tooling-preview` on the classpath (and
-`org.jetbrains.compose.ui:ui-tooling` as a `runtimeOnly` dependency for the IDE/tooling to render
-it) — see `demo/demo-shared/build.gradle.kts` for a module that declares both alongside VIE.
+`@Preview` needs `org.jetbrains.compose.ui:ui-tooling-preview` on the classpath (and `org.jetbrains.compose.ui:ui-tooling` as a `runtimeOnly` dependency for the IDE/tooling to render it) — see `demo/demo-shared/build.gradle.kts` for a module that declares both alongside VIE.
 
 === Testing a view with `MockVIE`
 
-`MockVIE<Model, Intent, Signal>` (from `vie-test`) is a full `VIE` implementation, not just a
-`VIEViewScope`: it holds a model, records every posted intent, and lets a test emit signals — built
-for assertions, not for previews. (It *would* work as a preview receiver too, since `VIE` extends
-`VIEViewScope`, but it needs a seeded model and records intents nobody reads; `EmptyVIE` above is
-the right tool when nothing has to be recorded or driven.)
+`MockVIE<Model, Intent, Signal>` (from `vie-test`) is a full `VIE` implementation, not just a `VIEViewScope`: it holds a model, records every posted intent, and lets a test emit signals — built for assertions, not for previews.
+(It *would* work as a preview receiver too, since `VIE` extends `VIEViewScope`, but it needs a seeded model and records intents nobody reads; `EmptyVIE` above is the right tool when nothing has to be recorded or driven.)
 
 [cols="1,3",options="header"]
 |===
 | Member | Purpose
 
 | `MockVIE(model)`
-| Constructor. Seeds `modelFlow` with the model to render.
+| Constructor.
+  Seeds `modelFlow` with the model to render.
 
 | `val model: Model`
 | The current model — shorthand for `modelFlow.value`.
@@ -441,7 +445,8 @@ the right tool when nothing has to be recorded or driven.)
 | Every intent the view has posted, in the order it posted them.
 
 | `override fun post(intent: Intent)`
-| Records the intent into `intentsChannel`. Nothing processes it — no model update, no signal.
+| Records the intent into `intentsChannel`.
+  Nothing processes it — no model update, no signal.
 
 | `override val signalFlow: MutableSharedFlow<Signal>`
 | Mutable: `emit` into it (or call `signal(…)` below) to drive the view's `SignalEffect { }`.
@@ -450,12 +455,10 @@ the right tool when nothing has to be recorded or driven.)
 | Non-suspending shorthand for `signalFlow.tryEmit(signal)`, handy from a test body.
 
 | `fun pendingIntents(): List<Intent>`
-| Drains `intentsChannel` and returns everything posted since the previous call, in order;
-  `emptyList()` if nothing was posted.
+| Drains `intentsChannel` and returns everything posted since the previous call, in order; `emptyList()` if nothing was posted.
 |===
 
-`pendingIntents()` turns a rendered view into something a test can assert on without touching a
-`VIEViewModel`:
+`pendingIntents()` turns a rendered view into something a test can assert on without touching a `VIEViewModel`:
 
 [source,kotlin]
 ----
@@ -472,49 +475,34 @@ assertEquals(
 )
 ----
 
-`pendingIntents()` *drains* — it is not an accumulating log. Each call returns only what was posted
-since the previous call; calling it twice in a row without an intervening `post` returns
-`emptyList()` the second time.
+`pendingIntents()` *drains* — it is not an accumulating log.
+Each call returns only what was posted since the previous call; calling it twice in a row without an intervening `post` returns `emptyList()` the second time.
 
-`modelFlow` and `signalFlow` are the mutable counterparts of the read-only members `VIE` exposes,
-so a test can also drive the view from the other direction: assign `modelFlow.value` to re-render
-with a new model, or `signalFlow.emit(…)` / `signal(…)` to check the view's `SignalEffect` reaction.
-`signalFlow` is a buffered `MutableSharedFlow` with no *replay*: a signal sent before any collector
-has started is held in the buffer and delivered once one does, but it is not replayed to a
-*second*, later collector — send it after the view has composed.
+`modelFlow` and `signalFlow` are the mutable counterparts of the read-only members `VIE` exposes, so a test can also drive the view from the other direction: assign `modelFlow.value` to re-render with a new model, or `signalFlow.emit(…)` / `signal(…)` to check the view's `SignalEffect` reaction.
+`signalFlow` is a buffered `MutableSharedFlow` with no *replay*: a signal sent before any collector has started is held in the buffer and delivered once one does, but it is not replayed to a *second*, later collector — send it after the view has composed.
 
-`MockVIE` replaces the ViewModel entirely: there is no `process`, no middleware, no
-`viewModelScope`. Testing how a `VIEViewModel` handles an intent — the `process` side — is a
-separate, ordinary unit test against the `VIEViewModel` subclass itself; `runVMTest` below exists to
-make that straightforward.
+`MockVIE` replaces the ViewModel entirely: there is no `process`, no middleware, no `viewModelScope`.
+Testing how a `VIEViewModel` handles an intent — the `process` side — is a separate, ordinary unit test against the `VIEViewModel` subclass itself; `runVMTest` below exists to make that straightforward.
 
 === Testing a `VIEViewModel` with `runVMTest`
 
-A `VIEViewModel` subclass is a plain class: construct it directly with whatever real or fake
-collaborators the test needs, no DI container required. Two of its mechanics make that more than
-a bare constructor call, though — both handled by `runVMTest` (from `vie-test`):
+A `VIEViewModel` subclass is a plain class: construct it directly with whatever real or fake collaborators the test needs, no DI container required.
+Two of its mechanics make that more than a bare constructor call, though — both handled by `runVMTest` (from `vie-test`):
 
 * `signalFlow` has no replay, so a signal emitted with nobody collecting is lost.
-* `viewModelScope` resolves `Dispatchers.Main` the first time it is touched — typically in
-  `init { }` — so `Dispatchers.Main` must already be a `TestDispatcher` *before* the view model is
-  constructed, for its (and any repository's) `delay(…)` calls to run on virtual time instead of
-  wall-clock time.
+* `viewModelScope` resolves `Dispatchers.Main` the first time it is touched — typically in `init { }` — so `Dispatchers.Main` must already be a `TestDispatcher` *before* the view model is constructed, for its (and any repository's) `delay(…)` calls to run on virtual time instead of wall-clock time.
 
-`runVMTest` builds the view model inside a `kotlinx.coroutines.test.runTest { }` with both
-already arranged: a collector subscribes to the models and the signals before any of the view model's
-coroutines run (unless `newVM` itself advances the scheduler).
+`runVMTest` builds the view model inside a `kotlinx.coroutines.test.runTest { }` with both already arranged: a collector subscribes to the models and the signals before any of the view model's coroutines run (unless `newVM` itself advances the scheduler).
 
-`block` is shaped like the `content` of `VIEView`: its receiver, a `VMTestScope`, shows what a view
-shows and never the view model itself. It posts intents with `post`, reads the current `model`, and drains
-what the view would have received:
+`block` is shaped like the `content` of `VIEView`: its receiver, a `VMTestScope`, shows what a view shows and never the view model itself.
+It posts intents with `post`, reads the current `model`, and drains what the view would have received:
 
-* `pendingModels()` returns the models published since the previous call, in order. The first call starts
-  with the model current when `newVM` returned. A model equal to the previous one is not recorded, so an
-  intent that changes nothing leaves it as it was.
+* `pendingModels()` returns the models published since the previous call, in order.
+  The first call starts with the model current when `newVM` returned.
+  A model equal to the previous one is not recorded, so an intent that changes nothing leaves it as it was.
 * `pendingSignals()` returns the signals emitted since the previous call, in order.
 
-Both drain, like `pendingIntents()` on `MockVIE`: view tests drain the intents a view posted, view model tests
-drain the models and signals it produced.
+Both drain, like `pendingIntents()` on `MockVIE`: view tests drain the intents a view posted, view model tests drain the models and signals it produced.
 
 [source,kotlin]
 ----
@@ -530,14 +518,13 @@ fun save_updatesModelAndSignalsSaved() = runVMTest(
 }
 ----
 
-`newVM` runs with `TestScope` as its receiver, and `block` with a `VMTestScope`, which is a `CoroutineScope`
-and forwards `advanceTimeBy`, `runCurrent`, `advanceUntilIdle` and `testScheduler`; `testScope` gives
-the rest. The view model is cleared once `block` returns, cancelling `viewModelScope`.
+`newVM` runs with `TestScope` as its receiver, and `block` with a `VMTestScope`, which is a `CoroutineScope` and forwards `advanceTimeBy`, `runCurrent`, `advanceUntilIdle` and `testScheduler`; `testScope` gives the rest.
+The view model is cleared once `block` returns, cancelling `viewModelScope`.
 
 == Middlewares
 
-A `VIEMiddleware` intercepts each of the three flows. Every method defaults to identity, so override
-only what you need:
+A `VIEMiddleware` intercepts each of the three flows.
+Every method defaults to identity, so override only what you need:
 
 [source,kotlin]
 ----
@@ -548,8 +535,7 @@ interface VIEMiddleware<Model : VIE.Model, Intent : VIE.Intent, Signal : VIE.Sig
 }
 ----
 
-`VIELoggingMiddleware(name)` ships in the box — it prints every model, intent and signal, plus
-`START` / `END` markers, prefixed with `name`.
+`VIELoggingMiddleware(name)` ships in the box — it prints every model, intent and signal, plus `START` / `END` markers, prefixed with `name`.
 
 [source,kotlin]
 ----
@@ -562,34 +548,132 @@ VIEViewModel(
 )
 ----
 
-*Order.* The list is folded from the end, so the *last* middleware wraps the raw source flow and the
-*first* sits closest to the ViewModel/view. Above, `MetricsMiddleware` sees the source values;
-`VIELoggingMiddleware` sees whatever `MetricsMiddleware` passed through.
+*Order.*
+The list is folded from the end, so the *last* middleware wraps the raw source flow and the *first* sits closest to the ViewModel/view.
+Above, `MetricsMiddleware` sees the source values; `VIELoggingMiddleware` sees whatever `MetricsMiddleware` passed through.
+
+*A middleware can ask for the ViewModel itself.*
+A `VIEMiddleware` that overrides `onAttached(vm)` receives that call once, from the ViewModel's `init`, after every middleware has been folded into the flows — useful for a middleware that drives the ViewModel from the outside rather than only observing it.
+It runs before the ViewModel subclass is constructed: `onAttached` may store the ViewModel, register closeables or launch into `viewModelScope`, but must not reach subclass code (e.g. `post`, which runs `process`) until construction ends.
+It does nothing by default: middlewares that don't override it never see a ViewModel reference.
+
+[[timemachine]]
+== TimeMachine
+
+TimeMachine is a live inspector for VIE ViewModels.
+A *probe* in your application streams every Model, Intent and Signal of the ViewModels it observes to the *inspector*, a desktop app that shows them as a timeline per ViewModel.
+The inspector can also send an object back into a live ViewModel, to drive it into a state that is hard to reach by hand.
+
+=== The inspector
+
+The inspector is a Compose Desktop app, run from a checkout of this repository:
+
+[source,bash]
+----
+./gradlew :timemachine:timemachine-server:run
+----
+
+It listens on port 13229, and keeps everything it hears in memory: closing it forgets every session.
+
+=== Starting the probe
+
+Start the probe once, early — before the first ViewModel it should observe is built — and behind a debug flag:
+
+.Main.kt
+[source,kotlin]
+----
+TimeMachine.start(TimeMachineConfig(appName = "MyApp", enabled = isDebugBuild))
+----
+
+`enabled` is a plain `Boolean`: wire it to whatever your app already calls a debug build.
+The demo does so in each of its entry points, the way each target allows: `ApplicationInfo.FLAG_DEBUGGABLE` on Android, `Platform.isDebugBinary` on iOS, a system property that Gradle's `run` task sets on the JVM, and a page served from `localhost` in the browser.
+
+While `enabled` is `false`, the probe opens no socket, allocates nothing and does no work, and `TimeMachine.middleware()` returns a middleware that does nothing.
+A probe started later only observes the ViewModels built after it.
+
+The probe looks for the inspector at `localhost:13229`, and keeps trying for as long as the app runs, so the app and the inspector can start in either order.
+`TimeMachineConfig` takes a `host` and a `port` for anything else.
+A desktop app, the iOS simulator and a page served from `localhost` reach the default as it is.
+The Android emulator's `localhost` is the emulator itself: forward the port once with `adb reverse tcp:13229 tcp:13229`.
+A physical device needs the address of the machine the inspector runs on, as `host`.
+
+=== Installing the middleware
+
+Install `TimeMachine.middleware()` in each ViewModel you want to observe, *last* in its `middlewares`.
+That puts it nearest the source, so it reports intents as the view posted them and signals as the ViewModel emitted them, before any other middleware filters or transforms them.
+Models are reported as `update {}` produced them, wherever it sits.
+
+Either in the ViewModel's own super-constructor call:
+
+.EditTaskVM.kt
+[source,kotlin]
+----
+class EditTaskVM : VIEViewModel<EditTaskVIE.Model, EditTaskVIE.Intent, EditTaskVIE.Signal>(
+    firstModel = EditTaskVIE.Model(),
+    middlewares = listOf(
+        VIELoggingMiddleware("EditTask"),
+        TimeMachine.middleware(),
+    ),
+)
+----
+
+Or wherever the ViewModel is built — a DI definition, or any factory — when it takes its `middlewares` as a constructor parameter:
+
+.EditTaskVM.kt
+[source,kotlin]
+----
+class EditTaskVM(
+    middlewares: List<VIEMiddleware<EditTaskVIE.Model, EditTaskVIE.Intent, EditTaskVIE.Signal>>,
+) : VIEViewModel<EditTaskVIE.Model, EditTaskVIE.Intent, EditTaskVIE.Signal>(EditTaskVIE.Model(), middlewares)
+
+EditTaskVM(listOf(VIELoggingMiddleware("EditTask"), TimeMachine.middleware()))
+----
+
+`TimeMachine.middleware()` takes its Model, Intent and Signal types from the list it is put in.
+Where nothing gives the call an expected type — a local `val`, say — name them: `TimeMachine.middleware<Model, Intent, Signal>()`.
+
+The probe observes any Model, Intent and Signal.
+Their JSON, and everything the inspector can send back, needs them to be `@Serializable`: apply the kotlinx-serialization plugin, and annotate the three types and, for a sealed one, its subtypes.
+
+=== Intervening
+
+From the inspector, the developer can send a Model, an Intent or a Signal into a live ViewModel.
+It goes in through the ViewModel's own public API:
+
+* A *Model* replaces the ViewModel's model, so the next `update { copy(…) }` computes from it: with a counter at 5, sending a model at 100 and tapping `+` gives 101.
+* An *Intent* is posted, as a view would post it, and goes through `process`.
+* A *Signal* is emitted, as the ViewModel would emit it.
+An Effect is delivered to exactly one collector, so sending one into a ViewModel that no view collects blocks its signals, and then its intents.
+Nothing on the probe's side can prevent that, so the inspector warns before it sends one.
+
+=== Safety
+
+The probe streams every Model, Intent and Signal of your app in cleartext, with no authentication, and lets the inspector drive your ViewModels.
+Never leave it enabled in a release build: tie `enabled` to a debug flag.
+It looks for the inspector at `localhost` unless you say otherwise, and prints a banner when it starts.
+The inspector listens on every network interface, so anything that can reach its port can pose as a probe: run it on a network you trust.
+
+How the probe and the inspector talk is documented in link:timemachine/README.adoc[timemachine/README.adoc].
 
 == Supported platforms
 
-`vie` is a Kotlin Multiplatform library targeting:
+`vie-mvi`, `vie-test` and `vie-timemachine-client` are Kotlin Multiplatform libraries targeting:
 
+* *Android*
 * *JVM*
 * *iOS* — `iosArm64`, `iosSimulatorArm64`
 * *JS* — browser
 * *Wasm/JS* — browser
 
-The library declares no Android target of its own; an Android application consumes it through a
-shared Compose Multiplatform module that does (as `demo/demo-android` does through
-`demo/demo-shared`).
-
 == AI skill
 
-`ai-skill/` is an Agent Skill for coding agents: VIE's good practices, a review checklist for bad
-practices, and templates to scaffold a new screen's contract, ViewModel and view. Install it into
-a project that *consumes* `vie` — see `ai-skill/README.md`.
+`ai-skill/` is an Agent Skill for coding agents: VIE's good practices, a review checklist for bad practices, and templates to scaffold a new screen's contract, ViewModel and view.
+Install it into a project that *consumes* `vie-mvi` — see `ai-skill/README.md`.
 
 == Demo
 
-`demo/demo-shared` is a full task-list application built on VIE — two screens
-(`TaskListVIE` / `EditTaskVIE`), each with its contract, ViewModel and view, over an async
-repository. It runs on every target:
+`demo/demo-shared` is a full task-list application built on VIE — two screens (`TaskListVIE` / `EditTaskVIE`), each with its contract, ViewModel and view, over an async repository.
+It runs on every target:
 
 [source,bash]
 ----
@@ -601,9 +685,11 @@ repository. It runs on every target:
 
 iOS runs from the Xcode project in `demo/demo-ios/kosi-vie-demo`.
 
-The demo wires its ViewModels with https://github.com/kosi-libs/Inara[Inara] (`@DIModule` in
-`business/AppModule.kt`, `@DIFactory` in `vie/vm/VMFactory.kt`) — VIE itself has no dependency on any
-DI framework, and `VIEViewModel` subclasses are plain constructors.
+The demo wires its ViewModels with https://github.com/kosi-libs/Inara[Inara] (`@DIModule` in `business/AppModule.kt`, `@DIFactory` in `vie/vm/VMFactory.kt`) — VIE itself has no dependency on any DI framework, and `VIEViewModel` subclasses are plain constructors.
+
+The demo also uses TimeMachine (see <<timemachine,TimeMachine>>): each entry point starts the probe in debug builds, and `AppModule` builds the `middlewares` list of each screen.
+Start the inspector, then run the demo, and the demo's session shows up in it.
+`./gradlew :demo:demo-desktop:run -Pvie.timemachine=false` runs the desktop demo without the probe.
 
 == License
 

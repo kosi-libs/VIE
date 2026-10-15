@@ -1,0 +1,526 @@
+= TimeMachine
+:toc: left
+:toclevels: 3
+:icons: font
+:source-highlighter: highlight.js
+
+[.lead]
+*A live inspector for VIE ViewModels: a probe in the application streams every Model, Intent and Signal to a desktop inspector, which can send objects back to drive the application.*
+
+This directory holds the three modules that make TimeMachine.
+Using the probe in an application is covered by the TimeMachine section of the link:../README.adoc[main README].
+This document is the contract between the probe and the inspector: the wire protocol.
+
+Version 1 observes and intervenes.
+It does not rewind, restore snapshots or persist anything: the inspector keeps what it hears in memory, and starts empty again when it restarts.
+
+
+== Modules
+
+[cols="2,1,4"]
+|===
+| Module | Role | Holds
+
+| `vie-timemachine-shared`
+| Contract
+| The wire messages, the JSON configuration, the connection coordinates and the protocol version.
+Both other modules depend on it, and it knows nothing about VIE's runtime or about any UI.
+
+| `vie-timemachine-client`
+| Probe
+| The library an application embeds, for every target VIE supports: jvm, android, iosArm64, iosSimulatorArm64, js and wasmJs.
+It observes one ViewModel per middleware, owns one WebSocket per application process, and applies interventions.
+
+| `timemachine-server`
+| Inspector
+| A Compose Desktop application.
+It owns the WebSocket server, an in-memory store of sessions, ViewModels and timelines, the dispatch of interventions, and the UI.
+|===
+
+The module names follow the WebSocket roles: the application is the WebSocket client, and the inspector is its server.
+That is the reverse of the product nouns, which are the ones to use in prose.
+
+The protocol types expose `kotlin.uuid.Uuid` and `kotlin.time.Instant`, which are still experimental in Kotlin.
+`vie-timemachine-shared` and `vie-timemachine-client` opt in to them module-wide, so the compiler does not flag these declarations.
+Code that uses them, such as an inspector reading `VIEObservation`, must opt in too, with `-opt-in=kotlin.uuid.ExperimentalUuidApi` and `-opt-in=kotlin.time.ExperimentalTime`, until Kotlin stabilizes both.
+
+
+== Running the inspector
+
+From a checkout:
+
+[source,bash]
+----
+./gradlew :timemachine:timemachine-server:run
+----
+
+The inspector listens on port 13229, on every network interface.
+With no probe connected, its window says where it listens, and shows the code that adds the probe to an application.
+If the port is taken, usually by a second inspector, the window says so and offers to retry.
+Compose's `package…` tasks, such as `packageDmg`, build an installer.
+
+
+[#protocol]
+== Protocol
+
+The messages are in `vie-timemachine-shared`, and their KDoc documents every field.
+This section describes what the messages mean together.
+
+Frames are shown indented below; on the wire, each is a single line.
+
+
+=== Transport
+
+The probe connects to the inspector over a WebSocket, at `ws://<host>:13229/timemachine`.
+The port and the path are part of the protocol, and the host is the probe's configuration: `localhost` unless it says otherwise.
+The probe is the only side that connects, and both sides send.
+
+Every frame is a text frame holding one JSON object, written with the `TimeMachineJson` configuration.
+Its class discriminator is `+#type+` and not the usual `type`, because the probe also encodes the application's own sealed types, and one of them may well have a `type` property.
+It ignores unknown keys, which the compatibility rule depends on (see <<compatibility,Compatibility>>).
+Frames of any other kind are ignored.
+
+Both sides ping.
+The inspector pings every probe every 5 s, and closes a connection whose pong takes longer than 10 s.
+The probe does the same to the inspector, except on js and wasmJs, where a browser answers pings but cannot send them.
+That is how a half-open connection, such as a phone whose wifi dropped, is noticed.
+
+
+=== Messages
+
+[cols="1,2,5"]
+|===
+| Direction | `+#type+` | Meaning
+
+| probe → inspector
+| `hello`
+| The first frame of a connection: the session it belongs to, and the protocol version the probe speaks.
+
+| probe → inspector
+| `vm-started`
+| A ViewModel started, with its description.
+A timeline message.
+
+| probe → inspector
+| `vm-closed`
+| A ViewModel was cleared.
+A timeline message.
+
+| probe → inspector
+| `observed`
+| A Model, an Intent or a Signal was observed in a ViewModel.
+A timeline message.
+
+| probe → inspector
+| `observations-dropped`
+| The probe dropped timeline messages instead of sending them.
+A timeline message.
+
+| probe → inspector
+| `vm-info`
+| The description of a ViewModel, outside the timeline: the answer to `request-vm-info`, or sent unprompted after a reconnection.
+
+| probe → inspector
+| `intervention-result`
+| Whether the probe accepted an intervention.
+
+| inspector → probe
+| `welcome`
+| The `hello` is accepted.
+
+| inspector → probe
+| `rejected`
+| The `hello` is refused, and the connection is closed.
+
+| inspector → probe
+| `received`
+| Every timeline message this connection carried, up to a sequence, is applied.
+
+| inspector → probe
+| `request-vm-info`
+| Asks for the description of a ViewModel.
+
+| inspector → probe
+| `intervene`
+| Asks the probe to make a ViewModel emit or receive an object.
+|===
+
+
+=== Handshake
+
+A connection starts with the probe's `hello`:
+
+[source,json]
+.The first frame of every connection
+----
+{
+  "#type": "hello",
+  "session": {
+    "id": "60a43ef3-a654-40e8-b044-fc157eeeac3e",
+    "name": "Demo (desktop)"
+  },
+  "protocolVersion": 1
+}
+----
+
+The inspector waits 10 s for it.
+A connection whose first frame is not a `hello` that decodes, or that sends nothing in time, is closed.
+
+The inspector then answers `welcome` or `rejected`, and the probe waits 10 s for the answer.
+A `welcome` is the first thing the inspector sends on a connection, before anything else it has to say.
+A `rejected` is followed by the closing of the connection, and carries the inspector's own protocol version (see <<compatibility,Compatibility>>).
+After a `welcome`, both sides send whenever they have something to say.
+
+
+=== Sessions and reconnection
+
+A session is one run of an application.
+The probe picks its `id`, a random UUID, when it starts, and its `name`, the application's name, is what the developer chose: several sessions may share one.
+
+The probe keeps one connection at a time, and reconnects for as long as it runs, waiting 0.5 s after the first failure, then twice as long after each, up to 5 s.
+A rejection is retried too, since the inspector may be restarted with a compatible version.
+The inspector and the application can therefore start in either order.
+
+A `hello` for a session the inspector already knows can only come from a probe whose previous connection is dead.
+The inspector closes that connection if it is still open, and revives the session in place: its ViewModels and timelines are kept.
+`rejected` with the reason `DuplicateSession` is part of the protocol, but a version 1 inspector never sends it.
+
+Frames already received on the evicted connection are still placed, and so is a late one: the sequence is the only order (see <<sequence,Sequence>>).
+
+After a reconnection, but not after the first connection, the probe describes every ViewModel it still runs with an unprompted `vm-info`, since the inspector may have restarted and lost them.
+On the first connection, everything since the probe started is still queued.
+The inspector, for its part, asks again with `request-vm-info` for the ViewModels whose description it was still waiting for, in case the answer was lost with the previous connection.
+
+
+=== Describing ViewModels
+
+A ViewModel is described by its identifier, which tells instances of one class apart, its type name, and one type description for each of its Model, Intent and Signal:
+
+[source,json]
+.A `vm-started` frame
+----
+{
+  "#type": "vm-started",
+  "info": {
+    "id": "539d46c4-49c2-4d73-8ef2-1d5a8af4cc11",
+    "typeName": "org.kodein.arch.vie.demo.vie.vm.TaskListVM",
+    "model": {
+      "typeName": "org.kodein.arch.vie.demo.vie.TaskListVIE.Model",
+      "isSerializable": true,
+      "sealedSubTypes": null
+    },
+    "intent": {
+      "typeName": "org.kodein.arch.vie.demo.vie.TaskListVIE.Intent",
+      "isSerializable": true,
+      "sealedSubTypes": [
+        "org.kodein.arch.vie.demo.vie.TaskListVIE.Intent.DeleteTask",
+        "org.kodein.arch.vie.demo.vie.TaskListVIE.Intent.UpdateTaskCompletion"
+      ]
+    },
+    "signal": {
+      "typeName": "org.kodein.arch.vie.demo.vie.TaskListVIE.Signal",
+      "isSerializable": true,
+      "sealedSubTypes": [
+        "org.kodein.arch.vie.demo.vie.TaskListVIE.Signal.Error"
+      ]
+    }
+  },
+  "at": "2026-10-06T15:30:10.331903Z",
+  "sequence": 0
+}
+----
+
+A type is named by its serial name: its fully qualified name, unless `@SerialName` overrides it.
+A type that is not `@Serializable` is named by its class instead, fully qualified except on the web, where only the simple name exists.
+A ViewModel is named by its class too: fully qualified where the platform allows it, simple on the web and for a local class, and `<anonymous>` for an anonymous one.
+`sealedSubTypes` is `null` when the type is not sealed, and otherwise lists the serial names of its serializable subtypes.
+Only a `@Serializable` role can be intervened on, and its JSON appears in the observations.
+
+The inspector learns of a ViewModel from `vm-started` or from `vm-info`, whose `info` is `null` when the probe no longer knows the identifier it was asked about.
+It asks with `request-vm-info`:
+
+* once, when a timeline message names a ViewModel it has no description of, and places that message under an unknown ViewModel meanwhile;
+* when an `observations-dropped` message arrives, because the dropped messages may have held the ViewModel's `vm-closed`.
+
+A ViewModel is closed by its `vm-closed`, or by a `vm-info` that says the probe does not know it.
+Closed is terminal: nothing reopens a ViewModel.
+
+
+=== Observations
+
+An `observed` message carries one object seen in one ViewModel:
+
+[source,json]
+.An `observed` frame
+----
+{
+  "#type": "observed",
+  "observation": {
+    "viewModelId": "539d46c4-49c2-4d73-8ef2-1d5a8af4cc11",
+    "at": "2026-10-06T15:30:11.338163Z",
+    "kind": "Model",
+    "typeName": "org.kodein.arch.vie.demo.vie.TaskListVIE.Model",
+    "asString": "Model(tasks=[], work=[])",
+    "asJson": {
+      "tasks": [],
+      "work": []
+    },
+    "interventionId": null,
+    "delivery": null
+  },
+  "sequence": 2
+}
+----
+
+`kind` is `Model`, `Intent` or `Signal`, `asString` is the object's `toString()`, and `asJson` is its JSON, present only when its type is `@Serializable`.
+`typeName` is the object's concrete type.
+For a sealed role, that is the serial name its JSON discriminator carries, which is also the name an intervention has to give back.
+For a Signal, `delivery` says whether it is an `Event` or an `Effect`: the serial descriptor of a type cannot tell, only the instance can.
+`interventionId` is explained under <<intervention,Intervention>>.
+`at` is when the probe saw the object, for display only.
+
+What the probe observes, and when:
+
+* *Models* are reported as they flow through the middleware: every model an `update {}` applies, equal ones included, from the start and whether or not a view collects, so a burst of updates reports every intermediate model, with none conflated.
+The first model, which no `update {}` produced, is reported first, right after the ViewModel's start.
+* *Intents* are reported as they flow through the middleware, in the order the ViewModel handles them.
+* *Signals* are reported as the ViewModel emits them.
+The probe never collects the signal flow itself, which would steal Effects from the view.
+
+A probe installed last in `middlewares` reports intents as the view posted them, and signals as the ViewModel emitted them, before any other middleware filters or transforms them.
+
+The probe never throws into the application.
+An object it fails to describe is still reported, without its JSON.
+
+
+[#sequence]
+=== Sequence
+
+The four timeline messages (`vm-started`, `vm-closed`, `observed` and `observations-dropped`) carry a `sequence`.
+It is the only order the inspector trusts.
+
+* There is one counter per session, shared by all its ViewModels, and it starts at 0.
+* The probe assigns a number when it sends a message, not when it observes the object, so the numbers follow the send order.
+A message the probe drops takes none.
+* `at` is not an order.
+A browser's clock has millisecond resolution, and a tap that posts an intent, runs `process`, calls `update {}` and emits a signal produces three observations in the same millisecond.
+
+The inspector places each message by its sequence, whichever connection carried it and whenever it arrives.
+A sequence it has already received is a duplicate, such as a resend, and is ignored.
+A message that arrives late, from an evicted connection or from a resend, takes its place in the timeline.
+
+
+=== Acknowledgement
+
+A probe cannot rely on the transport to bound what it has in flight: on js and wasmJs, a browser buffers what is sent without limit.
+The inspector therefore acknowledges what it applied.
+
+* `received` carries a sequence, and means that every timeline message this connection carried, up to it, is applied.
+A connection carries its timeline messages in ascending order, so it is cumulative.
+The inspector sends one per connection after each batch of messages it applied, and acknowledges duplicates too, since it holds them.
+* The probe keeps each timeline message it sent until a `received` covers it.
+It sends the next message only while at most 256 Ki characters of JSON are in flight, so a single large message can exceed that.
+* What waits meanwhile is a queue of at most `bufferSize` messages, 1,024 unless the probe's configuration says otherwise.
+When it is full, its oldest message is dropped.
+* After a connection is lost, the probe sends again what was not acknowledged, with the original sequences, then what was queued, then what is new.
+Nothing sent into a half-open connection is lost.
+
+Only timeline messages are acknowledged, and sent again.
+A `vm-info` that is lost is asked for again, and an `intervention-result` is never sent again: the inspector settles the intervention from what it has (see <<intervention,Intervention>>).
+
+
+=== Gaps
+
+Messages can be missing from a timeline for four reasons, and the inspector marks each differently:
+
+[cols="2,5"]
+|===
+| Marker | Meaning
+
+| Gap
+| The probe's queue overflowed, and it dropped messages instead of sending them.
+It reports them with `observations-dropped`: the number of messages dropped for one ViewModel.
+The dropped messages took no sequence, so the report takes their place in the timeline and leaves no hole in the sequence.
+The count covers any timeline message, `vm-started` and `vm-closed` included.
+The probe sends one report per affected ViewModel, and keeps the count until the report is sent, so a count is never lost.
+
+| Possibly incomplete
+| A sequence number is missing from the session, between the lowest and the highest the inspector received.
+The message is either still in flight on an earlier connection, in which case it fills the range when it arrives, or the inspector could not decode it.
+The number names no ViewModel, so the inspector marks every ViewModel that was alive at that point.
+
+| Earlier history unavailable
+| The inspector never saw the start of the ViewModel, and either the session's lowest sequence is above 0, because the inspector started after the session did, or the ViewModel is only known from a `vm-info`.
+
+| Evicted
+| The inspector keeps at most 1,000 rows, or 32 Mi characters of frames, per ViewModel, and drops the oldest first.
+This is a limit of the inspector, not of the protocol.
+|===
+
+
+[#intervention]
+=== Intervention
+
+The inspector can make a ViewModel receive an object, which is what drives a live application into a state that is hard to reach by hand.
+An `intervene` message names the ViewModel, the kind of object, its concrete type and its JSON:
+
+[source,json]
+.An `intervene` frame
+----
+{
+  "#type": "intervene",
+  "requestId": "ed4e2cdb-c7df-4255-a104-f9f29428b16d",
+  "viewModelId": "539d46c4-49c2-4d73-8ef2-1d5a8af4cc11",
+  "kind": "Intent",
+  "typeName": "org.kodein.arch.vie.demo.vie.TaskListVIE.Intent.UpdateTaskCompletion",
+  "asJson": {
+    "#type": "org.kodein.arch.vie.demo.vie.TaskListVIE.Intent.UpdateTaskCompletion",
+    "taskId": "82ec8127-77bc-4e7f-be8d-f985fe0cb662",
+    "completed": true
+  }
+}
+----
+
+The inspector picks the `requestId`.
+`typeName` is the serial name of the object's type: one of the role's `sealedSubTypes` for a sealed role, whose JSON then carries the matching `+#type+`, and the role's own `typeName` otherwise.
+The role must be `@Serializable`.
+
+The probe answers at once with `intervention-result`, which says whether it accepted the request, not whether the object arrived:
+
+[source,json]
+.The answers to an accepted request and to a refused one
+----
+{ "#type": "intervention-result", "requestId": "ed4e2cdb-c7df-4255-a104-f9f29428b16d", "result": { "#type": "success" } }
+
+{
+  "#type": "intervention-result",
+  "requestId": "bae7d251-0a27-47df-a99d-2dcfecbce052",
+  "result": {
+    "#type": "failure",
+    "reason": "UnknownType",
+    "message": "Unknown type no.such.Intent for role org.kodein.arch.vie.demo.vie.TaskListVIE.Intent"
+  }
+}
+----
+
+[cols="1,3"]
+|===
+| Failure reason | Meaning
+
+| `UnknownViewModel`
+| The probe knows no live ViewModel with that identifier, and a closed one is not known any more.
+
+| `ClosedViewModel`
+| The ViewModel was closed while the request was handled.
+
+| `NotSerializable`
+| The role was reported as not `@Serializable`.
+
+| `UnknownType`
+| The type is not the role's, nor one of its sealed subtypes.
+A Signal that picked neither delivery kind is refused the same way, since the ViewModel cannot emit it.
+
+| `BadJson`
+| The JSON could not be decoded: a missing or mismatched discriminator, or any decoding failure.
+|===
+
+What an accepted request does depends on the kind, and uses the ViewModel's own public API:
+
+* *Model*: it replaces the ViewModel's model through `update {}`, so the injected model is the one the next `update { copy(…) }` computes from.
+With a counter at 5, injecting a model at 100 and tapping `+` gives 101.
+* *Intent*: it is posted, as a view would, and goes through `process`.
+* *Signal*: it is emitted, as the ViewModel would.
+An Effect is delivered to exactly one collector, so injecting one into a ViewModel that no view collects blocks that ViewModel's signals, then its intents.
+Nothing on the probe's side can prevent that, so the inspector warns the developer.
+
+That the object really entered the ViewModel is shown by an observation: the probe tags it with the `requestId`, as its `interventionId`.
+An object the application produced itself has a `null` one.
+The probe recognizes the object it injected by identity when it observes it.
+An injected model is always tagged, even one equal to the current model.
+A data object is a singleton, so an instance the application produced can take the tag of the injected one.
+
+The result and the tagged observation arrive in either order, and either can arrive without the other.
+So the inspector works out the status of an intervention from the facts it has, in this order of precedence, with a deadline of 5 s:
+
+[cols="1,3"]
+|===
+| Status | When
+
+| Not sent
+| The session was disconnected, so nothing was sent.
+
+| Success
+| An observation tagged with the `requestId` arrived, whatever the result said.
+
+| Failed
+| The probe refused the request.
+
+| Pending
+| Neither has arrived, and the deadline has not passed.
+
+| Accepted, not observed
+| The probe accepted the request, but no tagged observation arrived by the deadline.
+
+| Timed out
+| Neither a result nor a tagged observation arrived by the deadline.
+|===
+
+A late answer can therefore change a status: a late row turns _timed out_ or _accepted, not observed_ into _success_.
+Eviction never changes one.
+
+The probe can drive its ViewModel at all because a middleware is handed the ViewModel it is installed on, through `onAttached`.
+
+
+[#compatibility]
+=== Compatibility
+
+The protocol version is an integer, 1 for now.
+It is bumped by hand when the wire changes in a way an older peer would not understand.
+It is not the version of an artifact, and nothing in the build generates it.
+
+Two peers can talk when their versions are equal.
+Otherwise, the inspector answers `rejected` with the reason `IncompatibleProtocol` and its own version, and closes the connection:
+
+[source,json]
+.The answer to a probe that speaks another version
+----
+{ "#type": "rejected", "reason": "IncompatibleProtocol", "protocolVersion": 1 }
+----
+
+The probe prints both versions once, however many times it retries, and names what to update: its own dependency when the inspector's version is the newer, the inspector otherwise.
+The inspector shows one notice per session, counting the attempts, which the developer can dismiss.
+
+A difference in versions is the normal case, not an edge: the probe is a library that applications ship, and the inspector runs from a checkout.
+That is why the version is checked on the wire, and not assumed.
+
+What lets two versions recognize each other is a frozen envelope.
+Across all versions:
+
+* the discriminator key stays `+#type+`;
+* `hello` stays `{"#type":"hello","protocolVersion":<Int>,"session":{"id":<UUID>,"name":<String>}}`;
+* `rejected` stays `{"#type":"rejected","reason":"IncompatibleProtocol","protocolVersion":<Int>}`.
+
+A later version may add fields to them, and never removes or retypes these.
+Since `TimeMachineJson` ignores unknown keys, any later `hello` decodes as a version 1 `hello`, and is rejected on its version.
+Likewise, a `rejected` whose `reason` this version does not know decodes with `Reason.Unknown`, so the probe can still tell that it was refused, and both protocol versions.
+A first frame that does not decode as a `hello` is closed.
+
+
+== Safety
+
+The probe streams every Model, Intent and Signal of the application, which in a real application means tokens and personal data, in cleartext over a WebSocket.
+It also accepts commands that drive a live ViewModel.
+There is no encryption, and no secret in the handshake.
+
+The port is the inspector's, and is bound on every network interface.
+So anyone on the network path can read the application's state, anything that reaches the port can pose as a probe and feed the inspector fake sessions, and a probe pointed at a hostile host hands that host full power over the application.
+
+The protocol mitigates this by convention and not by access control:
+
+* the probe's host is `localhost` unless the developer chooses another;
+* the probe prints a banner when it starts, saying what it streams;
+* the probe can be disabled, and then opens no socket and does no work, which is how it stays out of a release build.
+
+Never leave the probe enabled in a release build.
+
+The inspector bounds each ViewModel's timeline, but not the number of ViewModels or sessions: a debugging loop that restarts the application leaves one disconnected session per run, until the developer clears it.
