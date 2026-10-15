@@ -28,14 +28,14 @@ class TaskListVMTest {
     @Test
     fun tasksAreNullUntilRepositoryEmits() = runVMTest(
         newVM = { TaskListVM(InMemoryTaskRepository()) },
-    ) { vm, _ ->
-        assertNull(vm.modelFlow.value.tasks)
+    ) {
+        assertNull(model.tasks)
 
         runCurrent() // the repository's simulated delay hasn't elapsed yet
-        assertNull(vm.modelFlow.value.tasks)
+        assertNull(model.tasks)
 
         advanceUntilIdle()
-        assertEquals(emptyList(), vm.modelFlow.value.tasks)
+        assertEquals(emptyList(), model.tasks)
     }
 
     @Test
@@ -43,18 +43,18 @@ class TaskListVMTest {
         val repo = InMemoryTaskRepository()
         runVMTest(
             newVM = { TaskListVM(repo) },
-        ) { vm, _ ->
+        ) {
             val id = repo.add(task).getOrThrow()
             advanceUntilIdle()
-            assertEquals(listOf(id to task), vm.modelFlow.value.tasks)
+            assertEquals(listOf(id to task), model.tasks)
 
-            vm.post(Intent.DeleteTask(id))
+            post(Intent.DeleteTask(id))
             runCurrent()
-            assertEquals(listOf(id to Work.Deleting), vm.modelFlow.value.work)
+            assertEquals(listOf(id to Work.Deleting), model.work)
 
             advanceUntilIdle()
-            assertEquals(emptyList(), vm.modelFlow.value.work)
-            assertEquals(emptyList(), vm.modelFlow.value.tasks)
+            assertEquals(emptyList(), model.work)
+            assertEquals(emptyList(), model.tasks)
         }
     }
 
@@ -63,31 +63,31 @@ class TaskListVMTest {
         val repo = InMemoryTaskRepository()
         runVMTest(
             newVM = { TaskListVM(repo) },
-        ) { vm, _ ->
+        ) {
             val id = repo.add(task).getOrThrow()
             advanceUntilIdle()
 
-            vm.post(Intent.UpdateTaskCompletion(id, completed = true))
+            post(Intent.UpdateTaskCompletion(id, completed = true))
             runCurrent()
-            assertEquals(listOf(id to Work.Updating), vm.modelFlow.value.work)
+            assertEquals(listOf(id to Work.Updating), model.work)
 
             advanceUntilIdle()
-            assertEquals(emptyList(), vm.modelFlow.value.work)
-            assertEquals(listOf(id to task.copy(completed = true)), vm.modelFlow.value.tasks)
+            assertEquals(emptyList(), model.work)
+            assertEquals(listOf(id to task.copy(completed = true)), model.tasks)
         }
     }
 
     @Test
     fun updateTaskCompletion_onUnknownTask_isIgnored() = runVMTest(
         newVM = { TaskListVM(InMemoryTaskRepository()) },
-    ) { vm, signals ->
+    ) {
         advanceUntilIdle()
 
-        vm.post(Intent.UpdateTaskCompletion(Uuid.parse("00000000-0000-0000-0000-000000000000"), completed = true))
+        post(Intent.UpdateTaskCompletion(Uuid.parse("00000000-0000-0000-0000-000000000000"), completed = true))
         advanceUntilIdle()
 
-        assertEquals(emptyList(), vm.modelFlow.value.work)
-        assertEquals(emptyList(), signals)
+        assertEquals(emptyList(), model.work)
+        assertEquals(emptyList(), pendingSignals())
     }
 
     @Test
@@ -96,16 +96,16 @@ class TaskListVMTest {
         val repo = FailingUpdateRepository(realRepo)
         runVMTest(
             newVM = { TaskListVM(repo) },
-        ) { vm, signals ->
+        ) {
             val id = realRepo.add(task).getOrThrow()
             advanceUntilIdle()
 
-            vm.post(Intent.UpdateTaskCompletion(id, completed = true))
+            post(Intent.UpdateTaskCompletion(id, completed = true))
             advanceUntilIdle()
 
-            assertEquals(emptyList(), vm.modelFlow.value.work)
-            assertEquals(listOf(id to task), vm.modelFlow.value.tasks) // untouched: the update failed
-            assertEquals(listOf(Signal.Error("offline")), signals)
+            assertEquals(emptyList(), model.work)
+            assertEquals(listOf(id to task), model.tasks) // untouched: the update failed
+            assertEquals(listOf(Signal.Error("offline")), pendingSignals())
         }
     }
 }

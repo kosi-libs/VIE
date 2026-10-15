@@ -38,12 +38,12 @@ kotlin {
 
     sourceSets {
         commonMain.dependencies {
-            // MockVIE implements VIE and runVMTest takes a VIEViewModel, so both types are part of
+            // MockVIE implements VIE and runVMTest builds a VIEViewModel, so both types are part of
             // this module's public signatures.
             api(projects.vieMvi)
             // MockVIE exposes MutableStateFlow, MutableSharedFlow and ReceiveChannel.
             api(libs.kotlinx.coroutines)
-            // runVMTest takes TestScope lambdas and returns a TestResult.
+            // runVMTest's newVM takes a TestScope receiver, VMTestScope wraps one, and it returns a TestResult.
             api(libs.kotlinx.coroutines.test)
 
             implementation(libs.androidx.jb.lifecycle.viewmodel.compose)

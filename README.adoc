@@ -267,7 +267,7 @@ abstract class VIEViewModel<Model : VIE.Model, Intent : VIE.Intent, Signal : VIE
 | Atomically replaces the model. Serialized against all other `update` calls; returns once applied.
 
 | `protected val model: Model`
-| The current model — shorthand for `modelFlow.value`.
+| The latest model `update` applied, before any middleware: current as soon as `update` returns.
 
 | `suspend fun signal(signal: S) where S : Signal, S : VIE.Signal.Type`
 | Emits a signal. The bound forces `S` to be an `Event` or an `Effect` — a signal type that picked
@@ -491,38 +491,48 @@ make that straightforward.
 === Testing a `VIEViewModel` with `runVMTest`
 
 A `VIEViewModel` subclass is a plain class: construct it directly with whatever real or fake
-collaborators the test needs, no DI container required. Three of its mechanics make that more than
-a bare constructor call, though — all handled by `runVMTest` (from `vie-test`):
+collaborators the test needs, no DI container required. Two of its mechanics make that more than
+a bare constructor call, though — both handled by `runVMTest` (from `vie-test`):
 
-* `modelFlow` is `stateIn(viewModelScope, SharingStarted.Lazily, …)`, so it only advances state
-  while something collects it.
 * `signalFlow` has no replay, so a signal emitted with nobody collecting is lost.
 * `viewModelScope` resolves `Dispatchers.Main` the first time it is touched — typically in
   `init { }` — so `Dispatchers.Main` must already be a `TestDispatcher` *before* the view model is
   constructed, for its (and any repository's) `delay(…)` calls to run on virtual time instead of
   wall-clock time.
 
-`runVMTest` builds the view model inside a `kotlinx.coroutines.test.runTest { }` with all three
-already arranged: model and signal collectors are running before `newVM` returns, and `block` gets
-the view model plus every signal collected so far.
+`runVMTest` builds the view model inside a `kotlinx.coroutines.test.runTest { }` with both
+already arranged: a collector subscribes to the models and the signals before any of the view model's
+coroutines run (unless `newVM` itself advances the scheduler).
+
+`block` is shaped like the `content` of `VIEView`: its receiver, a `VMTestScope`, shows what a view
+shows and never the view model itself. It posts intents with `post`, reads the current `model`, and drains
+what the view would have received:
+
+* `pendingModels()` returns the models published since the previous call, in order. The first call starts
+  with the model current when `newVM` returned. A model equal to the previous one is not recorded, so an
+  intent that changes nothing leaves it as it was.
+* `pendingSignals()` returns the signals emitted since the previous call, in order.
+
+Both drain, like `pendingIntents()` on `MockVIE`: view tests drain the intents a view posted, view model tests
+drain the models and signals it produced.
 
 [source,kotlin]
 ----
 @Test
 fun save_updatesModelAndSignalsSaved() = runVMTest(
     newVM = { CounterVM(FakeCounterStore()) },
-) { vm, signals ->
-    vm.post(CounterVIE.Intent.Save)
+) {
+    post(CounterVIE.Intent.Save)
     advanceUntilIdle()
 
-    assertEquals(CounterVIE.Signal.Saved, signals.single())
-    assertEquals(false, vm.modelFlow.value.saving)
+    assertEquals(listOf(Model(saving = false), Model(saving = true), Model(saving = false)), pendingModels())
+    assertEquals(CounterVIE.Signal.Saved, pendingSignals().single())
 }
 ----
 
-`newVM` and `block` both run with `TestScope` as their receiver, so `advanceTimeBy`, `runCurrent`
-and `advanceUntilIdle` are all in scope directly, no `this@runTest` needed. The view model is
-cleared once `block` returns, cancelling `viewModelScope`.
+`newVM` runs with `TestScope` as its receiver, and `block` with a `VMTestScope`, which is a `CoroutineScope`
+and forwards `advanceTimeBy`, `runCurrent`, `advanceUntilIdle` and `testScheduler`; `testScope` gives
+the rest. The view model is cleared once `block` returns, cancelling `viewModelScope`.
 
 == Middlewares
 

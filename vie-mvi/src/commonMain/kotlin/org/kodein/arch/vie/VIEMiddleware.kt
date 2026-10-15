@@ -6,12 +6,9 @@ import kotlinx.coroutines.flow.onEach
 
 
 /**
- * Intercepts a [VIEViewModel]'s model, intent and signal flows as plain [Flow] transformations —
- * logging, filtering, replay — without the ViewModel or the view knowing. Every method defaults
- * to identity, so a middleware only needs to override what it cares about.
- *
- * Several middlewares are folded from the end of the list: the *last* one wraps the raw source
- * flow, the *first* sits closest to the ViewModel and view.
+ * Intercepts a [VIEViewModel]'s model, intent and signal flows; every member defaults to identity
+ * or no-op. Folded from the end of the list: the last wraps the source, the first sits closest to
+ * the view.
  *
  * @param Model The state the view renders.
  * @param Intent The events the view sends up.
@@ -20,7 +17,9 @@ import kotlinx.coroutines.flow.onEach
 public interface VIEMiddleware<Model : VIE.Model, Intent : VIE.Intent, Signal : VIE.Signal> {
 
     /**
-     * Transforms the model flow. Identity by default.
+     * Transforms the model flow. Identity by default. It receives the current model, then every model
+     * `update` applies, in order and unconflated (equal ones included), whether or not a view collects;
+     * only [VIEViewModel.modelFlow] conflates. `update` does not wait for it: unread models are buffered.
      *
      * @param flow The model flow as produced by the next middleware down (or the ViewModel).
      * @return The transformed model flow.
@@ -42,6 +41,16 @@ public interface VIEMiddleware<Model : VIE.Model, Intent : VIE.Intent, Signal : 
      * @return The transformed signal flow.
      */
     public fun interceptSignals(flow: Flow<Signal>): Flow<Signal> = flow
+
+    /**
+     * Hands the middleware its [VIEViewModel], once, first thing in `init`: no flow has started and
+     * [VIEViewModel.modelFlow] is not assigned yet. The subclass is not constructed either, so don't
+     * reach `post`, `update` or subclass members, even from a coroutine launched here. Don't share a
+     * middleware that overrides this across ViewModels.
+     *
+     * @param vm The ViewModel this middleware was installed on.
+     */
+    public fun onAttached(vm: VIEViewModel<Model, Intent, Signal>) {}
 
 }
 

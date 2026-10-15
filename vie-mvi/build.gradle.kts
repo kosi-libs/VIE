@@ -42,8 +42,6 @@ kotlin {
             // modelFlow is a StateFlow and collectToModel/collectToSignal extend Flow, so
             // coroutines is part of this module's public signatures.
             api(libs.kotlinx.coroutines)
-
-            implementation(libs.compose.foundation)
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
