@@ -2,7 +2,7 @@ package org.kodein.arch.vie.demo.vie.vm
 
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.launch
-import org.kodein.arch.vie.VIELoggingMiddleware
+import org.kodein.arch.vie.VIEMiddleware
 import org.kodein.arch.vie.VIEViewModel
 import org.kodein.arch.vie.demo.business.TaskRepository
 import org.kodein.arch.vie.demo.vie.EditTaskVIE
@@ -15,11 +15,14 @@ import kotlin.uuid.Uuid
 class EditTaskVM(
     val taskId: Uuid?,
     private val taskRepository: TaskRepository,
+    // No default, on purpose: under `@DIFactory` a default outranks the module's member, and would silently leave
+    // TimeMachine out.
+    middlewares: List<VIEMiddleware<Model, Intent, Signal>>,
 ) : EditTaskVIE, VIEViewModel<Model, Intent, Signal>(
     firstModel = Model(
         loading = taskId != null,
     ),
-    middlewares = listOfNotNull(VIELoggingMiddleware("EditTask")),
+    middlewares = middlewares,
 ) {
     init {
         if (taskId != null) {
