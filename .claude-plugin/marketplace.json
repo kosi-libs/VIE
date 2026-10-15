@@ -1,0 +1,14 @@
+{
+  "name": "kodein-vie",
+  "description": "Agent skills for the VIE Kotlin Multiplatform MVI library.",
+  "owner": {
+    "name": "Kodein Koders"
+  },
+  "plugins": [
+    {
+      "name": "vie",
+      "source": "./",
+      "description": "Conventions, review checklist and screen scaffolding for the VIE Kotlin Multiplatform MVI library."
+    }
+  ]
+}

@@ -581,9 +581,38 @@ shared Compose Multiplatform module that does (as `demo/demo-android` does throu
 
 == AI skill
 
-`ai-skill/` is an Agent Skill for coding agents: VIE's good practices, a review checklist for bad
-practices, and templates to scaffold a new screen's contract, ViewModel and view. Install it into
-a project that *consumes* `vie` — see `ai-skill/README.md`.
+`skills/vie/` is an https://agentskills.io[Agent Skill] for coding agents: VIE's good practices, a
+review checklist for bad practices, and templates to scaffold a new screen's contract, ViewModel
+and view. Install it into a project that *consumes* `vie`.
+
+With any agent that reads Agent Skills (Claude Code, Codex, Cursor, Copilot, Gemini CLI, …), from
+the consuming project's root:
+
+[source,bash]
+----
+npx skills add kosi-libs/VIE
+----
+
+Add `-a <agent>` to target one agent, or `-g` to install it for your user instead of the project.
+
+With Claude Code, the repository is also a plugin marketplace, which keeps the skill up to date:
+
+----
+/plugin marketplace add kosi-libs/VIE
+/plugin install vie@kodein-vie
+----
+
+Otherwise, copy `skills/vie/` into your agent's skills directory (`.agents/skills/vie`,
+`.claude/skills/vie`, …).
+
+----
+skills/vie/
+  SKILL.md                  # entry point: API cheat-sheet, routes to the files below
+  references/
+    good-practices.md       # the conventions, with rationale
+    bad-practices.md        # anti-pattern → smell → grep hint → why → fix
+  templates/                # a new screen's contract, ViewModel and view
+----
 
 == Demo
 
