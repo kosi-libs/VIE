@@ -1,0 +1,29 @@
+= Safety
+
+TimeMachine is a debugging tool, with no access control: this page says what it exposes, and how to keep it out of a release build.
+
+
+[#exposure]
+== What the probe exposes
+
+The probe streams every Model, Intent and Signal of your application, which in a real application means tokens and personal data, in cleartext over a WebSocket.
+It also accepts commands that drive a live ViewModel.
+There is no encryption, and no secret in the handshake.
+
+The inspector binds its port on every network interface.
+So anyone on the network path can read your application's state, anything that reaches the port can pose as a probe and feed the inspector fake sessions, and a probe pointed at a hostile host hands that host full power over your application.
+
+
+[#mitigations]
+== What keeps it safe
+
+TimeMachine relies on conventions, not on access control:
+
+* the probe looks for the inspector at `localhost` unless you choose another host;
+* the probe prints a banner when it starts, saying what it streams;
+* a disabled probe opens no socket and does no work, which is how it stays out of a release build.
+
+WARNING: Never leave the probe enabled in a release build: tie `enabled` to a debug flag (see xref:setup.adoc#start[Starting the probe]).
+Run the inspector on a network you trust.
+
+The inspector bounds each ViewModel's timeline, but not the number of ViewModels or sessions: a debugging loop that restarts your application leaves one disconnected session per run, until you clear it.
