@@ -1,0 +1,112 @@
+= Adding the probe
+
+The probe has two parts: `TimeMachine.start`, called once when your application starts, and `TimeMachine.middleware()`, installed in each ViewModel you want to observe.
+
+
+[#start]
+== Starting the probe
+
+Start the probe once, early, before the first ViewModel it should observe is built, and behind a debug flag:
+
+[source,kotlin]
+.Main.kt
+----
+TimeMachine.start(TimeMachineConfig(appName = "Counter", enabled = isDebugBuild)) // <1>
+----
+<1> `appName` is the name the inspector shows for this application's sessions.
+
+`enabled` is a plain `Boolean`, `true` by default: wire it to whatever your application already calls a debug build.
+The demo does so in each of its entry points, the way each platform allows: `ApplicationInfo.FLAG_DEBUGGABLE` on Android, `Platform.isDebugBinary` on iOS, a system property that Gradle's `run` task sets on the JVM, and a page served from `localhost` in the browser.
+
+While `enabled` is `false`, the probe opens no socket, allocates nothing and does no work, and `TimeMachine.middleware()` returns a middleware that does nothing.
+A probe started later only observes the ViewModels built after it.
+`TimeMachine.stop()` closes the connection, and leaves the middlewares installed and inert.
+
+
+[#host]
+== Reaching the inspector
+
+The probe looks for the inspector at `localhost:13229`, and keeps trying for as long as your application runs, so the application and the inspector can start in either order.
+`TimeMachineConfig` takes a `host` and a `port` for anything else.
+
+* A desktop application, the iOS simulator and a page served from `localhost` reach the default as it is.
+* The Android emulator's `localhost` is the emulator itself: forward the port once with `adb reverse tcp:13229 tcp:13229`.
+* A physical device needs the address of the machine the inspector runs on, as `host`.
+
+
+[#middleware]
+== Installing the middleware
+
+Install `TimeMachine.middleware()` in each ViewModel you want to observe, _last_ in its `middlewares`:
+
+[source,kotlin]
+.CounterVM.kt
+----
+class CounterVM(
+    private val store: CounterStore,
+) : CounterVIE, VIEViewModel<Model, Intent, Signal>(
+    firstModel = Model(count = 0),
+    middlewares = listOf(
+        VIELoggingMiddleware("Counter"),
+        TimeMachine.middleware(), // <1>
+    ),
+) {
+    // ...
+}
+----
+<1> Last, so nearest the source: it reports intents as the view posted them and signals as the ViewModel emitted them, before any other middleware filters or transforms them.
+
+Models are reported as `update { }` produced them, wherever the middleware sits.
+
+When the ViewModel takes its `middlewares` as a constructor parameter, install the middleware wherever the ViewModel is built, such as a dependency-injection definition or a factory:
+
+[source,kotlin]
+.CounterVM.kt
+----
+class CounterVM(
+    private val store: CounterStore,
+    middlewares: List<VIEMiddleware<Model, Intent, Signal>>,
+) : CounterVIE, VIEViewModel<Model, Intent, Signal>(Model(count = 0), middlewares) {
+    // ...
+}
+
+fun newCounterVM(store: CounterStore) =
+    CounterVM(store, listOf(VIELoggingMiddleware("Counter"), TimeMachine.middleware()))
+----
+
+`TimeMachine.middleware()` takes its Model, Intent and Signal types from the list it is put in.
+Where nothing gives the call an expected type, such as a local `val`, name them: `TimeMachine.middleware<Model, Intent, Signal>()`.
+
+IMPORTANT: Each call returns a middleware that serves exactly one ViewModel.
+Build the list once per ViewModel, and never share it, as a dependency-injection singleton for instance.
+
+
+[#serializable]
+== Serializable contracts
+
+The probe observes any Model, Intent and Signal, and shows each as its `toString()`.
+Its JSON, and everything the inspector can send back, needs the type to be `@Serializable`: apply the kotlinx-serialization plugin, and annotate the three types and, for a sealed one, its subtypes.
+
+[source,kotlin]
+.CounterVIE.kt
+----
+interface CounterVIE : VIE<Model, Intent, Signal> {
+
+    @Serializable
+    data class Model(val count: Int, val saving: Boolean = false) : VIE.Model
+
+    @Serializable
+    sealed interface Intent : VIE.Intent {
+        @Serializable data object Increment : Intent
+        @Serializable data object Save : Intent
+    }
+
+    @Serializable
+    sealed interface Signal : VIE.Signal {
+        @Serializable data object Saved : Signal, VIE.Signal.Event
+        @Serializable data class Error(val message: String) : Signal, VIE.Signal.Effect
+    }
+}
+----
+
+TIP: Before you enable the probe anywhere but on your own machine, read xref:safety.adoc[].
