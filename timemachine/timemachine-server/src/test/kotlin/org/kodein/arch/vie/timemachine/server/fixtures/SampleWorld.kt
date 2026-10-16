@@ -7,7 +7,6 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineClientMessage
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineConnection
-import org.kodein.arch.vie.timemachine.protocol.TimeMachineProtocolVersion
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineSession
 import org.kodein.arch.vie.timemachine.protocol.VIEInterventionResult
 import org.kodein.arch.vie.timemachine.protocol.VIEObjectKind
@@ -248,7 +247,7 @@ internal object SampleWorld {
         }
         if (rejected) {
             // The same app, speaking another protocol, retrying: one notice, two attempts.
-            val version = TimeMachineProtocolVersion(TimeMachineConnection.protocolVersion.value + 1)
+            val version = TimeMachineConnection.protocolVersion + 1
             listOf(ConnectionId(3) to Demo.at(22_000), ConnectionId(4) to Demo.at(27_000)).forEach { (connection, at) ->
                 events += TimeMachineEvent.HelloReceived(
                     connection,

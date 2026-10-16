@@ -3,7 +3,6 @@ package org.kodein.arch.vie.timemachine.server.ui.shell
 import kotlinx.coroutines.flow.combine
 import org.kodein.arch.vie.VIE
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineConnection
-import org.kodein.arch.vie.timemachine.protocol.TimeMachineProtocolVersion
 import org.kodein.arch.vie.timemachine.server.store.ListenerState
 import org.kodein.arch.vie.timemachine.server.store.TimeMachineEvent
 import org.kodein.arch.vie.timemachine.server.store.TimeMachineState
@@ -26,7 +25,7 @@ internal interface StatusBarVIE : VIE<StatusBarVIE.Model, VIE.NoIntent, VIE.NoSi
     data class Model(
         val listener: ListenerState = ListenerState.Starting,
         val address: String? = null,
-        val protocolVersion: TimeMachineProtocolVersion = TimeMachineConnection.protocolVersion,
+        val protocolVersion: Int = TimeMachineConnection.protocolVersion,
         val connectedSessions: Int = 0,
         val sessions: Int = 0,
     ) : VIE.Model
@@ -90,7 +89,7 @@ internal interface NoticesVIE : VIE<NoticesVIE.Model, NoticesVIE.Intent, VIE.NoS
 internal data class RejectionNotice(
     val sessionId: Uuid,
     val name: String,
-    val protocolVersion: TimeMachineProtocolVersion,
+    val protocolVersion: Int,
     val attempts: Int,
     val lastAttemptAt: Instant,
 )
