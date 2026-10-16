@@ -11,8 +11,7 @@ import kotlinx.serialization.Serializable
  * Every [Int] is representable: this type does not validate its [value], because
  * kotlinx-serialization runs constructor `init` blocks while decoding, and a rejected value must
  * decode cleanly so the server can answer with
- * [TimeMachineServerMessage.Rejected.Reason.IncompatibleProtocol] rather than throw out of the
- * decode step. Whether a version is *speakable* is [TimeMachineConnection.isCompatible]'s job, not
+ * [TimeMachineServerMessage.Rejected] rather than throw out of the decode step. Whether a version is *speakable* is [TimeMachineConnection.isCompatible]'s job, not
  * this constructor's.
  */
 @Serializable

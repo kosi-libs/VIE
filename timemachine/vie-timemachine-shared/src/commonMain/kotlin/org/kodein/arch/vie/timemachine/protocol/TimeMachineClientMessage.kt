@@ -22,7 +22,7 @@ public sealed interface TimeMachineClientMessage {
      * closed.
      *
      * @property protocolVersion Echoed against [TimeMachineConnection.protocolVersion]; a mismatch
-     *   is answered with [TimeMachineServerMessage.Rejected.Reason.IncompatibleProtocol].
+     *   is answered with [TimeMachineServerMessage.Rejected].
      */
     @Serializable
     @SerialName("hello")

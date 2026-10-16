@@ -22,39 +22,16 @@ public sealed interface TimeMachineServerMessage {
      * after this message.
      *
      * Its envelope is frozen across all protocol versions, like `Hello`'s:
-     * `{"#type":"rejected","reason":"IncompatibleProtocol","protocolVersion":<Int>}`.
+     * `{"#type":"rejected","protocolVersion":<Int>}`. A server rejects for one cause per protocol
+     * version, so the two versions tell the client why; a new cause bumps the version.
      *
-     * @property protocolVersion The server's own [TimeMachineConnection.protocolVersion], so the
-     *   client can print both numbers and name the artifact to bump on an [Reason.IncompatibleProtocol]
-     *   rejection.
+     * @property protocolVersion The server's own [TimeMachineConnection.protocolVersion].
      */
     @Serializable
     @SerialName("rejected")
     public data class Rejected(
-        val reason: Reason,
         val protocolVersion: TimeMachineProtocolVersion,
-    ) : TimeMachineServerMessage {
-
-        @Serializable(with = ReasonSerializer::class)
-        public enum class Reason {
-            /**
-             * Another connection for the same [TimeMachineSession.id] is already live. Never sent by
-             * a protocol-1 server: a probe never holds two connections at once, so a second `Hello`
-             * for a known session evicts the previous connection instead.
-             */
-            DuplicateSession,
-
-            /** The client's [TimeMachineClientMessage.Hello.protocolVersion] is not supported. */
-            IncompatibleProtocol,
-
-            /**
-             * A reason this version does not know, sent by a later server. Decoded in place of the
-             * unknown name so the client can still read that, and by whom, it was refused. Never sent
-             * by this version.
-             */
-            Unknown,
-        }
-    }
+    ) : TimeMachineServerMessage
 
     /**
      * Acknowledges the [TimeMachineTimelineMessage]s this connection carried, up to [sequence]: the

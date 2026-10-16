@@ -183,18 +183,12 @@ class ProtocolSerializationTest {
 
     @Test
     fun rejectedRoundTrips() = assertRoundTrip<TimeMachineServerMessage>(
-        TimeMachineServerMessage.Rejected(
-            reason = TimeMachineServerMessage.Rejected.Reason.IncompatibleProtocol,
-            protocolVersion = TimeMachineProtocolVersion(1),
-        )
+        TimeMachineServerMessage.Rejected(protocolVersion = TimeMachineProtocolVersion(1))
     )
 
     @Test
-    fun aRejectedWithAReasonThisVersionDoesNotKnowStillDecodes() = assertEquals(
-        TimeMachineServerMessage.Rejected(
-            reason = TimeMachineServerMessage.Rejected.Reason.Unknown,
-            protocolVersion = TimeMachineProtocolVersion(2),
-        ),
+    fun aRejectedWithKeysThisVersionDoesNotKnowStillDecodes() = assertEquals(
+        TimeMachineServerMessage.Rejected(protocolVersion = TimeMachineProtocolVersion(2)),
         TimeMachineJson.decodeFromString<TimeMachineServerMessage>(
             """{"#type":"rejected","reason":"SomethingNew","protocolVersion":2}"""
         ),
@@ -203,14 +197,11 @@ class ProtocolSerializationTest {
     private val helloLiteral =
         """{"#type":"hello","protocolVersion":1,"session":{"id":"00000000-0000-0000-0000-0000000000ff","name":"Demo App"}}"""
 
-    private val rejectedLiteral = """{"#type":"rejected","reason":"IncompatibleProtocol","protocolVersion":1}"""
+    private val rejectedLiteral = """{"#type":"rejected","protocolVersion":1}"""
 
     private val hello = TimeMachineClientMessage.Hello(TimeMachineSession(sessionId, "Demo App"), TimeMachineProtocolVersion(1))
 
-    private val rejected = TimeMachineServerMessage.Rejected(
-        TimeMachineServerMessage.Rejected.Reason.IncompatibleProtocol,
-        TimeMachineProtocolVersion(1),
-    )
+    private val rejected = TimeMachineServerMessage.Rejected(TimeMachineProtocolVersion(1))
 
     @Test
     fun helloEncodesAsItsFrozenEnvelope() = assertEquals(
