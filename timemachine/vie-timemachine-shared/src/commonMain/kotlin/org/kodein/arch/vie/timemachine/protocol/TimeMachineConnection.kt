@@ -18,7 +18,4 @@ public object TimeMachineConnection {
      * artifact version, and nothing in the build generates it.
      */
     public val protocolVersion: TimeMachineProtocolVersion = TimeMachineProtocolVersion(1)
-
-    /** Whether [version] is one this server/client can speak with. */
-    public fun isCompatible(version: TimeMachineProtocolVersion): Boolean = version == protocolVersion
 }
