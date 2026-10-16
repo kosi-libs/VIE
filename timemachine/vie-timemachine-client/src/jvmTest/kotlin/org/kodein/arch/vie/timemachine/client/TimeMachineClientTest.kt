@@ -234,7 +234,6 @@ class TimeMachineClientTest {
         val inspector = FakeInspector { connection ->
             if (connection == 0) {
                 TimeMachineServerMessage.Rejected(
-                    TimeMachineServerMessage.Rejected.Reason.IncompatibleProtocol,
                     TimeMachineProtocolVersion(TimeMachineConnection.protocolVersion.value + 1),
                 )
             } else {
