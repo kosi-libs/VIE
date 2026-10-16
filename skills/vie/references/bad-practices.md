@@ -240,19 +240,23 @@ easy to lose fields across transitions (e.g. showing a spinner loses the previou
 **Fix:** a single `data class Model(...)`, with loading/error captured as ordinary fields
 (`val tasks: List<Task>? = null`, `val error: String? = null`).
 
-## 15. Multiple instances of one ViewModel in a composition without a `key`
+## 15. Several `VIEView`s of one class under one owner without distinct `key`s
 
-**Smell:** `VIEView(newVM = { XxxVM(id) })` called in a loop or for multiple sibling items,
-with no `key` argument.
+**Smell:** two or more `VIEView(newVM = { … })` calls composed under the same
+`ViewModelStoreOwner` (one window, one screen, one navigation entry), building the same ViewModel
+class with no distinct `key` — instances in a loop, for example. Or a `newVM` lambda typed
+`VIEViewModel<…>` instead of the concrete class, which hides the class from `VIEView`.
 
-**Grep:** `VIEView(` calls inside `items(...)`/`forEach`/list-rendering code, check for a missing
-`key`.
+**Grep:** every `VIEView(` with no `key` inside `items(...)`/`forEach`, and every `newVM` lambda
+whose return type is written out as `VIEViewModel<`.
 
-**Why:** `VIEView` files its ViewModel under the ViewModel's class, plus the `key` if any. Without
-a `key`, every `VIEView` of that class shares one ViewModel under one `ViewModelStoreOwner`, so the
-instances collapse onto a single shared ViewModel.
+**Why:** a ViewModel is identified under its owner by its concrete class and its `key`. Two views
+of one class and one `key` (or none) get one ViewModel, so instances collapse onto the first. A
+lambda typed `VIEViewModel<…>` is filed under `VIEViewModel` whatever it builds, so two such views
+of different classes with the same `key` collide, and the second fails with a `ClassCastException`.
 
-**Fix:** pass a `key` derived from the item's identity, e.g. `key = id.toString()`.
+**Fix:** pass a distinct `key` to each instance: derived from the item's identity for a list
+(`key = id.toString()`). Let `newVM` return the concrete class.
 
 ## 16. Treating `MockVIE.pendingIntents()` as an accumulating log
 
@@ -312,8 +316,75 @@ prefix on every base marker.
   deliberate exception to the "keep the `VIE.` prefix" rule (see `good-practices.md` § "The
   contract"): unlike `Model`/`Intent`/`Signal`, they never collide with a contract's own type name.
 
+## 19. The TimeMachine probe is enabled in a release build
+
+**Smell:** `TimeMachine.start(TimeMachineConfig(…))` whose `enabled` is left at its default
+(`true`), or is tied to something that is also `true` in a release build.
+
+**Grep:** `TimeMachine\.start` and `TimeMachineConfig\(` — read the `enabled` argument.
+
+**Why:** the probe streams every Model, Intent and Signal in cleartext — in a real app that means
+tokens and personal data — with no authentication, and lets whatever listens on the other end send
+objects into the app's ViewModels. By default that is anything listening on the device's own
+`localhost`. A release build has no reason to carry that.
+
+**Fix:** tie `enabled` to a debug flag the build already has: `ApplicationInfo.FLAG_DEBUGGABLE` on
+Android, `Platform.isDebugBinary` on iOS, and on desktop and the web, which have no build types, a
+flag the app sets for developer runs. A disabled probe opens no socket and does no work.
+
+## 20. The TimeMachine probe is not last in `middlewares`
+
+**Smell:** `TimeMachine.middleware()` with another middleware after it in the same list.
+
+**Grep:** `TimeMachine\.middleware` — check it is the last element of its `listOf(…)`.
+
+**Why:** the list folds from the end, so the last middleware sits nearest the source and sees
+intents and signals first. A probe listed earlier sees them only after the middlewares behind it
+have filtered or transformed them, so the inspector shows a stream that is no longer what the view
+posted or the ViewModel emitted: an intent a later middleware drops never appears in it. Models are
+reported as `update {}` produced them, wherever the probe sits.
+
+**Fix:** move `TimeMachine.middleware()` to the end of the list.
+
+## 21. One middleware instance shared between several ViewModels
+
+**Smell:** a middleware built once and handed to more than one ViewModel: a DI singleton
+(`single`, `Binding.single`), a top-level `val`, a `companion object` property. It matters most for
+a middleware that overrides `onAttached`, as `TimeMachine.middleware()` does.
+
+**Grep:** `TimeMachine\.middleware` and every `onAttached` override; then follow where the
+middleware is created, looking for a singleton scope.
+
+**Why:** `onAttached(vm)` gives the middleware the ViewModel it is installed on, and the middleware
+keeps it. A second ViewModel overwrites what the first stored, so the shared instance silently
+drives the wrong ViewModel. The TimeMachine probe guards itself: it observes the first ViewModel
+only, prints a notice for each other one, and still reports models under the first one's identity.
+
+**Fix:** build the list where each ViewModel is built, so each ViewModel gets its own instances: a
+factory or `Binding.provider`, Koin's `viewModel { }` definition, or the constructor call itself.
+
+## 22. A ViewModel's `middlewares` constructor parameter has a default
+
+**Smell:** a ViewModel that takes `middlewares` as a constructor parameter with a default value —
+`middlewares: List<VIEMiddleware<Model, Intent, Signal>> = emptyList()` — in a project that builds
+its ViewModels with a DI framework (Inara's `@DIFactory`, Koin's compiler plugin).
+
+**Grep:** `middlewares\s*:\s*List<.*>\s*=` in a ViewModel's constructor.
+
+**Why:** those tools prefer a Kotlin default to what the DI module provides (Koin's compiler plugin
+does so under its `skipDefaultValues` option, according to its documentation). The list the module
+builds is then never used, and TimeMachine is silently left out of that ViewModel: no error, and no
+session for it in the inspector.
+
+**Fix:** remove the default, so that the module supplies the list; see `good-practices.md` §
+"Middlewares".
+
+**Not this:** `VIEViewModel`'s own `middlewares = emptyList()` default, and a ViewModel built by
+hand with no DI framework.
+
 ## Reporting
 
-Group findings by severity (compile-breaking, like #5, first; correctness next; then hygiene).
+Group findings by severity (compile-breaking, like #5, first; then security, like #19;
+correctness next; then hygiene).
 For each: `file:line`, a one-line statement of what's wrong, and a short fix — a snippet, not a
 lecture. If a scanned file has none of the above, say so rather than manufacturing a finding.
