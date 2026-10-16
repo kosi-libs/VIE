@@ -189,16 +189,8 @@ internal class TimeMachineClient(
     private fun rejectionNotice(rejected: TimeMachineServerMessage.Rejected): String {
         val ours = TimeMachineConnection.protocolVersion
         val theirs = rejected.protocolVersion
-        return when (rejected.reason) {
-            TimeMachineServerMessage.Rejected.Reason.IncompatibleProtocol -> {
-                val bump = if (theirs.value > ours.value) "the vie-timemachine-client dependency of this app" else "the inspector"
-                "the inspector at $address rejected this probe: it speaks protocol $theirs, this probe speaks protocol $ours. Update $bump"
-            }
-            TimeMachineServerMessage.Rejected.Reason.DuplicateSession ->
-                "the inspector at $address rejected this probe: session ${session.id} is already connected"
-            TimeMachineServerMessage.Rejected.Reason.Unknown ->
-                "the inspector at $address rejected this probe for a reason this version does not know: it speaks protocol $theirs, this probe speaks protocol $ours. Update the vie-timemachine-client dependency of this app"
-        }
+        val bump = if (theirs.value >= ours.value) "the vie-timemachine-client dependency of this app" else "the inspector"
+        return "the inspector at $address rejected this probe: it speaks protocol $theirs, this probe speaks protocol $ours. Update $bump"
     }
 
     /** Streams the outbound queue and answers the inspector, until the connection breaks. */
