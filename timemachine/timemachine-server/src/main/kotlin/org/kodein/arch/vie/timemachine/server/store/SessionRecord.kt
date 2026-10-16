@@ -1,6 +1,5 @@
 package org.kodein.arch.vie.timemachine.server.store
 
-import org.kodein.arch.vie.timemachine.protocol.TimeMachineProtocolVersion
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineSequence
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineSession
 import kotlin.time.Instant
@@ -22,7 +21,7 @@ import kotlin.uuid.Uuid
  */
 data class SessionRecord(
     val session: TimeMachineSession,
-    val protocolVersion: TimeMachineProtocolVersion,
+    val protocolVersion: Int,
     val connection: ConnectionId?,
     val connections: List<ConnectionSpan>,
     val sequences: SequenceLedger = SequenceLedger(),
@@ -73,7 +72,7 @@ data class ConnectionSpan(val connected: Edge, val disconnected: Edge? = null) {
 data class Rejection(
     val sessionId: Uuid,
     val name: String,
-    val protocolVersion: TimeMachineProtocolVersion,
+    val protocolVersion: Int,
     val attempts: Int,
     val lastAttemptAt: Instant,
     val dismissed: Boolean = false,

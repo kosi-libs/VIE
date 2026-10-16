@@ -21,7 +21,6 @@ import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.json.JsonPrimitive
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineClientMessage
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineConnection
-import org.kodein.arch.vie.timemachine.protocol.TimeMachineProtocolVersion
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineServerMessage
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineSession
 import org.kodein.arch.vie.timemachine.protocol.VIEInterventionResult
@@ -66,7 +65,7 @@ class TimeMachineServerTest {
 
     private val session = TimeMachineSession(Uuid.random(), "App")
     private val vm = Uuid.random()
-    private val later = TimeMachineProtocolVersion(TimeMachineConnection.protocolVersion.value + 1)
+    private val later = TimeMachineConnection.protocolVersion + 1
     private val rejected = TimeMachineServerMessage.Rejected(TimeMachineConnection.protocolVersion)
 
     @Test
@@ -95,7 +94,7 @@ class TimeMachineServerTest {
     fun aLaterVersionsHelloWithKeysThisVersionDoesNotKnowIsStillRejectedAndRecorded() = withInspector {
         val connection = probe.connect()
         connection.sendText(
-            """{"#type":"hello","protocolVersion":${later.value},"session":{"id":"${session.id}","name":"App","device":"Pixel"},"capabilities":["replay"]}"""
+            """{"#type":"hello","protocolVersion":$later,"session":{"id":"${session.id}","name":"App","device":"Pixel"},"capabilities":["replay"]}"""
         )
 
         assertEquals(rejected, connection.receive())

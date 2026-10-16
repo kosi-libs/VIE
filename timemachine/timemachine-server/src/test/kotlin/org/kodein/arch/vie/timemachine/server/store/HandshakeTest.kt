@@ -7,7 +7,6 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlin.uuid.Uuid
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineConnection
-import org.kodein.arch.vie.timemachine.protocol.TimeMachineProtocolVersion
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineServerMessage
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineSession
 
@@ -19,7 +18,7 @@ class HandshakeTest {
     private val c3 = ConnectionId(3)
     private val session = TimeMachineSession(Uuid.random(), "App")
     private val vm = Uuid.random()
-    private val incompatible = TimeMachineProtocolVersion(TimeMachineConnection.protocolVersion.value + 1)
+    private val incompatible = TimeMachineConnection.protocolVersion + 1
 
     @Test
     fun anIncompatibleHelloIsRejectedWithOurVersionAndClosed() {
