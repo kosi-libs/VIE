@@ -27,7 +27,7 @@ class HandshakeTest {
 
         assertEquals(
             listOf(
-                Command.Send(c1, TimeMachineServerMessage.Rejected(TimeMachineServerMessage.Rejected.Reason.IncompatibleProtocol, TimeMachineConnection.protocolVersion)),
+                Command.Send(c1, TimeMachineServerMessage.Rejected(TimeMachineConnection.protocolVersion)),
                 Command.Close(c1),
             ),
             commands,
