@@ -90,7 +90,7 @@ private fun AddressLine(status: StatusBarVIE.Model) {
             Text(
                 buildAnnotatedString {
                     append("· protocol ")
-                    withStyle(SpanStyle(fontFamily = InspectorTheme.fonts.mono)) { append(status.protocolVersion.value.toString()) }
+                    withStyle(SpanStyle(fontFamily = InspectorTheme.fonts.mono)) { append(status.protocolVersion.toString()) }
                 },
                 style = body,
             )

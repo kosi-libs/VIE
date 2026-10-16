@@ -52,9 +52,9 @@ internal fun RejectionBanner(notice: RejectionNotice, onDismiss: () -> Unit) {
                         append(" ")
                         withStyle(SpanStyle(fontFamily = mono, fontSize = 11.5.sp, color = scheme.onSurfaceVariant)) { append(shortSessionId(notice.sessionId)) }
                         append(" — ${notice.name} uses protocol ")
-                        withStyle(SpanStyle(fontFamily = mono)) { append(notice.protocolVersion.value.toString()) }
+                        withStyle(SpanStyle(fontFamily = mono)) { append(notice.protocolVersion.toString()) }
                         append(", this inspector speaks ")
-                        withStyle(SpanStyle(fontFamily = mono)) { append(TimeMachineConnection.protocolVersion.value.toString()) }
+                        withStyle(SpanStyle(fontFamily = mono)) { append(TimeMachineConnection.protocolVersion.toString()) }
                         append(". Update one of them.")
                     },
                     style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.Normal),

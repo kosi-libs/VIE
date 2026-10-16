@@ -92,7 +92,7 @@ private fun Listening(status: StatusBarVIE.Model) {
             is ListenerState.Listening -> {
                 Text("Listening on", style = StatusText, color = scheme.onSurfaceVariant, maxLines = 1)
                 Text(status.address.orEmpty(), style = monoStyle(11f, scheme.onSurface), maxLines = 1)
-                Text("· protocol ${status.protocolVersion.value}", style = StatusText, color = scheme.outline, maxLines = 1)
+                Text("· protocol ${status.protocolVersion}", style = StatusText, color = scheme.outline, maxLines = 1)
             }
         }
     }

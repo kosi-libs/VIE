@@ -12,7 +12,6 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineClientMessage
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineConnection
-import org.kodein.arch.vie.timemachine.protocol.TimeMachineProtocolVersion
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineSequence
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineSession
 import org.kodein.arch.vie.timemachine.protocol.VIEInterventionResult
@@ -178,7 +177,7 @@ internal object Demo {
 
         val events = mutableListOf<TimeMachineEvent>()
 
-        fun hello(session: TimeMachineSession, at: Instant, version: TimeMachineProtocolVersion = TimeMachineConnection.protocolVersion) {
+        fun hello(session: TimeMachineSession, at: Instant, version: Int = TimeMachineConnection.protocolVersion) {
             events += TimeMachineEvent.HelloReceived(connection, TimeMachineClientMessage.Hello(session, version), at)
         }
 
