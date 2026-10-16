@@ -97,7 +97,7 @@ data class TimeMachineState(
         val connection = event.connection
         val hello = event.hello
         val sessionId = hello.session.id
-        if (!TimeMachineConnection.isCompatible(hello.protocolVersion)) {
+        if (hello.protocolVersion != TimeMachineConnection.protocolVersion) {
             val previous = rejections[sessionId]
             val rejection = Rejection(
                 sessionId = sessionId,
