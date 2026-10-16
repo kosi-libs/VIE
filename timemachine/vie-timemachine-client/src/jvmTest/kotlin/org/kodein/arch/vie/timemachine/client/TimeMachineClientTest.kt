@@ -19,7 +19,6 @@ import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.json.JsonNull
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineClientMessage
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineConnection
-import org.kodein.arch.vie.timemachine.protocol.TimeMachineProtocolVersion
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineServerMessage
 import org.kodein.arch.vie.timemachine.protocol.VIEInterventionResult
 import org.kodein.arch.vie.timemachine.protocol.VIEObjectKind
@@ -234,7 +233,7 @@ class TimeMachineClientTest {
         val inspector = FakeInspector { connection ->
             if (connection == 0) {
                 TimeMachineServerMessage.Rejected(
-                    TimeMachineProtocolVersion(TimeMachineConnection.protocolVersion.value + 1),
+                    TimeMachineConnection.protocolVersion + 1,
                 )
             } else {
                 TimeMachineServerMessage.Welcome
