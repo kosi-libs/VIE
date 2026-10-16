@@ -67,7 +67,7 @@ class TimeMachineServerTest {
     private val session = TimeMachineSession(Uuid.random(), "App")
     private val vm = Uuid.random()
     private val later = TimeMachineProtocolVersion(TimeMachineConnection.protocolVersion.value + 1)
-    private val rejected = TimeMachineServerMessage.Rejected(TimeMachineServerMessage.Rejected.Reason.IncompatibleProtocol, TimeMachineConnection.protocolVersion)
+    private val rejected = TimeMachineServerMessage.Rejected(TimeMachineConnection.protocolVersion)
 
     @Test
     fun aCompatibleProbeIsWelcomed() = withInspector {
