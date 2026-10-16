@@ -110,7 +110,7 @@ data class TimeMachineState(
             return Transition(
                 copy(rejections = rejections + (sessionId to rejection)),
                 listOf(
-                    Command.Send(connection, TimeMachineServerMessage.Rejected(TimeMachineServerMessage.Rejected.Reason.IncompatibleProtocol, TimeMachineConnection.protocolVersion)),
+                    Command.Send(connection, TimeMachineServerMessage.Rejected(TimeMachineConnection.protocolVersion)),
                     Command.Close(connection),
                 ),
             )
