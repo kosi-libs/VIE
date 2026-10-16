@@ -7,7 +7,6 @@ import kotlin.uuid.Uuid
 import kotlinx.serialization.json.JsonElement
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineClientMessage
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineConnection
-import org.kodein.arch.vie.timemachine.protocol.TimeMachineProtocolVersion
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineSequence
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineServerMessage
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineSession
@@ -35,7 +34,7 @@ internal fun hello(
     connection: ConnectionId,
     session: TimeMachineSession,
     now: Instant = t0,
-    version: TimeMachineProtocolVersion = TimeMachineConnection.protocolVersion,
+    version: Int = TimeMachineConnection.protocolVersion,
 ) = TimeMachineEvent.HelloReceived(connection, TimeMachineClientMessage.Hello(session, version), now)
 
 internal fun receive(connection: ConnectionId, message: TimeMachineClientMessage, length: Int = 10, now: Instant = t0) =
