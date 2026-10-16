@@ -28,7 +28,7 @@ public sealed interface TimeMachineClientMessage {
     @SerialName("hello")
     public data class Hello(
         val session: TimeMachineSession,
-        val protocolVersion: TimeMachineProtocolVersion,
+        val protocolVersion: Int,
     ) : TimeMachineClientMessage
 
     /**

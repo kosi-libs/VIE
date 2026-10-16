@@ -54,7 +54,7 @@ class ProtocolSerializationTest {
     fun helloRoundTrips() = assertRoundTrip<TimeMachineClientMessage>(
         TimeMachineClientMessage.Hello(
             TimeMachineSession(sessionId, "Demo App"),
-            protocolVersion = TimeMachineProtocolVersion(1),
+            protocolVersion = 1,
         )
     )
 
@@ -183,12 +183,12 @@ class ProtocolSerializationTest {
 
     @Test
     fun rejectedRoundTrips() = assertRoundTrip<TimeMachineServerMessage>(
-        TimeMachineServerMessage.Rejected(protocolVersion = TimeMachineProtocolVersion(1))
+        TimeMachineServerMessage.Rejected(protocolVersion = 1)
     )
 
     @Test
     fun aRejectedWithKeysThisVersionDoesNotKnowStillDecodes() = assertEquals(
-        TimeMachineServerMessage.Rejected(protocolVersion = TimeMachineProtocolVersion(2)),
+        TimeMachineServerMessage.Rejected(protocolVersion = 2),
         TimeMachineJson.decodeFromString<TimeMachineServerMessage>(
             """{"#type":"rejected","reason":"SomethingNew","protocolVersion":2}"""
         ),
@@ -199,9 +199,9 @@ class ProtocolSerializationTest {
 
     private val rejectedLiteral = """{"#type":"rejected","protocolVersion":1}"""
 
-    private val hello = TimeMachineClientMessage.Hello(TimeMachineSession(sessionId, "Demo App"), TimeMachineProtocolVersion(1))
+    private val hello = TimeMachineClientMessage.Hello(TimeMachineSession(sessionId, "Demo App"), 1)
 
-    private val rejected = TimeMachineServerMessage.Rejected(TimeMachineProtocolVersion(1))
+    private val rejected = TimeMachineServerMessage.Rejected(1)
 
     @Test
     fun helloEncodesAsItsFrozenEnvelope() = assertEquals(

@@ -30,7 +30,7 @@ public sealed interface TimeMachineServerMessage {
     @Serializable
     @SerialName("rejected")
     public data class Rejected(
-        val protocolVersion: TimeMachineProtocolVersion,
+        val protocolVersion: Int,
     ) : TimeMachineServerMessage
 
     /**

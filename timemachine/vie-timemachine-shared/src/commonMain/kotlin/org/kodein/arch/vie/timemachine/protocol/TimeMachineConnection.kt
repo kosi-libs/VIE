@@ -17,5 +17,5 @@ public object TimeMachineConnection {
      * Version of the wire protocol. Bumped by hand on breaking wire changes — this is not the
      * artifact version, and nothing in the build generates it.
      */
-    public val protocolVersion: TimeMachineProtocolVersion = TimeMachineProtocolVersion(1)
+    public const val protocolVersion: Int = 1
 }
