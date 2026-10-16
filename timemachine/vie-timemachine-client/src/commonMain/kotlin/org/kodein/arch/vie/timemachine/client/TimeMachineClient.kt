@@ -189,7 +189,7 @@ internal class TimeMachineClient(
     private fun rejectionNotice(rejected: TimeMachineServerMessage.Rejected): String {
         val ours = TimeMachineConnection.protocolVersion
         val theirs = rejected.protocolVersion
-        val bump = if (theirs.value >= ours.value) "the vie-timemachine-client dependency of this app" else "the inspector"
+        val bump = if (theirs >= ours) "the vie-timemachine-client dependency of this app" else "the inspector"
         return "the inspector at $address rejected this probe: it speaks protocol $theirs, this probe speaks protocol $ours. Update $bump"
     }
 
