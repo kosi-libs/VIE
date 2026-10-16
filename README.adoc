@@ -149,6 +149,8 @@ The full documentation is on https://kosi-libs.org/vie[kosi-libs.org].
 
 For a complete application built with VIE, see the task-list demo in link:demo/demo-shared[`demo/demo-shared`].
 
+To watch and drive the ViewModels of a running application from a desktop inspector, see https://kosi-libs.org/vie/{version}/timemachine/index.html[TimeMachine].
+
 
 == AI agent skill
 
