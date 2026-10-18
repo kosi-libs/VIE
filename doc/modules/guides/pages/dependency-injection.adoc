@@ -1,0 +1,127 @@
+= Providing dependencies
+
+A ViewModel takes its dependencies, repositories and services, as constructor parameters, as in xref:core:viewmodel.adoc[].
+This guide shows how a ViewModel that `VIEView` builds inside a composable gets them.
+A test does not need any of it: it builds the ViewModel by hand, with fakes (see xref:testing:testing-viewmodels.adoc[]).
+
+
+[#new-vm]
+== The `newVM` function
+
+`newVM` is a plain function, not a composable: its receiver is the owner's `CreationExtras`, and it returns the ViewModel.
+`VIEView` calls it only when the ViewModel store holds no ViewModel yet for that class and key.
+It cannot read a `CompositionLocal`: read the ones it needs before `VIEView`, and let the lambda capture them:
+
+[source,kotlin]
+.Task.kt
+----
+@Composable
+fun Task(id: Uuid, goBack: () -> Unit) {
+    val tasks = LocalAppModule.current.tasks // <1>
+    VIEView(newVM = { TaskVM(id, tasks) }) { model ->
+        Task(model, goBack)
+    }
+}
+----
+<1> Read in the composition, before `VIEView`.
+
+Like every argument that `newVM` captures, a dependency is read once, when the ViewModel is created (see xref:core:view.adoc#screen-arguments[]).
+
+
+[#container]
+== An application container
+
+A screen needs several dependencies.
+Gather them in a container, create it once at the root of the application, and provide it to the composition:
+
+[source,kotlin]
+.App.kt
+----
+class AppModule(val tasks: TaskRepository, val debug: Boolean)
+
+val LocalAppModule = staticCompositionLocalOf<AppModule> { error("No AppModule provided") }
+
+@Composable
+fun App(debug: Boolean) {
+    val appModule = remember { AppModule(InMemoryTaskRepository(), debug) }
+    CompositionLocalProvider(LocalAppModule provides appModule) {
+        // the navigation, see the navigation guide
+    }
+}
+----
+
+A screen reads `LocalAppModule.current` and hands the container to its ViewModel's constructor, or its parts.
+`debug` is how an application installs xref:core:middlewares.adoc#logging[logging] in debug builds only.
+
+
+[#inara]
+== With Inara
+
+https://kosi-libs.org/inara/0.1.0/index.html[Inara] generates such a container from an interface, and one factory per ViewModel, so that no constructor call is written by hand.
+Follow https://kosi-libs.org/inara/0.1.0/core/setup.html[its setup], then declare the module:
+
+[source,kotlin]
+.AppModule.kt
+----
+@DIModule
+interface AppModule {
+    val taskRepo: TaskRepository
+    val debug: Boolean
+
+    companion object
+}
+
+fun AppModule.Companion.business(debug: Boolean) = AppModule(
+    taskRepo = Binding.single { InMemoryTaskRepository() },
+    debug = Binding.single { debug },
+)
+----
+
+One `@DIFactory` per ViewModel generates a function that builds it from the module.
+A screen argument is declared with `with`, or `withNullable` when it can be absent (see https://kosi-libs.org/inara/0.1.0/core/arguments.html[Inara's arguments]):
+
+[source,kotlin]
+.VMFactory.kt
+----
+@DIFactory(
+    builds = TaskListVM::class,
+    from = AppModule::class,
+)
+@DIFactory(
+    builds = EditTaskVM::class,
+    from = AppModule::class,
+    withNullable = Uuid::class,
+)
+internal object VMFactory
+----
+
+Each constructor parameter of the ViewModel is matched with the module member of the same type.
+The generated functions go inside `newVM`:
+
+[source,kotlin]
+.EditTask.kt
+----
+@Composable
+fun EditTask(taskId: Uuid?, goBack: () -> Unit) {
+    val appModule = LocalAppModule.current
+    VIEView(newVM = { VMFactory.EditTaskVM(appModule, taskId) }) { model ->
+        EditTask(model, goBack, new = taskId == null)
+    }
+}
+----
+
+The https://github.com/kosi-libs/VIE/tree/main/demo[demo application] is written this way.
+
+
+[#rules]
+== Two rules
+
+Never bind a ViewModel as a singleton::
+`newVM` is expected to return a new instance each time it is called.
+A ViewModel that is cleared stays unusable: its `viewModelScope` is cancelled, so it processes no intent anymore.
+A singleton handed to a screen that is left and opened again would be dead the second time.
+
+Type the factory with the concrete class::
+The class that `newVM` returns is part of the ViewModel's identity, so a function typed `VIEViewModel<Model, Intent, Signal>` loses it.
+Two unkeyed views of two ViewModel classes, both typed this way, then share the first ViewModel.
+Declare the factory function with the ViewModel's own class, as `VMFactory.EditTaskVM` does.

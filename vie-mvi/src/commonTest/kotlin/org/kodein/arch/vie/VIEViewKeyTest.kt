@@ -10,9 +10,13 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshots.Snapshot
+import androidx.lifecycle.HasDefaultViewModelProviderFactory
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.ViewModelStore
 import androidx.lifecycle.ViewModelStoreOwner
 import androidx.lifecycle.viewModelScope
+import androidx.lifecycle.viewmodel.CreationExtras
+import androidx.lifecycle.viewmodel.MutableCreationExtras
 import androidx.lifecycle.viewmodel.compose.LocalViewModelStoreOwner
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.isActive
@@ -47,10 +51,14 @@ private class NoApplier : AbstractApplier<Unit>(Unit) {
 }
 
 @OptIn(ExperimentalCoroutinesApi::class)
-internal class Host(private val test: TestScope) {
+internal class Host(private val test: TestScope, extras: CreationExtras = CreationExtras.Empty) {
     val store = ViewModelStore()
     val created = mutableListOf<VIEViewModel<KeyModel, KeyIntent, KeySignal>>()
-    private val owner = object : ViewModelStoreOwner { override val viewModelStore = store }
+    private val owner = object : ViewModelStoreOwner, HasDefaultViewModelProviderFactory {
+        override val viewModelStore = store
+        override val defaultViewModelProviderFactory = object : ViewModelProvider.Factory {}
+        override val defaultViewModelCreationExtras = extras
+    }
     private val clock = BroadcastFrameClock()
     private val recomposer = Recomposer(test.coroutineContext + clock)
     private val composition = Composition(NoApplier(), recomposer)
@@ -141,4 +149,15 @@ internal class VIEViewKeyTest : VIETest() {
         }
         assertEquals(setOf("VIEViewModel:k"), host.store.keys())
     }
+
+    @Test
+    fun theFactoryLambdaReceivesTheOwnersCreationExtras() = hostedTest(
+        extras = MutableCreationExtras().apply { set(ExtraKey, "from the owner") },
+    ) { host ->
+        var received: String? = null
+        host.setContent { VIEView(newVM = { received = this[ExtraKey]; host.track(FirstVM()) }) { } }
+        assertEquals("from the owner", received)
+    }
 }
+
+private val ExtraKey = object : CreationExtras.Key<String> {}

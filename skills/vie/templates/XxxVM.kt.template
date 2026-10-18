@@ -16,9 +16,10 @@ import {{viePackage}}.{{Name}}VIE.Signal
  */
 class {{Name}}VM(
     // TODO: add constructor dependencies (repositories, etc.)
+    debug: Boolean, // logging prints in every build: install it in debug builds only
 ) : {{Name}}VIE, VIEViewModel<Model, Intent, Signal>(
     firstModel = Model(),
-    middlewares = listOfNotNull(VIELoggingMiddleware("{{Name}}")),
+    middlewares = if (debug) listOf(VIELoggingMiddleware("{{Name}}")) else emptyList(),
 ) {
 
     init {

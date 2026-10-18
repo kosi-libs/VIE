@@ -9,9 +9,6 @@ pluginManagement {
 dependencyResolutionManagement {
     @Suppress("UnstableApiUsage")
     repositories {
-        // Inara 0.1.0 is not on Maven Central yet: the demo consumes it from a local publication
-        // of the sibling kosi-libs/Inara project. Remove this line once Inara is released.
-        mavenLocal()
         google()
         mavenCentral()
     }

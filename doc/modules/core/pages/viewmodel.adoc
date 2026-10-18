@@ -1,0 +1,221 @@
+= The ViewModel
+
+A screen's ViewModel implements its contract: it turns intents into new models and signals.
+It extends `VIEViewModel`, which is an `androidx.lifecycle.ViewModel`.
+
+
+== Declaring a ViewModel
+
+[source,kotlin]
+.CounterVM.kt
+----
+class CounterVM(
+    private val store: CounterStore,
+) : CounterVIE, VIEViewModel<Model, Intent, Signal>( // <1>
+    firstModel = Model(count = 0), // <2>
+) {
+    override suspend fun process(intent: Intent) {
+        when (intent) {
+            is Intent.Increment -> update { copy(count = count + 1) }
+            is Intent.Save -> {
+                update { copy(saving = true) }
+                store.save(model.count)
+                    .onSuccess { signal(Signal.Saved) }
+                    .onFailure { signal(Signal.Error(it.message ?: "Save failed")) }
+                update { copy(saving = false) }
+            }
+        }
+    }
+}
+----
+<1> Implementing `CounterVIE` too is what lets a view of `CounterVIE` render this ViewModel.
+<2> The view's first frame renders this model, before any intent is processed.
+
+The samples of this documentation use a store, declared once here:
+
+[source,kotlin]
+.CounterStore.kt
+----
+interface CounterStore {
+    suspend fun save(count: Int): Result<Unit>
+    suspend fun load(): Result<Int>
+    fun savedCounts(): Flow<Int>
+    fun failures(): Flow<String>
+}
+----
+
+A ViewModel is a plain class: its dependencies are constructor parameters, with no dependency-injection framework required.
+Its members are:
+
+[cols="2,3"]
+|===
+| Member | Purpose
+
+| `protected abstract suspend fun process(intent: Intent)`
+| Handles each posted intent.
+
+| `+suspend fun update(update: suspend Model.() -> Model)+`
+| Replaces the model.
+
+| `protected val model: Model`
+| The latest model `update` applied.
+
+| `+suspend fun <S> signal(signal: S) where S : Signal, S : VIE.Signal.Type+`
+| Emits a signal.
+
+| `final override fun post(intent: Intent)`
+| Sends an intent to `process`, as the view does.
+|===
+
+`viewModelScope` and the rest of `ViewModel` work as usual.
+
+
+[#process]
+== Processing intents
+
+`process` is called for every intent the view posts, one at a time, in order, on `viewModelScope`.
+While it runs, the next intent waits.
+Write its `when` without an `else`, so that adding an intent to the contract fails to compile until it is handled.
+
+`viewModelScope` runs on `Dispatchers.Main.immediate`, and so do `process`, the `update` blocks and the middlewares.
+A suspending call, such as a repository's, does not block the main thread.
+CPU-heavy work goes in `withContext(Dispatchers.Default)`.
+Common code has no `Dispatchers.IO`: a platform-specific dependency switches to its own.
+
+Clearing the ViewModel cancels what is running, a save awaited in `process` included.
+
+Await the work when the intents that follow must wait for it, as `Save` does above.
+Launch it in its own coroutine when it is independent, so that the next intent is handled while it runs.
+Track it in the model, as `saving` does:
+
+[source,kotlin]
+----
+is Intent.Save -> {
+    update { copy(saving = true) }
+    viewModelScope.launch { // <1>
+        store.save(model.count)
+            .onSuccess { signal(Signal.Saved) }
+        update { copy(saving = false) }
+    }
+}
+----
+<1> `process` returns right away, and the next intent is handled while saving.
+
+
+[#update]
+== Updating the model
+
+`update` takes a block that receives the current model and returns the next one.
+It suspends until the new model is applied, so `model` reads it on the next line.
+
+Updates are serialized: every block runs after the previous one has been applied, whatever coroutine calls `update`.
+Two coroutines that both run `update { copy(count = count + 1) }` add two.
+
+Keep the block a quick function of the current model.
+Blocks run one at a time, so a suspending call inside one holds back every other update: call it before or after `update`, as `Save` does with `store.save`.
+
+If the block throws, `update` throws the same exception, and the model is left unchanged.
+
+WARNING: Never call `update` from inside an `update` block or a `collectToModel` lambda.
+The block holds the only consumer of the updates, so the nested call never returns.
+
+`model` is protected: only the ViewModel reads it.
+It is the model as `update` applied it, before any xref:middlewares.adoc[middleware].
+
+
+[#signal]
+== Emitting signals
+
+`signal` emits a signal to the view:
+
+[source,kotlin]
+----
+signal(Signal.Saved)
+----
+
+Its type parameter must be both a `Signal` of the contract and an Event or an Effect.
+A signal type that picks neither does not compile here.
+
+
+[#start]
+== Starting work
+
+A ViewModel that loads something when it is created starts from a model that says so, and launches the load in `init`:
+
+[source,kotlin]
+.CounterVM.kt
+----
+class CounterVM(
+    private val store: CounterStore,
+) : CounterVIE, VIEViewModel<Model, Intent, Signal>(
+    firstModel = Model(count = 0, saving = true), // <1>
+) {
+    init {
+        viewModelScope.launch {
+            store.load()
+                .onSuccess { count -> update { copy(count = count, saving = false) } }
+                .onFailure { update { copy(saving = false) } } // <2>
+        }
+    }
+    // ...
+}
+----
+<1> The first frame already shows the loading state.
+<2> A failure is a model field, not a signal: no view collects yet, and an Event would be lost.
+
+A refresh is an intent, handled in `process` like any other.
+
+Two `Flow` extensions feed an external flow straight into the ViewModel, until the flow completes:
+
+* `+collectToModel { value -> ... }+` updates the model with each value, like `update`;
+* `+collectToSignal { value -> ... }+` turns each value into a signal, and emits it.
+
+They are called from inside the ViewModel, typically from a coroutine launched in `init`:
+
+[source,kotlin]
+.CounterVM.kt
+----
+init {
+    viewModelScope.launch {
+        store.savedCounts().collectToModel { saved -> copy(count = saved) } // <1>
+    }
+}
+----
+<1> `this` is the current model, and `saved` is the value the flow emitted.
+
+`collectToSignal` is the same for signals.
+Its lambda returns any signal of the contract that is an Event or an Effect:
+
+[source,kotlin]
+----
+init {
+    viewModelScope.launch {
+        store.failures().collectToSignal { message -> Signal.Error(message) }
+    }
+}
+----
+
+[#errors]
+== Handling errors
+
+Catch a failure inside `process`, where its meaning is known, and show it to the user:
+
+* a failure that must stay visible, such as a screen that failed to load, is a field of the model;
+* a failure that is told once, such as a save that failed, is a signal.
+
+[source,kotlin]
+----
+is Intent.Refresh -> {
+    update { copy(loading = true, loadError = null) }
+    store.load()
+        .onSuccess { count -> update { copy(count = count, loading = false) } }
+        .onFailure { update { copy(loading = false, loadError = it.message) } } // <1>
+}
+----
+<1> `Model` has a `loadError: String?` field, which the view renders.
+
+An exception that escapes `process` is reported like any other uncaught exception of `viewModelScope`, and the intents posted afterwards are still processed.
+It does not become a model or a signal, so the view never hears of it.
+Treat it as a bug to fix, not as a way to report an error.
+
+TIP: xref:testing:testing-viewmodels.adoc[] shows how to test a ViewModel without a view.

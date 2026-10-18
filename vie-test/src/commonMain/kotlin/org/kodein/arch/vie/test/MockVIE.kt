@@ -36,10 +36,13 @@ public class MockVIE<Model: VIE.Model, Intent : VIE.Intent, Signal : VIE.Signal>
     /** The current model — shorthand for `modelFlow.value`. */
     public val model: Model get() = modelFlow.value
 
-    /** Mutable: assign to it to re-render the view with a new model. */
+    /**
+     * Mutable: assign to it, then render `modelFlow.collectAsState()`, to re-render the view with a new model.
+     * A view that reads [model] alone does not recompose.
+     */
     override val modelFlow: MutableStateFlow<Model> = MutableStateFlow(model)
 
-    /** Every intent the view has posted, in the order it posted them. Drain with [pendingIntents]. */
+    /** The intents the view posted and nobody received or drained yet, in order. Drain with [pendingIntents]. */
     public val intentsChannel: ReceiveChannel<Intent> field = Channel(Channel.UNLIMITED)
 
     /** Records [intent] into [intentsChannel]. Nothing processes it — no model update, no signal. */
@@ -48,9 +51,8 @@ public class MockVIE<Model: VIE.Model, Intent : VIE.Intent, Signal : VIE.Signal>
     }
 
     /**
-     * Mutable: `emit` into it (or call [signal]) to drive the view's [org.kodein.arch.vie.SignalEffect]. Has no
-     * replay, so a signal sent before the composition starts collecting is buffered but not
-     * replayed to a *later* collector that starts after it — send it after the view has composed.
+     * Mutable: `emit` into it (or call [signal]) to drive the view's [org.kodein.arch.vie.SignalEffect].
+     * A signal sent while nothing collects is lost: send it after the view has composed.
      */
     override val signalFlow: MutableSharedFlow<Signal> = MutableSharedFlow(extraBufferCapacity = 64)
 

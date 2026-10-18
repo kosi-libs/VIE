@@ -4,7 +4,8 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 
-// JVM only: androidx rejects a local class by its missing canonical name, which other targets do not have.
+// JVM only here: androidx rejects a local class by its missing qualified name, which the JVM, Android and iOS lack,
+// and the web targets do not.
 internal class VIEViewLocalClassTest : VIETest() {
 
     @Test

@@ -1,0 +1,10 @@
+.Testing
+* xref:previews.adoc[]
+* xref:testing-views.adoc[]
+** xref:testing-views.adoc#intents[Asserting on posted intents]
+** xref:testing-views.adoc#mock[The mock]
+** xref:testing-views.adoc#model[Changing the model]
+** xref:testing-views.adoc#signals[Driving signals]
+* xref:testing-viewmodels.adoc[]
+** xref:testing-viewmodels.adoc#test-scope[The test scope]
+** xref:testing-viewmodels.adoc#time[Virtual time]

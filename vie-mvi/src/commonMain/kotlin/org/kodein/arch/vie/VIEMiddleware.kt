@@ -7,8 +7,8 @@ import kotlinx.coroutines.flow.onEach
 
 /**
  * Intercepts a [VIEViewModel]'s model, intent and signal flows; every member defaults to identity
- * or no-op. Folded from the end of the list: the last wraps the source, the first sits closest to
- * the view.
+ * or no-op. The last of the list is closest to where values come from, the first to where they go
+ * (the view for models and signals, `process` for intents).
  *
  * @param Model The state the view renders.
  * @param Intent The events the view sends up.

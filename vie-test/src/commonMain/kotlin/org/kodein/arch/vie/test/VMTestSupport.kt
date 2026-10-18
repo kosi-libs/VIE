@@ -20,7 +20,6 @@ import kotlinx.coroutines.test.setMain
 import org.kodein.arch.vie.VIE
 import org.kodein.arch.vie.VIEViewModel
 import kotlin.time.Duration
-import kotlin.time.Duration.Companion.milliseconds
 
 /**
  * What a test sees of a [VIEViewModel] under [runVMTest]: what a view sees, never the ViewModel itself.
@@ -67,7 +66,7 @@ public class VMTestScope<Model : VIE.Model, Intent : VIE.Intent, Signal : VIE.Si
     /** Runs the tasks due now, without moving virtual time. */
     public fun runCurrent(): Unit = testScope.runCurrent()
 
-    /** Moves virtual time forward by [delayTimeMillis], running the tasks that come due. */
+    /** Moves virtual time forward by [delayTime], running the tasks due before then; [runCurrent] runs those due exactly then. */
     public fun advanceTimeBy(delayTime: Duration): Unit = testScope.advanceTimeBy(delayTime)
 }
 
@@ -75,7 +74,7 @@ public class VMTestScope<Model : VIE.Model, Intent : VIE.Intent, Signal : VIE.Si
  * Builds a [VIEViewModel] by hand in [newVM] — no DI container — and drives it from [block] on virtual time, the way
  * a view would.
  *
- * - `signalFlow` has no replay: a signal emitted with nobody collecting is lost. Models and signals are therefore
+ * - `signalFlow` has no replay: an Event emitted with nobody collecting is lost, an Effect waits. Models and signals are therefore
  *   collected from the moment [newVM] returns, before any of the ViewModel's coroutines run (unless [newVM] itself
  *   advances the scheduler). The collectors use an [UnconfinedTestDispatcher]: a signal is posted from another
  *   dispatcher than a [StandardTestDispatcher] collector's, and once its emitter has resumed from a `delay(...)`,

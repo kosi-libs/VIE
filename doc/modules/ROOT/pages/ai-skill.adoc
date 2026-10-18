@@ -1,0 +1,75 @@
+= AI agent skill
+
+VIE ships an https://agentskills.io[Agent Skill] that teaches your coding agent how to use VIE well.
+This page shows what it does, and how to install it in a project that uses VIE.
+
+
+== What it does
+
+Once installed, the skill loads whenever your agent writes, explains or reviews VIE code.
+It gives the agent:
+
+* VIE's good practices, each with the reason behind it;
+* a review checklist of the mistakes VIE's types allow, with how to spot and fix each one;
+* templates to scaffold a new screen: its contract, its ViewModel, and its view with a preview.
+
+You use it by asking in plain words, for instance:
+
+* "Create a VIE screen named Profile."
+* "Review the VIE code of the settings feature."
+* "Why does this view take the ViewModel?"
+
+When scaffolding a screen, the agent matches the layout of your existing screens, and never overwrites a file without asking.
+
+
+[#install]
+== Installing it
+
+Install the skill in the project that uses VIE, not in VIE itself.
+
+With any agent that reads Agent Skills (Claude Code, Codex, Cursor, Copilot, Gemini CLI...), run this from the project's root:
+
+[source,bash]
+----
+npx skills add kosi-libs/VIE
+----
+
+Add `-a <agent>` to install it for a single agent, or `-g` to install it for your user instead of the project.
+
+
+[#claude-code]
+=== As a Claude Code plugin
+
+The VIE repository is also a Claude Code plugin marketplace:
+
+[source,text]
+----
+/plugin marketplace add kosi-libs/VIE
+/plugin install vie@kodein-vie
+----
+
+Auto-update is off by default for a third-party marketplace.
+To keep the skill up to date, turn it on for `kodein-vie` in the `/plugin` menu, under the Marketplaces tab.
+
+
+[#manual]
+=== By hand
+
+Copy the https://github.com/kosi-libs/VIE/tree/main/skills/vie[`skills/vie`] directory of the VIE repository into your agent's skills directory, such as `.agents/skills/vie` or `.claude/skills/vie`.
+
+
+== What it contains
+
+[source,text]
+----
+skills/vie/
+├── SKILL.md                  <1>
+├── references/
+│   ├── good-practices.md     <2>
+│   └── bad-practices.md      <3>
+└── templates/                <4>
+----
+<1> The entry point: an API cheat sheet, and when to read each other file.
+<2> The conventions, with their rationale.
+<3> The review checklist: each anti-pattern, how to find it, why it matters, and how to fix it.
+<4> A new screen's contract, ViewModel and view.

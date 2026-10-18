@@ -1,0 +1,82 @@
+= ViewModel lifecycles
+
+A VIE ViewModel is an `androidx.lifecycle.ViewModel`: it lives as long as its owner says.
+This guide shows what that means for a screen, when the activity is recreated, when the process is killed, and when the app goes to the background.
+
+
+[#owner]
+== The owner decides
+
+`VIEView` asks the `LocalViewModelStoreOwner` of the composition for its ViewModel.
+The owner is the activity or the fragment on Android, the window on desktop, or an entry when the navigation library scopes ViewModels to its entries (see xref:navigation.adoc#entries[]).
+The ViewModel lives until its owner clears it.
+
+Leaving the composition does not clear a ViewModel (see xref:core:view.adoc#identity[]).
+
+
+[#cleared]
+== When a ViewModel is cleared
+
+When the owner clears a ViewModel, its `viewModelScope` is cancelled: the coroutines it launched stop, a save awaited in `process` included, and the middlewares' model flow completes.
+`VIELoggingMiddleware` prints `END` at that moment.
+
+A cleared ViewModel is not reusable: it processes no intent anymore (see xref:dependency-injection.adoc#rules[]).
+
+
+[#configuration-change]
+== Configuration change
+
+On Android, a rotation recreates the activity, but the ViewModel stays in its store.
+`VIEView` finds the same ViewModel, and the new view renders its current model.
+
+The text a user typed in a `TextFieldState` that `rememberTextFieldState` remembers is restored as well (see xref:forms.adoc#prefill[]).
+
+What does restart is the `SignalEffect`: it collects `signalFlow` again from the new composition.
+While no `SignalEffect` collects, an Event is lost and an Effect waits for the next one (see xref:core:contract.adoc#signal[]).
+
+
+[#process-death]
+== Process death
+
+When Android kills the process of an app in the background, the ViewModels are gone.
+When the user comes back, the activity is recreated, and the ViewModels are built again, from `firstModel`:
+
+* what the navigation restores, such as a back stack remembered with `rememberSerializable`, and what `rememberSaveable` or `rememberTextFieldState` saved, comes back;
+* the model does not.
+A screen that loads its data in `init` loads it again.
+
+State that a ViewModel needs to survive this goes in a `SavedStateHandle`.
+`newVM` has the owner's `CreationExtras` as receiver, so it can create one:
+
+[source,kotlin]
+.NoteVM.kt
+----
+class NoteVM(private val saved: SavedStateHandle) : NoteVIE, VIEViewModel<Model, Intent, NoSignal>(
+    firstModel = Model(draft = saved["draft"] ?: ""), // <1>
+) {
+    override suspend fun process(intent: Intent) {
+        when (intent) {
+            is Intent.DraftChanged -> {
+                saved["draft"] = intent.text // <2>
+                update { copy(draft = intent.text) }
+            }
+        }
+    }
+}
+
+@Composable
+fun Note() {
+    VIEView(newVM = { NoteVM(createSavedStateHandle()) }) { model -> /* ... */ }
+}
+----
+<1> The model starts from what was saved before the process died.
+<2> The ViewModel saves what it must keep.
+
+On Android, a value saved this way is still there after the process was killed and the app was reopened.
+
+
+[#background]
+== In the background
+
+VIE does not stop collecting when the app goes to the background.
+The model is collected as Compose state, and the `SignalEffect` collects `signalFlow`, for as long as the view is in the composition, whatever the lifecycle of the activity.

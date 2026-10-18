@@ -1,0 +1,144 @@
+= Testing a ViewModel
+
+A ViewModel is a plain class: a test builds it with whatever real or fake dependencies it needs.
+`runVMTest`, from the xref:core:setup.adoc[`vie-test`] artifact, then drives it the way a view would, on virtual time.
+
+
+== Running a test
+
+[source,kotlin]
+.CounterVMTest.kt
+----
+class FakeCounterStore : CounterStore {
+    val saved = mutableListOf<Int>()
+
+    override suspend fun save(count: Int): Result<Unit> {
+        delay(1.seconds) // <1>
+        saved += count
+        return Result.success(Unit)
+    }
+
+    override fun savedCounts() = emptyFlow<Int>()
+}
+
+@Test
+fun saveSignalsSaved(): TestResult { // <2>
+    val store = FakeCounterStore()
+    return runVMTest(
+        newVM = { CounterVM(store) },
+    ) {
+        post(Intent.Save)
+        advanceUntilIdle()
+        assertEquals(listOf(0), store.saved)
+
+        assertEquals(
+            listOf(
+                Model(count = 0, saving = false),
+                Model(count = 0, saving = true),
+                Model(count = 0, saving = false),
+            ),
+            pendingModels(),
+        )
+        assertEquals(listOf(Signal.Saved), pendingSignals())
+    }
+}
+----
+<1> Runs on virtual time: the test does not wait a second.
+<2> Return what `runVMTest` returns: on JS and Wasm it is a promise that the test runner waits for, and a test that drops it ends before the block has run.
+
+`newVM` builds the ViewModel, and the block drives it.
+Like a view, the block never sees the ViewModel itself: it posts intents, reads the model, and drains what a view would have received.
+The ViewModel is cleared once the block returns.
+
+`newVM` is a `suspend` lambda on the `TestScope`, so it can prepare data first, for instance by filling a fake.
+It must not advance the scheduler once the ViewModel is built: the models and signals are collected from the moment it returns, and anything emitted before would be lost.
+The block starts after the tasks due at time zero have run.
+
+
+[#test-scope]
+== The test scope
+
+The block runs in a `VMTestScope`:
+
+[cols="2,3"]
+|===
+| Member | Purpose
+
+| `fun post(intent: Intent)`
+| Sends an intent to the ViewModel.
+
+| `val model: Model`
+| The current model, as a view would render it.
+
+| `fun pendingModels(): List<Model>`
+| The models since the previous call, in order.
+
+| `fun pendingSignals(): List<Signal>`
+| The signals since the previous call, in order.
+
+| `fun advanceUntilIdle()`
+| Runs everything due, now or later.
+
+| `fun runCurrent()`
+| Runs what is due now, without moving time.
+
+| `fun advanceTimeBy(delayTime: Duration)`
+| Moves time forward, running the tasks due before the new time.
+`runCurrent()` runs those due exactly then.
+
+| `val testScheduler: TestCoroutineScheduler`
+| The scheduler every coroutine of the test runs on.
+
+| `val backgroundScope: CoroutineScope`
+| A scope for work that must not keep the test waiting.
+
+| `val testScope: TestScope`
+| The underlying `runTest` scope, for everything else.
+|===
+
+The block is a `CoroutineScope`, so `launch` works in it.
+Advance the scheduler inside the block, since the ViewModel is cleared when the block returns.
+
+`pendingModels` and `pendingSignals` drain, like `pendingIntents` on `MockVIE`.
+The first call to `pendingModels` starts with the model current when `newVM` returned.
+Like a view, it does not see a model equal to the previous one, and it sees the models after every xref:core:middlewares.adoc[middleware].
+
+The models and signals are collected from the moment `newVM` returns, before any coroutine of the ViewModel runs, so no signal is lost.
+Do not collect the ViewModel's signals elsewhere in the test: an Effect would reach only one of the collectors.
+
+
+[#time]
+== Virtual time
+
+`runVMTest` sets `Dispatchers.Main` to a test dispatcher before calling `newVM`.
+`viewModelScope` runs on it, so every `delay` of the ViewModel, and of the dependencies that do not switch dispatcher, runs on virtual time, which the block moves forward:
+
+[source,kotlin]
+.CounterVMTest.kt
+----
+@Test
+fun saveShowsProgress() = runVMTest(
+    newVM = { CounterVM(FakeCounterStore()) },
+) {
+    post(Intent.Save)
+    runCurrent() // <1>
+    assertTrue(model.saving)
+
+    advanceTimeBy(1.seconds)
+    runCurrent() // <2>
+    assertFalse(model.saving)
+}
+----
+<1> `post` only queues the intent: `runCurrent` lets `process` run, up to the `delay`.
+<2> `advanceTimeBy` stops right before the time it moves to: the task due exactly then runs now.
+
+Build the ViewModel in `newVM`, not before calling `runVMTest`: `viewModelScope` picks its dispatcher when the ViewModel is built.
+
+NOTE: Only `Dispatchers.Main` is replaced.
+A dependency that switches to `Dispatchers.Default` or `IO` runs on real time, and the block does not wait for it.
+Let `newVM` pass such a dependency a `StandardTestDispatcher(testScheduler)`:
+
+[source,kotlin]
+----
+newVM = { CounterVM(DiskCounterStore(dispatcher = StandardTestDispatcher(testScheduler))) },
+----

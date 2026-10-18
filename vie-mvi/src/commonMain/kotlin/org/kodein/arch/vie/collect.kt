@@ -33,13 +33,16 @@ public suspend fun <Model : VIE.Model, T> Flow<T>.collectToModel(update: suspend
  * completes. Called from inside a `VIEViewModel` — typically an `init` block or a
  * `viewModelScope` coroutine — where the `vm` context is implicitly available.
  *
- * @param Signal The enclosing ViewModel's signal type, constrained to have picked a delivery kind.
+ * @param Signal The enclosing ViewModel's signal type.
+ * @param S The converted signal's type: a [Signal] that has picked a delivery kind.
  * @param T The type of value this flow emits.
  * @receiver The external flow to collect.
  * @param convert Converts a collected value into the signal to emit.
  */
+// https://youtrack.jetbrains.com/projects/KT/issues/KT-19215
+@Suppress("BOUNDS_NOT_ALLOWED_IF_BOUNDED_BY_TYPE_PARAMETER")
 context(vm: VIEViewModel<*, *, Signal>)
-public suspend fun <Signal, T> Flow<T>.collectToSignal(convert: suspend (T) -> Signal) where Signal : VIE.Signal, Signal : VIE.Signal.Type {
+public suspend fun <Signal : VIE.Signal, S, T> Flow<T>.collectToSignal(convert: suspend (T) -> S) where S : Signal, S : VIE.Signal.Type {
     collect {
         vm.signal(convert(it))
     }
