@@ -43,6 +43,7 @@ kotlin {
             // The WebSockets plugin and the Js engine both live in core: ktor-client-websockets and
             // ktor-client-js are empty shims.
             implementation(libs.ktor.client.core)
+            implementation(libs.ktor.client.cio)
 
             implementation(libs.kotlinx.serialization.json)
             implementation(libs.kotlinx.coroutines)
@@ -52,18 +53,9 @@ kotlin {
             implementation(libs.kotlinx.coroutines.test)
             implementation(projects.vieTest)
         }
-        jvmMain.dependencies {
-            implementation(libs.ktor.client.cio)
-        }
         jvmTest.dependencies {
             implementation(libs.ktor.server.cio)
             implementation(libs.ktor.server.websockets)
-        }
-        androidMain.dependencies {
-            implementation(libs.ktor.client.cio)
-        }
-        iosMain.dependencies {
-            implementation(libs.ktor.client.darwin)
         }
     }
 
