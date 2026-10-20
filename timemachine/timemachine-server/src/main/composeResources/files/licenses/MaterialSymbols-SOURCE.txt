@@ -1,0 +1,14 @@
+font/MaterialSymbolsRounded.ttf is a modified file: a static instance of the variable font Material Symbols Rounded,
+which Google publishes under the Apache License 2.0 (see MaterialSymbols-LICENSE.txt; upstream has no NOTICE file).
+
+Change: the variable axes were pinned to FILL=0, wght=400, GRAD=0, opsz=24 and the variation tables were dropped.
+No glyph was added, removed or edited.
+
+Upstream file:
+  https://github.com/google/material-design-icons/blob/737e3324305806514d7909874fa1818ae1808232/variablefont/MaterialSymbolsRounded%5BFILL%2CGRAD%2Copsz%2Cwght%5D.ttf
+  commit 737e3324305806514d7909874fa1818ae1808232
+
+Command (fonttools 4.66.1):
+  fonttools varLib.instancer "MaterialSymbolsRounded[FILL,GRAD,opsz,wght].ttf" FILL=0 wght=400 GRAD=0 opsz=24 -o MaterialSymbolsRounded.ttf
+
+Regenerate it from the same upstream file when the design needs a glyph the font does not have yet.
