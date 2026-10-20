@@ -9,16 +9,16 @@ jobs:
     runs-on: macOS-latest
     steps:
       - name: Setup
-        uses: KodeinKoders/kodein-github-actions/gradle-kotlin-setup@v0.3
+        uses: KodeinKoders/kodein-github-actions/gradle-kotlin-setup@v0.4
       - name: Check version
-        uses: KodeinKoders/kodein-github-actions/version-check@v0.3
+        uses: KodeinKoders/kodein-github-actions/version-check@v0.4
         with:
           release-name: ${{ github.event.release.name }}
       - name: Build
         run: ./gradlew --stacktrace --scan build
         shell: bash
       - name: Publish
-        uses: KodeinKoders/kodein-github-actions/publish@v0.3
+        uses: KodeinKoders/kodein-github-actions/publish@v0.4
         with:
           central-portal-token-username: ${{ secrets.CENTRAL_PORTAL_TOKEN_USERNAME }}
           central-portal-token-password: ${{ secrets.CENTRAL_PORTAL_TOKEN_PASSWORD }}
@@ -33,7 +33,7 @@ jobs:
       contents: write
     steps:
       - name: Release branch
-        uses: KodeinKoders/kodein-github-actions/release-branches@v0.3
+        uses: KodeinKoders/kodein-github-actions/release-branches@v0.4
         with:
           release-name: ${{ github.event.release.name }}
 
