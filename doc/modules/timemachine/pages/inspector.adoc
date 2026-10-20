@@ -1,0 +1,40 @@
+= The inspector
+
+The inspector is the desktop app that shows what the probes stream, and sends objects back into live ViewModels.
+
+
+[#running]
+== Running the inspector
+
+The inspector is a Compose Desktop app, run from a checkout of VIE:
+
+[source,bash]
+----
+./gradlew :timemachine:timemachine-server:run
+----
+
+It listens on port 13229, on every network interface.
+With no probe connected, its window says where it listens, and shows the code that adds the probe to an application.
+If the port is taken, usually by a second inspector, the window says so and offers to retry.
+
+The inspector keeps everything it hears in memory: closing it forgets every session.
+Compose's `package…` tasks, such as `packageDmg`, build an installer.
+
+
+[#intervening]
+== Intervening
+
+From the inspector, you can send a Model, an Intent or a Signal into a live ViewModel.
+It goes in through the ViewModel's own API:
+
+* A *Model* replaces the ViewModel's model, so the next `update { copy(...) }` computes from it: with a counter at 5, sending a model at 100 and tapping `+` gives 101.
+* An *Intent* is posted, as a view would post it, and goes through `process`.
+* A *Signal* is emitted, as the ViewModel would emit it.
+
+Only a `@Serializable` type can be sent, since the inspector sends it as JSON (see xref:setup.adoc#serializable[Serializable contracts]).
+The object then shows in the ViewModel's timeline, tagged as the one you sent.
+
+WARNING: An Effect is delivered to exactly one collector, so sending one into a ViewModel that no view collects blocks its signals, and then its intents.
+Nothing on the probe's side can prevent that, so the inspector warns you before it sends one.
+
+TIP: How the probe and the inspector talk, and how the inspector settles what it sent, is described in xref:protocol.adoc[].

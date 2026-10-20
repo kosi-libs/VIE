@@ -1,0 +1,46 @@
+= TimeMachine
+
+TimeMachine is a live inspector for VIE ViewModels.
+A _probe_ in your application streams every Model, Intent and Signal of the ViewModels it observes to the _inspector_, a desktop app that shows them as a timeline per ViewModel.
+The inspector can also send an object back into a live ViewModel, to drive it into a state that is hard to reach by hand.
+
+IMPORTANT: TimeMachine is not published yet.
+Its modules build from a checkout of VIE, where the task-list demo in `demo/` has the probe wired in.
+
+
+[#scope]
+== What it does
+
+TimeMachine observes and intervenes.
+It does not rewind, restore snapshots or persist anything: the inspector keeps what it hears in memory, and starts empty again when it restarts.
+
+A session is one run of your application.
+The inspector lists the sessions it has heard from, the ViewModels of each, and for each ViewModel the Models, Intents and Signals it went through, in order.
+
+
+[#modules]
+== Modules
+
+[cols="2,1,4"]
+|===
+| Module | Role | Holds
+
+| `vie-timemachine-client`
+| Probe
+| The library your application embeds, for every platform VIE supports.
+It observes one ViewModel per middleware, keeps one WebSocket per application process, and applies what the inspector sends.
+
+| `timemachine-server`
+| Inspector
+| A Compose Desktop application.
+It runs the WebSocket server, keeps the sessions, ViewModels and timelines in memory, and shows them.
+
+| `vie-timemachine-shared`
+| Contract
+| The wire messages, the JSON configuration, the connection coordinates and the protocol version, which both other modules depend on.
+|===
+
+The module names follow the WebSocket roles: your application is the WebSocket client, and the inspector is its server.
+The pages say probe and inspector.
+
+TIP: To add the probe to your application, see xref:setup.adoc[].
