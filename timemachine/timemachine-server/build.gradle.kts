@@ -22,6 +22,11 @@ dependencies {
     implementation(libs.ktor.server.cio)
     implementation(libs.ktor.server.core)
     implementation(libs.ktor.server.websockets)
+
+    testImplementation(libs.kotlin.test)
+    testImplementation(libs.kotlinx.coroutines.test)
+    testImplementation(libs.ktor.client.core)
+    testImplementation(libs.ktor.client.cio)
 }
 
 compose {
