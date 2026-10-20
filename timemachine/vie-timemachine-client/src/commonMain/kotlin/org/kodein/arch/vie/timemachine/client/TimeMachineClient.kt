@@ -89,7 +89,7 @@ internal class TimeMachineClient(
     })
 
     // Ktor closes the session when a pong takes longer than twice the interval.
-    private val http = HttpClient(timeMachineEngine) { install(WebSockets) { pingInterval = this@TimeMachineClient.pingInterval } }
+    private val http = HttpClient { install(WebSockets) { pingInterval = this@TimeMachineClient.pingInterval } }
 
     private val address = "ws://${config.host}:${config.port}${TimeMachineConnection.path}"
 
