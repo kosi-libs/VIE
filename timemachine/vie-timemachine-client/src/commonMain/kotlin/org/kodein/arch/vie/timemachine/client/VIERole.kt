@@ -123,7 +123,8 @@ internal class VIERole<T>(
      *   kotlinx-serialization dispatches decoding purely on that embedded field, and would otherwise
      *   silently decode [json] as whatever type it actually encodes, ignoring [typeName].
      * - [json] does not decode: [VIEInterventionResult.Reason.BadJson]. Decoding is strict: a key
-     *   [json] has but the type doesn't declare fails, rather than being dropped.
+     *   [json] has but the type doesn't declare fails, rather than being dropped. So does anything the
+     *   app's code throws while decoding, an `Error` or a `CancellationException` included.
      */
     fun decodeForIntervention(typeName: String, json: JsonElement): Decoded<T> {
         val s = serializer ?: return Decoded.Refused(Reason.NotSerializable, "${this.typeName} is not @Serializable")
@@ -132,8 +133,11 @@ internal class VIERole<T>(
         if (actualType != null && actualType != typeName) return Decoded.Refused(Reason.BadJson, mismatchMessage(typeName, actualType))
         return try {
             Decoded.Value(StrictJson.decodeFromJsonElement(s, json))
-        } catch (e: Exception) {
-            // A SerializationException, or whatever a custom serializer throws at a payload it rejects,
+        } catch (e: Throwable) {
+            // A SerializationException, or whatever app code throws: a custom serializer rejecting the
+            // payload, or one left as `TODO()`, a class's `init`… Errors and cancellation included, like
+            // `describing` on the encoding side: this runs on the probe's own coroutine, which must not
+            // end because of the app's code.
             Decoded.Refused(Reason.BadJson, e.message ?: e.toString())
         }
     }

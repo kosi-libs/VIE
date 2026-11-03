@@ -41,6 +41,16 @@ private object CancellingSerializer : KSerializer<Cancelling> {
     override fun deserialize(decoder: Decoder): Cancelling = throw CancellationException("not the caller's cancellation")
 }
 
+/** Its serializer throws an `Error`, as a custom serializer left as `TODO()` for a type the app only encodes does. */
+@Serializable(with = UnimplementedSerializer::class)
+private class Unimplemented
+
+private object UnimplementedSerializer : KSerializer<Unimplemented> {
+    override val descriptor = PrimitiveSerialDescriptor("Unimplemented", PrimitiveKind.STRING)
+    override fun serialize(encoder: Encoder, value: Unimplemented) = error("not needed")
+    override fun deserialize(decoder: Decoder): Unimplemented = TODO()
+}
+
 @Serializable
 private data class SimpleModel(val count: Int)
 
@@ -240,6 +250,13 @@ class VIERoleTest {
     @Test
     fun decodeForInterventionRefusesAPayloadWhoseSerializerThrowsACancellation() {
         val role = role<Cancelling>()
+
+        assertEquals(VIEInterventionResult.Reason.BadJson, role.decodeForIntervention(role.typeName, JsonPrimitive("x")).reason())
+    }
+
+    @Test
+    fun decodeForInterventionRefusesAPayloadWhoseSerializerThrowsAnError() {
+        val role = role<Unimplemented>()
 
         assertEquals(VIEInterventionResult.Reason.BadJson, role.decodeForIntervention(role.typeName, JsonPrimitive("x")).reason())
     }
