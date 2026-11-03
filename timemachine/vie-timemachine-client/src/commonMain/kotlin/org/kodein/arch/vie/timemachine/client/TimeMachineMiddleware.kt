@@ -76,13 +76,13 @@ internal class TimeMachineMiddleware<Model : VIE.Model, Intent : VIE.Intent, Sig
     // injector's `entering` callbacks and by observation: several of `viewModelScope`'s coroutines,
     // which run on several threads when its dispatcher does (e.g. `Dispatchers.Default`, the fallback
     // when no Main dispatcher is available).
-    private val injectedModel = AtomicReference<Injected<Model>?>(null)
+    private val injectedModels = InjectedQueue<Model>()
     private val injectedIntents = InjectedQueue<Intent>()
     private val injectedSignals = InjectedQueue<Signal>()
 
     override fun interceptModels(flow: Flow<Model>): Flow<Model> =
         if (!modelsIntercepted.compareAndSet(expectedValue = false, newValue = true)) flow
-        else flow.onEach { observeModel(it) }
+        else flow.onEach { observe(VIEObjectKind.Model, modelRole, it, injectedModels.take(it)) }
 
     override fun interceptIntents(flow: Flow<Intent>): Flow<Intent> =
         if (!intentsIntercepted.compareAndSet(expectedValue = false, newValue = true)) flow
@@ -107,21 +107,6 @@ internal class TimeMachineMiddleware<Model : VIE.Model, Intent : VIE.Intent, Sig
         })
     }
 
-    // An injected model is applied inside an `update {}`, which sends it down the model flow; models
-    // sent before it may still be on their way, so only that very instance consumes the injection.
-    private fun observeModel(model: Model) {
-        var interventionId: Uuid? = null
-        while (true) {
-            val injected = injectedModel.load()
-            if (injected == null || injected.value !== model) break
-            if (injectedModel.compareAndSet(injected, null)) {
-                interventionId = injected.requestId
-                break
-            }
-        }
-        observe(VIEObjectKind.Model, modelRole, model, interventionId)
-    }
-
     private fun infoOf(vm: VIEViewModel<Model, Intent, Signal>) = VIEViewModelInfo(
         id = viewModelId,
         typeName = vm.typeName,
@@ -135,7 +120,7 @@ internal class TimeMachineMiddleware<Model : VIE.Model, Intent : VIE.Intent, Sig
         val requestId = request.requestId
         return when (request.kind) {
             VIEObjectKind.Model -> modelRole.decode(request) { model ->
-                injector.injectModel(model) { injectedModel.store(Injected(model, requestId)) }.asResult()
+                injector.injectModel(model) { injectedModels.add(Injected(model, requestId)) }.asResult()
             }
             VIEObjectKind.Intent -> intentRole.decode(request) { intent ->
                 injector.injectIntent(intent) { injectedIntents.add(Injected(intent, requestId)) }.asResult()
@@ -177,11 +162,15 @@ private val VIEViewModel<*, *, *>.typeName: String
 private class Injected<T>(val value: T, val requestId: Uuid)
 
 /**
- * The intents or signals injected but not observed yet, oldest first. Bounded: an object that is
- * never observed must not be kept forever. That happens when the ViewModel is cleared after the
- * object is added but before it reaches the intercepted flow — `post()` relaunches its emit, and
- * `signal()` suspends on its shared flow — or when this middleware is not installed last, and
- * another one nearer the source drops the object.
+ * The models, intents or signals injected but not observed yet, oldest first. Several can wait at
+ * once: two models injected back to back are both applied by the update loop before the model flow
+ * observes the first one.
+ *
+ * Bounded: an object that is never observed must not be kept forever. That happens when the
+ * ViewModel is cleared after the object is added but before it reaches the intercepted flow —
+ * `update {}` emits its model after `entering`, `post()` relaunches its emit, and `signal()`
+ * suspends on its shared flow — or when this middleware is not installed last, and another one
+ * nearer the source drops or replaces the object.
  */
 private class InjectedQueue<T> {
     // Copied on write: short, and only written by injections. Observing an object nobody injected —

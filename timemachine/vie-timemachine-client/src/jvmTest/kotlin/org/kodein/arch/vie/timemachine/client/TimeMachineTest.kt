@@ -20,7 +20,7 @@ import org.kodein.arch.vie.timemachine.protocol.TimeMachineClientMessage
 
 /** Installs the middleware as [TimeMachine]'s KDoc shows: its types come from `middlewares`. */
 private class SelfObservedVM : VIEViewModel<StressModel, StressIntent, StressSignal>(
-    StressModel,
+    StressModel(),
     listOf(TimeMachine.middleware()),
 ) {
     override suspend fun process(intent: StressIntent) {}
@@ -32,7 +32,7 @@ private class SelfObservedVM : VIEViewModel<StressModel, StressIntent, StressSig
  */
 @Suppress("unused")
 private class LoggedAndObservedVM : VIEViewModel<StressModel, StressIntent, StressSignal>(
-    StressModel,
+    StressModel(),
     listOf(VIELoggingMiddleware("LoggedAndObserved"), TimeMachine.middleware()),
 ) {
     override suspend fun process(intent: StressIntent) {}
