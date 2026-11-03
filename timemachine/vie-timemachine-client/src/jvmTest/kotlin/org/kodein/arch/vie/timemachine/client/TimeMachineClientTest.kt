@@ -16,13 +16,30 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.serialization.KSerializer
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.descriptors.PrimitiveKind
+import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
+import kotlinx.serialization.encoding.Decoder
+import kotlinx.serialization.encoding.Encoder
 import kotlinx.serialization.json.JsonNull
+import kotlinx.serialization.json.JsonPrimitive
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineClientMessage
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineConnection
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineServerMessage
 import org.kodein.arch.vie.timemachine.protocol.VIEInterventionResult
 import org.kodein.arch.vie.timemachine.protocol.VIEObjectKind
 
+
+/** Its serializer throws an `Error` when decoding, as a custom serializer left as `TODO()` does. */
+@Serializable(with = UndecodableSerializer::class)
+private class Undecodable
+
+private object UndecodableSerializer : KSerializer<Undecodable> {
+    override val descriptor = PrimitiveSerialDescriptor("Undecodable", PrimitiveKind.STRING)
+    override fun serialize(encoder: Encoder, value: Undecodable) = error("not needed")
+    override fun deserialize(decoder: Decoder): Undecodable = TODO()
+}
 
 private fun withClient(
     inspector: FakeInspector,
@@ -309,6 +326,35 @@ class TimeMachineClientTest {
 
             val request = TimeMachineServerMessage.Intervene(Uuid.random(), vm, VIEObjectKind.Intent, "T", JsonNull)
             connection.send(TimeMachineServerMessage.serializer(), request)
+
+            // Still streaming: the next request is answered. That its answer is the next message also
+            // shows the throwing intervener got none: the inspector times such a request out.
+            connection.send(TimeMachineServerMessage.serializer(), TimeMachineServerMessage.RequestViewModelInfo(vm))
+            assertEquals(TimeMachineClientMessage.ViewModelInfo(vm, info(vm)), inspector.received.receive())
+        }
+    }
+
+    @Test
+    fun anErrorWhileDecodingAnInterventionIsRefusedAndTheConnectionLoopGoesOn() {
+        val inspector = FakeInspector()
+        withClient(inspector) { client ->
+            val vm = Uuid.random()
+            val role = role<Undecodable>()
+            client.sink.started(info(vm)) { request ->
+                when (val decoded = role.decodeForIntervention(request.typeName, request.asJson)) {
+                    is VIERole.Decoded.Value -> VIEInterventionResult.Success
+                    is VIERole.Decoded.Refused -> decoded.failure
+                }
+            }
+            client.start()
+            val connection = inspector.welcomed.receive()
+            assertIs<TimeMachineClientMessage.ViewModelStarted>(inspector.received.receive())
+
+            val request = TimeMachineServerMessage.Intervene(Uuid.random(), vm, VIEObjectKind.Model, role.typeName, JsonPrimitive("x"))
+            connection.send(TimeMachineServerMessage.serializer(), request)
+            val answer = assertIs<TimeMachineClientMessage.InterventionResult>(inspector.received.receive())
+            assertEquals(request.requestId, answer.requestId)
+            assertEquals(VIEInterventionResult.Reason.BadJson, assertIs<VIEInterventionResult.Failure>(answer.result).reason)
 
             // Still streaming: the next request is answered.
             connection.send(TimeMachineServerMessage.serializer(), TimeMachineServerMessage.RequestViewModelInfo(vm))
