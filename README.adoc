@@ -161,3 +161,11 @@ npx skills add kosi-libs/VIE
 ----
 
 For the Claude Code plugin and the other ways to install it, see the https://kosi-libs.org/vie/{version}/ai-skill.html[agent skill guide].
+
+== Developed by
+
+image::https://kodein-koders.com/app/uploads/2026/11/colored-invert.svg[Kodein Koders logo,link=https://kodein-koders.com]
+
+== Supported by
+
+image::https://resources.jetbrains.com/storage/products/company/brand/logos/jetbrains.svg[JetBrains logo,link=https://jb.gg/OpenSourceSupport]
