@@ -483,6 +483,33 @@ class TimeMachineMiddlewareTest {
     }
 
     @Test
+    fun twoModelInterventionsInARowAreEachTagged(): TestResult {
+        val messages = mutableListOf<TimeMachineTimelineMessage>()
+        val sink = recordingSink(messages)
+        val probe = probe<CountModel>(sink)
+        return runVMTest(
+            newVM = { ProbeVM(CountModel(0), { copy(count = count + 1) }, listOf(probe)) },
+        ) {
+            advanceUntilIdle()
+
+            // Both handled before the ViewModel's dispatcher gets a turn, as a double-click on the
+            // inspector's send button would: the update loop then applies them back to back.
+            val (firstId, firstResult) = sink.intervene(probe.viewModelId, VIEObjectKind.Model, role<CountModel>(), CountModel(10))
+            val (secondId, secondResult) = sink.intervene(probe.viewModelId, VIEObjectKind.Model, role<CountModel>(), CountModel(20))
+            assertEquals(VIEInterventionResult.Success, firstResult)
+            assertEquals(VIEInterventionResult.Success, secondResult)
+            advanceUntilIdle()
+
+            assertEquals(CountModel(20), model)
+            val models = messages.observations.filter { it.kind == VIEObjectKind.Model }
+            assertEquals(
+                listOf(CountModel(0).toString() to null, CountModel(10).toString() to firstId, CountModel(20).toString() to secondId),
+                models.map { it.asString to it.interventionId },
+            )
+        }
+    }
+
+    @Test
     fun anInjectedIntentIsProcessedAndTagged(): TestResult {
         val messages = mutableListOf<TimeMachineTimelineMessage>()
         val sink = recordingSink(messages)

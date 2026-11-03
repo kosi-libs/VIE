@@ -27,8 +27,9 @@ import org.kodein.arch.vie.timemachine.protocol.VIEObjectKind
 import org.kodein.arch.vie.timemachine.protocol.VIEObservation
 
 
+/** A data class, not an object: each injected model must be an instance of its own. */
 @Serializable
-internal data object StressModel : VIE.Model
+internal data class StressModel(val n: Int = 0) : VIE.Model
 
 @Serializable
 internal sealed interface StressIntent : VIE.Intent {
@@ -44,7 +45,7 @@ internal sealed interface StressSignal : VIE.Signal {
 
 internal class StressVM(
     middlewares: List<VIEMiddleware<StressModel, StressIntent, StressSignal>>,
-) : VIEViewModel<StressModel, StressIntent, StressSignal>(StressModel, middlewares) {
+) : VIEViewModel<StressModel, StressIntent, StressSignal>(StressModel(), middlewares) {
     override suspend fun process(intent: StressIntent) {}
 }
 
@@ -70,21 +71,27 @@ class TimeMachineMiddlewareConcurrencyTest {
                 val intervener = sink.liveViewModels.getValue(probe.viewModelId).intervener
                 val requested = mutableSetOf<Uuid>()
                 // Each round stays below the injection queues' bound, so a correct probe tags every object.
-                repeat(200) {
-                    requested += (0 until 16).map { i ->
+                repeat(200) { round ->
+                    requested += (0 until 18).map { i ->
                         async(Dispatchers.Default) {
-                            val request = if (i % 2 == 0) intervention(probe.viewModelId, VIEObjectKind.Intent, role<StressIntent>(), StressIntent.Ping)
-                            else intervention(probe.viewModelId, VIEObjectKind.Signal, role<StressSignal>(), StressSignal.Pinged)
+                            val request = when (i % 3) {
+                                0 -> intervention(probe.viewModelId, VIEObjectKind.Model, role<StressModel>(), StressModel(round * 18 + i + 1))
+                                1 -> intervention(probe.viewModelId, VIEObjectKind.Intent, role<StressIntent>(), StressIntent.Ping)
+                                else -> intervention(probe.viewModelId, VIEObjectKind.Signal, role<StressSignal>(), StressSignal.Pinged)
+                            }
                             assertEquals(VIEInterventionResult.Success, intervener.intervene(request))
                             request.requestId
                         }
                     }.awaitAll()
+                    // Every observation but the first model is one of the injected objects.
                     withTimeout(5.seconds) {
-                        while (observations.count { it.kind != VIEObjectKind.Model } < requested.size) delay(1)
+                        while (observations.size - 1 < requested.size) delay(1)
                     }
                 }
-                val tagged = observations.filter { it.kind != VIEObjectKind.Model }.map { it.interventionId }
-                assertEquals(requested, tagged.toSet(), "Every injected intent and signal must be tagged with its own request")
+                val (initial, injected) = observations.partition { it.kind == VIEObjectKind.Model && it.asString == StressModel().toString() }
+                assertEquals(listOf(null), initial.map { it.interventionId }, "Only the first model is the ViewModel's own")
+                val tagged = injected.map { it.interventionId }
+                assertEquals(requested, tagged.toSet(), "Every injected model, intent and signal must be tagged with its own request")
                 assertEquals(requested.size, tagged.size, "No object may be observed twice")
             } finally {
                 store.clear()
