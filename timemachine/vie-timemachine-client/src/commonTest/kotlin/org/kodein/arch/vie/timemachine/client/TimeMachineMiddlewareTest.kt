@@ -603,6 +603,8 @@ class TimeMachineMiddlewareTest {
         val probe = probe<CountModel>(recordingSink(messages))
         Dispatchers.setMain(StandardTestDispatcher(testScheduler))
         try {
+            // One after the other on a single-threaded dispatcher: the only case where the second
+            // ViewModel's objects are sure to be ignored.
             val first = ProbeVM(CountModel(0), { copy(count = count + 1) }, listOf(probe))
             val second = ProbeVM(CountModel(10), { copy(count = count + 1) }, listOf(probe))
             val store = ViewModelStore().apply { put("first", first); put("second", second) }
