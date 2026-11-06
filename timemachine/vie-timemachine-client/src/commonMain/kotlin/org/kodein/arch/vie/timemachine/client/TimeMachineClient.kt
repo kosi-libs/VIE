@@ -46,6 +46,12 @@ import org.kodein.arch.vie.timemachine.protocol.VIEInterventionResult
  * once, not on every retry — and retried too: the inspector may be restarted with a compatible
  * version. So is an inspector that does not answer the handshake within `handshakeTimeout`.
  *
+ * The backoff starts over only once a connection has lasted `stableAfter`, not on a welcome: an
+ * inspector that fails on what the probe sends first drops every connection right after welcoming
+ * it, since the probe sends that first again each time. Such an inspector is retried ever less
+ * often, and its drop is printed once: the connections that follow are announced only once one of
+ * them holds.
+ *
  * The connection is pinged every `pingInterval`, and closed when a pong is late, so that a
  * half-open connection — a phone whose wifi dropped — is not streamed into for minutes. Browsers
  * expose no WebSocket pings: on the web, the probe relies on the browser to notice.
@@ -70,9 +76,11 @@ internal class TimeMachineClient(
     private val config: TimeMachineConfig,
     private val firstRetryDelay: Duration = 500.milliseconds,
     private val maxRetryDelay: Duration = 5.seconds,
+    private val stableAfter: Duration = 5.seconds,
     private val pingInterval: Duration = 5.seconds,
     private val handshakeTimeout: Duration = 10.seconds,
     window: Int = 256 * 1024,
+    private val notice: (String) -> Unit = ::println,
 ) {
 
     val session: TimeMachineSession = TimeMachineSession(id = Uuid.random(), name = config.appName)
@@ -128,22 +136,29 @@ internal class TimeMachineClient(
         var welcomedBefore = false
         var failures = 0
         var lastProblem: String? = null
+        // Whether the last connection was welcomed, then dropped before it became stable.
+        var droppedEarly = false
         while (true) {
             var connected = false
+            var stable = false
             val problem: String = try {
                 var rejection: String? = null
                 http.webSocket(host = config.host, port = config.port, path = TimeMachineConnection.path) {
                     rejection = handshake()
                     if (rejection != null) return@webSocket
-                    failures = 0
-                    lastProblem = null
                     connected = true
-                    println("TimeMachine: connected to the inspector at $address")
+                    // After one that dropped early, a connection is announced once it holds.
+                    val announced = !droppedEarly
+                    if (announced) notice("TimeMachine: connected to the inspector at $address")
                     if (welcomedBefore) {
                         sink.liveViewModels.values.forEach { sendMessage(TimeMachineClientMessage.ViewModelInfo(it.info.id, it.info)) }
                     }
                     welcomedBefore = true
-                    stream()
+                    // Set on the stream's own coroutine, and read once the stream has joined it.
+                    stream(onStable = {
+                        stable = true
+                        if (!announced) notice("TimeMachine: connected to the inspector at $address")
+                    })
                 }
                 rejection ?: "the inspector at $address closed the connection"
             } catch (e: Exception) {
@@ -152,8 +167,15 @@ internal class TimeMachineClient(
                 if (connected) "lost the connection to the inspector at $address ($e)"
                 else "cannot reach the inspector at $address ($e)"
             }
+            // A welcome alone does not start the backoff over: an inspector that fails on what the probe
+            // sends first fails again on every connection, since the probe sends it first again.
+            if (stable) {
+                failures = 0
+                lastProblem = null
+            }
+            droppedEarly = connected && !stable
             if (problem != lastProblem) {
-                println("TimeMachine: $problem; retrying.")
+                notice("TimeMachine: $problem; retrying.")
                 lastProblem = problem
             }
             delay(retryDelay(failures++))
@@ -193,15 +215,21 @@ internal class TimeMachineClient(
         return "the inspector at $address rejected this probe: it speaks protocol $theirs, this probe speaks protocol $ours. Update $bump"
     }
 
-    /** Streams the outbound queue and answers the inspector, until the connection breaks. */
-    private suspend fun DefaultClientWebSocketSession.stream() {
+    /** Streams the outbound queue and answers the inspector, until the connection breaks. Calls
+     *  [onStable], from a coroutine of its own, once the connection has lasted `stableAfter`. */
+    private suspend fun DefaultClientWebSocketSession.stream(onStable: () -> Unit) {
         coroutineScope {
             val drain = launch { outbox.drain { send(Frame.Text(it)) } }
+            val stability = launch {
+                delay(stableAfter)
+                onStable()
+            }
             while (true) {
                 val message = receiveMessage() ?: break
                 guardedSuspending({ "answer $message" }) { answer(message) }
             }
             drain.cancel()
+            stability.cancel()
         }
     }
 
@@ -250,7 +278,7 @@ internal class TimeMachineClient(
         )
         val width = lines.maxOf { it.length }
         val border = "─".repeat(width + 2)
-        println(buildString {
+        notice(buildString {
             appendLine("┌$border┐")
             lines.forEach { appendLine("│ ${it.padEnd(width)} │") }
             append("└$border┘")
