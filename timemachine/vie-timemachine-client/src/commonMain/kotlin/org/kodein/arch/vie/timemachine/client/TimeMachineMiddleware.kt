@@ -50,8 +50,14 @@ import org.kodein.arch.vie.timemachine.protocol.VIEViewModelInfo
  * drops is still reported, though `process()` never receives it.
  *
  * As [VIEMiddleware.onAttached] requires, an instance serves exactly one ViewModel: the first it is
- * installed in. Installed in another one too (e.g. as a DI singleton), it prints a notice and
- * ignores that ViewModel entirely: its start, close, models, intents and signals.
+ * attached to. Attached to another one too (e.g. as a DI singleton), it prints a notice, and neither
+ * reports that ViewModel's start and close nor intervenes on it. It ignores that ViewModel's models,
+ * intents and signals too, but only when the two are built one after the other on a single-threaded
+ * dispatcher, such as `Dispatchers.Main`: the intercepts are not told which ViewModel calls them, and
+ * the first call of each wins. A ViewModel calls [interceptModels] from the coroutine that collects
+ * its models, which on a multi-threaded dispatcher can run after the next ViewModel's; and two
+ * ViewModels built concurrently can call any intercept in either order. The second ViewModel's
+ * objects are then reported under the first one's identifier, in place of the first one's.
  *
  * Never throws into the host app: a failure to report an object is printed and swallowed. Nor does
  * it describe objects on the ViewModel's dispatcher: [sink] defers that (see [TimeMachineSink]).
@@ -67,12 +73,15 @@ internal class TimeMachineMiddleware<Model : VIE.Model, Intent : VIE.Intent, Sig
 
     private val closed = AtomicBoolean(false)
 
-    // One per hook, which a ViewModel calls once each, in this order: only the first ViewModel's calls
-    // take effect.
+    // One per hook, which a ViewModel calls once each: only the first call takes effect. A ViewModel
+    // calls `onAttached` first, `interceptIntents` and `interceptSignals` from its constructor, and
+    // `interceptModels` from the coroutine that collects its models, whenever that starts. So the
+    // first ViewModel makes every first call only when the next one is built after it on a
+    // single-threaded dispatcher (see the class KDoc).
+    private val attached = AtomicBoolean(false)
     private val modelsIntercepted = AtomicBoolean(false)
     private val intentsIntercepted = AtomicBoolean(false)
     private val signalsIntercepted = AtomicBoolean(false)
-    private val attached = AtomicBoolean(false)
 
     // Injected objects on their way into the ViewModel, by the request that placed them. Touched by the
     // injector's `entering` callbacks and by observation: several of `viewModelScope`'s coroutines,
@@ -96,7 +105,7 @@ internal class TimeMachineMiddleware<Model : VIE.Model, Intent : VIE.Intent, Sig
 
     override fun onAttached(vm: VIEViewModel<Model, Intent, Signal>) {
         if (!attached.compareAndSet(expectedValue = false, newValue = true)) {
-            println("TimeMachine: the middleware $viewModelId already observes a ViewModel, and ignores this ${vm.typeName}: build one per ViewModel, and never share it (e.g. as a DI singleton).")
+            println("TimeMachine: the middleware $viewModelId is already attached to a ViewModel, and cannot also report this ${vm.typeName}: its objects may even be reported as the other one's. Build one per ViewModel, and never share it (e.g. as a DI singleton).")
             return
         }
         val injector = VIEViewModelInjector(vm)
