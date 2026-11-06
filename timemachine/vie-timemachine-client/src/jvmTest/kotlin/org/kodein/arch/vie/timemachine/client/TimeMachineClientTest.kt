@@ -7,12 +7,18 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
+import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
+import kotlin.time.TimeSource
 import kotlin.uuid.Uuid
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.channels.Channel
+import kotlinx.coroutines.channels.ReceiveChannel
+import kotlinx.coroutines.channels.SendChannel
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.withTimeoutOrNull
@@ -45,20 +51,34 @@ private fun withClient(
     inspector: FakeInspector,
     bufferSize: Int = 1024,
     window: Int = 256 * 1024,
+    maxRetryDelay: Duration = 100.milliseconds,
+    // Longer than any test: no connection becomes stable unless the test asks for it.
+    stableAfter: Duration = 10.seconds,
+    notices: SendChannel<String>? = null,
     block: suspend (TimeMachineClient) -> Unit,
 ) = runBlocking {
     val client = TimeMachineClient(
         TimeMachineConfig(appName = "ClientTest", port = inspector.port, bufferSize = bufferSize),
         firstRetryDelay = 20.milliseconds,
-        maxRetryDelay = 100.milliseconds,
+        maxRetryDelay = maxRetryDelay,
+        stableAfter = stableAfter,
         handshakeTimeout = 300.milliseconds,
         window = window,
+        notice = { println(it); notices?.trySend(it) },
     )
     try {
         withTimeout(10.seconds) { block(client) }
     } finally {
         client.stop()
         inspector.close()
+    }
+}
+
+/** Waits for the next notice that contains [fragment], skipping the others. */
+private suspend fun ReceiveChannel<String>.awaitNotice(fragment: String): String {
+    while (true) {
+        val notice = receive()
+        if (fragment in notice) return notice
     }
 }
 
@@ -287,6 +307,62 @@ class TimeMachineClientTest {
             // The unanswered connection took nothing from the queue.
             val started = assertIs<TimeMachineClientMessage.ViewModelStarted>(inspector.received.receive())
             assertEquals(0L, started.sequence.value)
+        }
+    }
+
+    @Test
+    fun anInspectorThatDropsEveryConnectionOnceWelcomedIsRetriedEverLessOftenAndPrintedOnce() {
+        val notices = Channel<String>(Channel.UNLIMITED)
+        val inspector = FakeInspector()
+        withClient(inspector, notices = notices) { client ->
+            client.start()
+
+            // Dropped as soon as welcomed, as by an inspector that fails on what the probe sends first:
+            // the probe sends it first again on every connection.
+            val hellos = List(6) {
+                inspector.hellos.receive()
+                val at = TimeSource.Monotonic.markNow()
+                inspector.welcomed.receive().close()
+                at
+            }
+            // Retried after 20, 40, 80, then 100 ms, the cap: not after the first delay every time.
+            val lastGap = hellos[5] - hellos[4]
+            assertTrue(lastGap >= 100.milliseconds, "Retried after $lastGap")
+
+            inspector.hellos.receive() // The sixth drop has been handled.
+            val printed = generateSequence { notices.tryReceive().getOrNull() }.toList()
+            assertEquals(1, printed.count { "connected to the inspector" in it }, printed.toString())
+            assertEquals(1, printed.count { "closed the connection" in it }, printed.toString())
+        }
+    }
+
+    @Test
+    fun aConnectionThatHoldsIsAnnouncedAndStartsTheBackoffOver() {
+        val notices = Channel<String>(Channel.UNLIMITED)
+        val inspector = FakeInspector()
+        withClient(inspector, maxRetryDelay = 10.seconds, stableAfter = 1.seconds, notices = notices) { client ->
+            client.start()
+
+            // Retried after 20, 40, 80, 160, 320 and 640 ms: the next retry would wait 1280 ms.
+            repeat(6) {
+                inspector.hellos.receive()
+                inspector.welcomed.receive().close()
+            }
+            notices.awaitNotice("connected to the inspector")
+            notices.awaitNotice("closed the connection")
+
+            inspector.hellos.receive()
+            val holding = inspector.welcomed.receive()
+            // After connections that dropped early, a connection is announced once it holds.
+            notices.awaitNotice("connected to the inspector")
+            holding.close()
+            val closedAt = TimeSource.Monotonic.markNow()
+
+            // Its drop is news, and the next retry waits the first delay again.
+            notices.awaitNotice("closed the connection")
+            inspector.hellos.receive()
+            val gap = closedAt.elapsedNow()
+            assertTrue(gap < 1.seconds, "Retried after $gap")
         }
     }
 
