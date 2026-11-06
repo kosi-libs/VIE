@@ -27,7 +27,9 @@ import org.kodein.arch.vie.timemachine.protocol.VIEViewModelInfo
  *   class, read once attached: a subclass is named after itself, not after the class that installed
  *   the middleware. *Closed* is reported when the ViewModel is cleared — through a closeable
  *   registered on it, not the intent flow's completion, which also happens when `process()` throws
- *   or a middleware ends the flow while the ViewModel lives on.
+ *   or a middleware ends the flow while the ViewModel lives on. From then on, an object that reaches
+ *   an intercept is no longer reported. On a multi-threaded dispatcher, though, an object whose report
+ *   is already underway on another thread can still be reported after the close.
  * - Models, intents and signals are observed in their intercepts, so their order is exactly the
  *   order the ViewModel handles them. The signal flow itself is never collected: that would steal
  *   effects from the view.
@@ -147,6 +149,8 @@ internal class TimeMachineMiddleware<Model : VIE.Model, Intent : VIE.Intent, Sig
         }
 
     private fun <T : Any> observe(kind: VIEObjectKind, role: VIERole<T>, value: T, interventionId: Uuid?) {
+        // Only narrows the race with the close: a report already past this check can still follow it.
+        if (closed.load()) return
         guarded({ "report $kind" }) { sink.observed(viewModelId, kind, role, value, interventionId) }
     }
 }

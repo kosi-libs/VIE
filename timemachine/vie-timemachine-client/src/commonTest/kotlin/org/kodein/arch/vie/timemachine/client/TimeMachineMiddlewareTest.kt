@@ -12,6 +12,8 @@ import kotlin.uuid.Uuid
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.take
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -301,6 +303,25 @@ class TimeMachineMiddlewareTest {
 
         assertIs<TimeMachineClientMessage.ViewModelClosed>(messages.last())
         assertEquals(1, messages.count { it is TimeMachineClientMessage.ViewModelClosed })
+    }
+
+    @Test
+    fun anObjectReachingAnInterceptOnceClearedIsNotReported() = runTest {
+        val messages = mutableListOf<TimeMachineTimelineMessage>()
+        val probe = probe<CountModel>(recordingSink(messages))
+        // Intercepted before the ViewModel is built: the probe observes this flow, and lets the
+        // ViewModel's own model flow through. Collected once cleared, it stands for a collector that
+        // has not reached its cancellation point yet, as on a multi-threaded dispatcher.
+        val models = probe.interceptModels(flowOf(CountModel(7)))
+        withoutView({ ProbeVM(CountModel(0), { copy(count = count + 1) }, listOf(probe)) }) {
+            models.collect()
+            assertEquals(listOf(CountModel(7).toString()), messages.observations.map { it.asString })
+        }
+
+        models.collect()
+
+        assertEquals(listOf(CountModel(7).toString()), messages.observations.map { it.asString })
+        assertIs<TimeMachineClientMessage.ViewModelClosed>(messages.last())
     }
 
     @Test
