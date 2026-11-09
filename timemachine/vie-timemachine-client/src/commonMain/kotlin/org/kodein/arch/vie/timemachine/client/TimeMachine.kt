@@ -116,9 +116,10 @@ public object TimeMachine {
      * type — a local `val`, the left side of `+` — name them:
      * `TimeMachine.middleware<Model, Intent, Signal>()`.
      *
-     * Install it *last* in `middlewares`, nearest the source: it then reports intents as the view posted
-     * them and signals as the ViewModel emitted them, before any other middleware can filter or transform
-     * them. Models are reported as `update {}` produced them, wherever it sits.
+     * Install it *last* in `middlewares`, nearest the source: it then reports models as `update {}`
+     * produced them, intents as the view posted them and signals as the ViewModel emitted them, before any
+     * other middleware can filter or transform them. Models go through the middlewares in the same order
+     * as intents and signals do: one installed after it can change the models it reports.
      *
      * Build the list once per ViewModel, and never share it (e.g. as a DI singleton): while the probe
      * runs, each call returns a new middleware, and an instance serves exactly one ViewModel.
