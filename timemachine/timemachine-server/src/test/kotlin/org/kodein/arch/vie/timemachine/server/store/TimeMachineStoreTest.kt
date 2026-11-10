@@ -119,4 +119,29 @@ class TimeMachineStoreTest {
         assertEquals(listOf(a, b, c), store.state.value.session(session.id).viewModels.keys.toList())
         assertFalse(poison in store.state.value.session(session.id).viewModels)
     }
+
+    @Test
+    fun aTimelineFrameTheCoreThrowsOnIsAcknowledgedSoItsProbeIsNotStalled() = runTest {
+        val poison = Uuid.random()
+        val executed = mutableListOf<TransportCommand>()
+        val store = TimeMachineStore(
+            backgroundScope,
+            reduce = { events ->
+                if (events.any { ((it as? TimeMachineEvent.MessageReceived)?.message as? TimeMachineClientMessage.Observed)?.observation?.viewModelId == poison }) error("injected")
+                on(events)
+            },
+        ) { executed += it }
+        val a = Uuid.random()
+        store.post(hello(c1, session))
+        store.post(receive(c1, observed(a, 0)))
+        runCurrent()
+        // The probe sends nothing more until this one is acknowledged.
+        store.post(receive(c1, observed(poison, 1)))
+        runCurrent()
+
+        assertEquals(Command.Send(c1, TimeMachineServerMessage.Received(seq(1))), executed.last())
+        val record = store.state.value.session(session.id)
+        assertEquals(listOf(a), record.viewModels.keys.toList())
+        assertEquals(SequenceLedger(floor = seq(0), highest = seq(0)), record.sequences)
+    }
 }

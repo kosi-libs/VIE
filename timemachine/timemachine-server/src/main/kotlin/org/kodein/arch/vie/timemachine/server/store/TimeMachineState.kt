@@ -43,20 +43,23 @@ data class TimeMachineState(
                 ?: this
         )
         is TimeMachineEvent.ListenerChanged -> Transition(copy(listener = event.listener))
+        // Only acknowledged, by the batch: the frame is not held, its sequence stays missing.
+        is TimeMachineEvent.Skipped -> Transition(this)
     }
 
     /**
      * The state after every event of [events], in order, and the commands they call for. Ends with
      * one [TimeMachineServerMessage.Received] per connection that delivered timeline messages,
-     * acknowledging the highest one: a duplicate is acknowledged too, since the inspector holds it.
+     * acknowledging the highest one: a duplicate is acknowledged too, since the inspector holds it,
+     * and so is a [TimeMachineEvent.Skipped] frame, since it will never hold it.
      */
     fun on(events: List<TimeMachineEvent>): Transition {
         var state = this
         val commands = mutableListOf<Command>()
         val applied = LinkedHashMap<ConnectionId, TimeMachineSequence>()
         for (event in events) {
-            if (event is TimeMachineEvent.MessageReceived && event.message is TimeMachineTimelineMessage && event.connection in state.connections) {
-                applied[event.connection] = applied[event.connection]?.let { maxOf(it, event.message.sequence) } ?: event.message.sequence
+            state.acknowledged(event)?.let { (connection, sequence) ->
+                applied[connection] = applied[connection]?.let { maxOf(it, sequence) } ?: sequence
             }
             val transition = state.on(event)
             state = transition.state
@@ -64,6 +67,16 @@ data class TimeMachineState(
         }
         applied.forEach { (connection, sequence) -> commands += Command.Send(connection, TimeMachineServerMessage.Received(sequence)) }
         return Transition(state, commands)
+    }
+
+    /** The timeline sequence [event] delivers, and on which connection, when that connection is mapped. */
+    private fun acknowledged(event: TimeMachineEvent): Pair<ConnectionId, TimeMachineSequence>? {
+        val delivered = when (event) {
+            is TimeMachineEvent.MessageReceived -> (event.message as? TimeMachineTimelineMessage)?.let { event.connection to it.sequence }
+            is TimeMachineEvent.Skipped -> event.connection to event.sequence
+            else -> null
+        }
+        return delivered?.takeIf { it.first in connections }
     }
 
     /**

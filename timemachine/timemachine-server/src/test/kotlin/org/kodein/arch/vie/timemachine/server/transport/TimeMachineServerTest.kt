@@ -28,6 +28,7 @@ import org.kodein.arch.vie.timemachine.protocol.VIEInterventionResult
 import org.kodein.arch.vie.timemachine.protocol.VIEObjectKind
 import org.kodein.arch.vie.timemachine.server.store.InterventionStatus
 import org.kodein.arch.vie.timemachine.server.store.ListenerState
+import org.kodein.arch.vie.timemachine.server.store.SequenceLedger
 import org.kodein.arch.vie.timemachine.server.store.TimeMachineState
 import org.kodein.arch.vie.timemachine.server.store.TimeMachineStore
 import org.kodein.arch.vie.timemachine.server.store.TimelineEntry
@@ -249,6 +250,21 @@ class TimeMachineServerTest {
         connection.send(observed(vm, 1)) // a resend
         assertEquals(TimeMachineServerMessage.Received(seq(1)), connection.receive())
         assertEquals(listOf(0L, 1L, 2L), store.state.value.sessions.getValue(session.id).viewModels.getValue(vm).rows.map { it.sequence.value })
+    }
+
+    @Test
+    fun anUndecodableFrameIsAcknowledgedWhenItCarriesASequence() = withInspector {
+        val connection = probe.welcomed(session)
+        connection.send(started(vm, 0))
+        assertEquals(TimeMachineServerMessage.Received(seq(0)), connection.receive())
+
+        connection.sendText("""{"type":"FromALaterVersion","sequence":1}""")
+        assertEquals(TimeMachineServerMessage.Received(seq(1)), connection.receive())
+
+        connection.sendText("not a message")
+        connection.sendText("""{"type":"FromALaterVersion","sequence":"2"}""")
+        assertNull(connection.receiveWithin())
+        assertEquals(SequenceLedger(floor = seq(0), highest = seq(0)), store.state.value.sessions.getValue(session.id).sequences)
     }
 
     @Test
