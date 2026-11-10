@@ -43,11 +43,15 @@ private class Inspector(val store: TimeMachineStore, val server: TimeMachineServ
     suspend fun until(predicate: (TimeMachineState) -> Boolean): TimeMachineState = store.state.first(predicate)
 }
 
-private fun inspector(port: Int, block: suspend (store: TimeMachineStore, server: TimeMachineServer) -> Unit) = runBlocking {
+private fun inspector(
+    port: Int,
+    maxFrameSize: Long = 32L * 1024 * 1024,
+    block: suspend (store: TimeMachineStore, server: TimeMachineServer) -> Unit,
+) = runBlocking {
     val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     val connections = TimeMachineConnections(scope, closeTimeout = 1.seconds)
     val store = TimeMachineStore(scope, interventionTimeout = 200.milliseconds, execute = connections::execute)
-    val server = TimeMachineServer(store, connections, port = port, handshakeTimeout = 500.milliseconds)
+    val server = TimeMachineServer(store, connections, port = port, handshakeTimeout = 500.milliseconds, maxFrameSize = maxFrameSize)
     try {
         withTimeout(10.seconds) { block(store, server) }
     } finally {
@@ -56,7 +60,7 @@ private fun inspector(port: Int, block: suspend (store: TimeMachineStore, server
     }
 }
 
-private fun withInspector(block: suspend Inspector.() -> Unit) = inspector(port = 0) { store, server ->
+private fun withInspector(maxFrameSize: Long = 32L * 1024 * 1024, block: suspend Inspector.() -> Unit) = inspector(port = 0, maxFrameSize) { store, server ->
     server.start()
     val listener = assertIs<ListenerState.Listening>(store.state.first { it.listener != ListenerState.Starting }.listener)
     FakeProbe(listener.port).use { Inspector(store, server, it).block() }
@@ -144,6 +148,27 @@ class TimeMachineServerTest {
 
         val state = until { it.sessions[session.id]?.viewModels?.containsKey(vm) == true }
         assertEquals(listOf(session.id), state.sessions.keys.toList())
+    }
+
+    @Test
+    fun aFrameOverTheCapClosesTheConnectionUnread() = withInspector(maxFrameSize = 1024) {
+        val connection = probe.welcomed(session)
+        connection.send(started(vm, 0))
+        assertEquals(TimeMachineServerMessage.Received(seq(0)), connection.receive())
+        connection.send(observed(vm, 1, json = JsonPrimitive("x".repeat(2048))))
+
+        assertTrue(connection.closeReason().orEmpty().startsWith("Frame is too big"))
+        val state = until { it.sessions[session.id]?.isConnected == false }
+        assertEquals(listOf(0L), state.sessions.getValue(session.id).viewModels.getValue(vm).rows.map { it.sequence.value })
+    }
+
+    @Test
+    fun aFirstFrameOverTheCapClosesTheConnection() = withInspector(maxFrameSize = 1024) {
+        val connection = probe.connect()
+        connection.sendText("x".repeat(2048))
+
+        assertTrue(connection.closeReason().orEmpty().startsWith("Frame is too big"))
+        assertEquals(emptyMap(), store.state.value.sessions)
     }
 
     @Test
