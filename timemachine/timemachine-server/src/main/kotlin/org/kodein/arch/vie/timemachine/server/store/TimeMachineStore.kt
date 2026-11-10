@@ -27,16 +27,14 @@ import kotlin.uuid.Uuid
  * batch the core throws on is applied again event by event, without the events it throws on; a
  * command [execute] throws on is skipped. Each failure is reported, and the writer goes on.
  *
- * @param maxRows How many rows each ViewModel keeps.
- * @param maxChars How many characters of frame text each ViewModel keeps.
+ * @param limits How much timeline each ViewModel keeps.
  * @param interventionTimeout How long an intervention waits for its result or its tagged row before
  *   its deadline passes.
  * @param reduce The core: [TimeMachineState.on]. Replaced only by tests.
  */
 class TimeMachineStore(
     private val scope: CoroutineScope,
-    maxRows: Int = 1_000,
-    maxChars: Long = 32L * 1024 * 1024,
+    limits: Limits = Limits(),
     private val interventionTimeout: Duration = 5.seconds,
     private val reduce: TimeMachineState.(List<TimeMachineEvent>) -> Transition = { on(it) },
     private val execute: (TransportCommand) -> Unit,
@@ -44,7 +42,7 @@ class TimeMachineStore(
 
     private val events = Channel<TimeMachineEvent>(Channel.UNLIMITED)
 
-    private val mutableState = MutableStateFlow(TimeMachineState(limits = Limits(maxRows, maxChars)))
+    private val mutableState = MutableStateFlow(TimeMachineState(limits = limits))
 
     val state: StateFlow<TimeMachineState> = mutableState.asStateFlow()
 
