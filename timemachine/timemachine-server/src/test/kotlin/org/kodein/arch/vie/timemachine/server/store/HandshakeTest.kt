@@ -205,7 +205,7 @@ class HandshakeTest {
     }
 
     @Test
-    fun duplicateSessionIsNeverSent() {
+    fun aHelloForAConnectedSessionIsNeverRejected() {
         val (_, commands) = TimeMachineState().after(hello(c1, session), hello(c2, session), hello(c3, session))
 
         assertTrue(commands.none { it is Command.Send && it.message is TimeMachineServerMessage.Rejected })
