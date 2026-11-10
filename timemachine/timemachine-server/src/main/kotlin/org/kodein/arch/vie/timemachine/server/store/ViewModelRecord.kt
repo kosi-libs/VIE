@@ -69,8 +69,9 @@ data class TypeKey(val kind: VIEObjectKind, val typeName: String)
  *   included. A type that picked neither kind has no entry.
  * @property currentModel The latest Model observed, evicted rows included.
  * @property lastActivity The display time of its latest row, evicted rows included.
- * @property activity How many rows it had in each of its newest ten 3 s buckets, evicted rows
- *   included; `null` before its first row.
+ * @property activity How many rows it had in each of its newest ten 3 s buckets, by the time the
+ *   inspector received them rather than their display time, so that a device's clock cannot skew
+ *   them; evicted rows included; `null` before its first row.
  * @property interventions The interventions asked of it, in the order they were asked, kept for as
  *   long as the store holds the ViewModel.
  */
@@ -144,16 +145,17 @@ data class ViewModelRecord(
     /**
      * Places [row] by sequence, then evicts the oldest rows beyond [limits]. A row heavier than
      * [Limits.maxChars] on its own is counted as evicted without being placed, as is, thereby, a row
-     * older than a full timeline's oldest. What survives eviction is updated first.
+     * older than a full timeline's oldest. What survives eviction is updated first. [now] is when the
+     * inspector received it: what its [activity] counts it at.
      */
-    fun place(row: Row, limits: Limits): ViewModelRecord {
+    fun place(row: Row, limits: Limits, now: Instant): ViewModelRecord {
         val message = row.message
         val sequence = row.sequence
         var next = copy(
             rowCount = rowCount + 1,
             firstSequence = firstSequence?.let { minOf(it, sequence) } ?: sequence,
             lastActivity = lastActivity.newer(sequence, message.at),
-            activity = activity.counting(message.at),
+            activity = activity.counting(now),
         )
         if (message is TimeMachineClientMessage.Observed) {
             val observation = message.observation

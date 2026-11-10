@@ -13,8 +13,12 @@ const val ActivityBucketMillis: Long = 3_000
  * How many rows a ViewModel had in each of its newest [ActivityBuckets] buckets of
  * [ActivityBucketMillis], counted by the store so that eviction does not thin them.
  *
- * Buckets are aligned to absolute time, so a count only ever lands in the bucket its row's display
- * time belongs to: between two boundaries, only the last bucket grows.
+ * A row is counted at the time the inspector received it, not at its display time: the sparkline is
+ * read on the inspector's clock, and a device's clock may be behind, ahead, or step back. A burst
+ * resent after a reconnect is therefore drawn when it arrived.
+ *
+ * Buckets are aligned to absolute time, so a count only ever lands in the bucket its row's
+ * reception time belongs to: between two boundaries, only the last bucket grows.
  *
  * @property newest The index of the newest bucket, `epochMillis.floorDiv(ActivityBucketMillis)`.
  * @property counts The counts of the buckets ending at [newest], oldest first.
@@ -22,7 +26,7 @@ const val ActivityBucketMillis: Long = 3_000
 data class Activity(val newest: Long, val counts: List<Int>) {
 
     /**
-     * This activity once a row displayed at [at] is counted. A row older than the oldest bucket is
+     * This activity once a row received at [at] is counted. A row older than the oldest bucket is
      * not: it could never show.
      */
     fun counting(at: Instant): Activity {
@@ -46,8 +50,8 @@ data class Activity(val newest: Long, val counts: List<Int>) {
 
     internal fun sparkline(now: Instant): List<Int> {
         val last = bucketOf(now)
-        // A row ahead of now (a probe's clock running fast) counts in the last bucket. Only the
-        // buckets held can count, however far ahead the probe is.
+        // A row counted after the now the caller read, or once the inspector's own clock stepped
+        // back, counts in the last bucket. Only the buckets held can count, however far ahead.
         val ahead = (maxOf(last + 1, newest - ActivityBuckets + 1)..newest).sumOf { countAt(it) }
         return List(ActivityBuckets) { countAt(last - (ActivityBuckets - 1 - it)) + if (it == ActivityBuckets - 1) ahead else 0 }
     }
@@ -64,5 +68,5 @@ private fun List<Int>.with(index: Int, delta: Int): List<Int> = mapIndexed { i, 
 /** The ten bucket counts ending at the bucket of [now], oldest first; all zeros when nothing was counted. */
 internal fun Activity?.sparkline(now: Instant): List<Int> = this?.sparkline(now) ?: List(ActivityBuckets) { 0 }
 
-/** This activity once a row displayed at [at] is counted. */
+/** This activity once a row received at [at] is counted. */
 internal fun Activity?.counting(at: Instant): Activity = this?.counting(at) ?: Activity.first(at)
