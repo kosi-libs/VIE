@@ -13,6 +13,7 @@ import io.ktor.server.websocket.timeout
 import io.ktor.server.websocket.webSocket
 import io.ktor.websocket.CloseReason
 import io.ktor.websocket.Frame
+import io.ktor.websocket.FrameTooBigException
 import io.ktor.websocket.close
 import io.ktor.websocket.readText
 import kotlinx.coroutines.CoroutineExceptionHandler
@@ -46,6 +47,11 @@ import kotlin.time.Duration.Companion.seconds
  * [handshakeTimeout]; otherwise the connection is closed with a reason saying what arrived instead,
  * and a first frame that does not decode is printed. Every later text frame that does not decode, or
  * is a further `Hello`, is printed and skipped; a later non-text frame is ignored.
+ *
+ * A frame larger than [maxFrameSize] bytes, first or later, closes the connection before it is read:
+ * the probe is told it was too big, and the closing is printed. The default matches the default of
+ * [org.kodein.arch.vie.timemachine.server.store.Limits.maxChars]: a frame of that many bytes holds at
+ * most that many characters, so the cap refuses no frame a timeline would keep.
  */
 class TimeMachineServer(
     private val store: TimeMachineStore,
@@ -54,6 +60,7 @@ class TimeMachineServer(
     private val pingPeriod: Duration = 5.seconds,
     private val timeout: Duration = 10.seconds,
     private val handshakeTimeout: Duration = 10.seconds,
+    private val maxFrameSize: Long = 32L * 1024 * 1024,
 ) {
 
     private val nextId = AtomicLong()
@@ -85,6 +92,7 @@ class TimeMachineServer(
                 install(WebSockets) {
                     pingPeriod = this@TimeMachineServer.pingPeriod
                     timeout = this@TimeMachineServer.timeout
+                    maxFrameSize = this@TimeMachineServer.maxFrameSize
                 }
                 routing {
                     webSocket(TimeMachineConnection.path) { serve(ConnectionId(nextId.getAndIncrement())) }
@@ -159,6 +167,9 @@ class TimeMachineServer(
                     else -> store.post(TimeMachineEvent.MessageReceived(id, message, text.length, Clock.System.now()))
                 }
             }
+        } catch (e: FrameTooBigException) {
+            // Ktor already closed the connection, telling the probe why.
+            println("TimeMachine: closed connection ${id.value} on a ${e.frameSize}-byte frame, over the $maxFrameSize-byte cap")
         } finally {
             store.post(TimeMachineEvent.Disconnected(id, Clock.System.now()))
             connections.unregister(id)
@@ -168,10 +179,16 @@ class TimeMachineServer(
     /**
      * The connection's first frame, when it is a hello. Otherwise `null`, and the connection is
      * closed with a reason saying what arrived instead, unless the probe already left.
+     *
+     * @throws FrameTooBigException when the first frame is over [maxFrameSize].
      */
     private suspend fun DefaultWebSocketServerSession.handshake(id: ConnectionId): TimeMachineClientMessage.Hello? {
-        // A closed channel is a probe that left: there is no one to tell.
-        val frame = withTimeoutOrNull(handshakeTimeout) { incoming.receiveCatching() }?.let { it.getOrNull() ?: return null }
+        // A closed channel is a probe that left: there is no one to tell. A frame over the cap closes it
+        // too, and is reported as a later one would be.
+        val frame = withTimeoutOrNull(handshakeTimeout) { incoming.receiveCatching() }?.let { result ->
+            (result.exceptionOrNull() as? FrameTooBigException)?.let { throw it }
+            result.getOrNull() ?: return null
+        }
         val reason = when (frame) {
             null -> "Expected a hello within $handshakeTimeout"
             !is Frame.Text -> "Expected a hello, got a ${frame.frameType.name.lowercase()} frame"
