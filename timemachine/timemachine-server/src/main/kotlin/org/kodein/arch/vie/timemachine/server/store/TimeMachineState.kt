@@ -199,12 +199,12 @@ data class TimeMachineState(
         val known = (session.viewModels[id] ?: ViewModelRecord(id = id, info = null, firstSeenAt = now)).copy(seenOnTimeline = true)
         var vm = when (message) {
             is TimeMachineClientMessage.ViewModelStarted -> known.copy(info = message.info, awaitingInfo = false).let {
-                if (it.startSequence == null) it.copy(startSequence = message.sequence, startedAt = message.at).place(row, limits) else it
+                if (it.startSequence == null) it.copy(startSequence = message.sequence, startedAt = message.at).place(row, limits, now) else it
             }
             is TimeMachineClientMessage.ViewModelClosed ->
-                if (known.closeSequence == null) known.copy(closeSequence = message.sequence, closedAt = message.at, closed = true).place(row, limits)
+                if (known.closeSequence == null) known.copy(closeSequence = message.sequence, closedAt = message.at, closed = true).place(row, limits, now)
                 else known
-            is TimeMachineClientMessage.Observed, is TimeMachineClientMessage.ObservationsDropped -> known.place(row, limits)
+            is TimeMachineClientMessage.Observed, is TimeMachineClientMessage.ObservationsDropped -> known.place(row, limits, now)
         }
 
         // A drop report may hide a close: whether the ViewModel is alive is asked again.
