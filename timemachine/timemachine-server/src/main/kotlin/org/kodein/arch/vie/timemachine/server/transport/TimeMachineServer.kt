@@ -42,9 +42,10 @@ import kotlin.time.Duration.Companion.seconds
  * every [pingPeriod], and closed when a pong takes longer than [timeout], so that a half-open one is
  * noticed.
  *
- * A connection's first text frame must be a [TimeMachineClientMessage.Hello], within
- * [handshakeTimeout]; otherwise the connection is closed. Every later frame that does not decode, or
- * is a further `Hello`, is printed and skipped.
+ * A connection's first frame must be a text frame holding a [TimeMachineClientMessage.Hello], within
+ * [handshakeTimeout]; otherwise the connection is closed with a reason saying what arrived instead,
+ * and a first frame that does not decode is printed. Every later text frame that does not decode, or
+ * is a further `Hello`, is printed and skipped; a later non-text frame is ignored.
  */
 class TimeMachineServer(
     private val store: TimeMachineStore,
@@ -147,13 +148,7 @@ class TimeMachineServer(
     private suspend fun DefaultWebSocketServerSession.serve(id: ConnectionId) {
         connections.register(id, this)
         try {
-            val hello = withTimeoutOrNull(handshakeTimeout) { incoming.receiveCatching().getOrNull() }
-                ?.let { (it as? Frame.Text)?.readText() }
-                ?.let { decode(it) as? TimeMachineClientMessage.Hello }
-            if (hello == null) {
-                close(CloseReason(CloseReason.Codes.VIOLATED_POLICY, "Expected a hello within $handshakeTimeout"))
-                return
-            }
+            val hello = handshake(id) ?: return
             store.post(TimeMachineEvent.HelloReceived(id, hello, Clock.System.now()))
             for (frame in incoming) {
                 if (frame !is Frame.Text) continue
@@ -168,6 +163,32 @@ class TimeMachineServer(
             store.post(TimeMachineEvent.Disconnected(id, Clock.System.now()))
             connections.unregister(id)
         }
+    }
+
+    /**
+     * The connection's first frame, when it is a hello. Otherwise `null`, and the connection is
+     * closed with a reason saying what arrived instead, unless the probe already left.
+     */
+    private suspend fun DefaultWebSocketServerSession.handshake(id: ConnectionId): TimeMachineClientMessage.Hello? {
+        // A closed channel is a probe that left: there is no one to tell.
+        val frame = withTimeoutOrNull(handshakeTimeout) { incoming.receiveCatching() }?.let { it.getOrNull() ?: return null }
+        val reason = when (frame) {
+            null -> "Expected a hello within $handshakeTimeout"
+            !is Frame.Text -> "Expected a hello, got a ${frame.frameType.name.lowercase()} frame"
+            else -> {
+                val text = frame.readText()
+                when (val message = decode(text)) {
+                    is TimeMachineClientMessage.Hello -> return message
+                    null -> {
+                        println("TimeMachine: closed connection ${id.value} on an undecodable ${text.length}-character first frame: ${text.excerpt()}")
+                        "Expected a hello, got an undecodable frame"
+                    }
+                    else -> "Expected a hello, got a ${message::class.simpleName}"
+                }
+            }
+        }
+        close(CloseReason(CloseReason.Codes.VIOLATED_POLICY, reason))
+        return null
     }
 
     private fun decode(text: String): TimeMachineClientMessage? =

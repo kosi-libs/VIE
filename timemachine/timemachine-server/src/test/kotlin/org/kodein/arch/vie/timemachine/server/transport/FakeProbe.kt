@@ -42,6 +42,10 @@ internal class FakeProbe(private val port: Int) : AutoCloseable {
             session.send(Frame.Text(text))
         }
 
+        suspend fun sendBinary(bytes: ByteArray) {
+            session.send(Frame.Binary(true, bytes))
+        }
+
         suspend fun send(message: TimeMachineClientMessage) {
             sendText(TimeMachineJson.encodeToString(TimeMachineClientMessage.serializer(), message))
         }
@@ -52,6 +56,12 @@ internal class FakeProbe(private val port: Int) : AutoCloseable {
                 if (frame is Frame.Text) return TimeMachineJson.decodeFromString(TimeMachineServerMessage.serializer(), frame.readText())
             }
             return null
+        }
+
+        /** The reason the inspector gave when closing the connection, skipping any message before it. */
+        suspend fun closeReason(): String? {
+            while (receive() != null) continue
+            return session.closeReason.await()?.message
         }
 
         /** The next message other than a [TimeMachineServerMessage.Received]. */
