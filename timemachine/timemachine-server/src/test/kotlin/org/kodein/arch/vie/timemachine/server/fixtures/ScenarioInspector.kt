@@ -4,6 +4,7 @@ import kotlin.time.Clock
 import kotlin.time.Instant
 import kotlinx.coroutines.CoroutineDispatcher
 import kotlinx.coroutines.CoroutineScope
+import org.kodein.arch.vie.timemachine.server.store.Limits
 import org.kodein.arch.vie.timemachine.server.store.TimeMachineStore
 import org.kodein.arch.vie.timemachine.server.ui.core.Inspector
 import org.kodein.arch.vie.timemachine.server.ui.core.InspectorSelection
@@ -28,7 +29,7 @@ internal fun ScenarioData.newInspector(
     retry: () -> Unit = {},
 ): Inspector {
     val probe = FakeProbe(this, scope)
-    val store = TimeMachineStore(scope, maxRows = maxRows, interventionTimeout = interventionTimeout, execute = probe::execute)
+    val store = TimeMachineStore(scope, Limits(maxRows = maxRows), interventionTimeout = interventionTimeout, execute = probe::execute)
     probe.attach(store)
     events.forEach(store::post)
     return Inspector(store, InspectorSelection(), PaneVisibility(), InspectorViewModels(), compute, clock, retry)
