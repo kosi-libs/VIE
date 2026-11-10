@@ -60,7 +60,7 @@ class TimeMachineStore(
                         is TransportCommand -> try {
                             execute(command)
                         } catch (e: Exception) {
-                            report("skipped a command it failed to execute: $command", e)
+                            report("skipped a command it failed to execute: ${command.summary()}", e)
                         }
                         is Command.StartDeadline -> scope.launch {
                             delay(interventionTimeout)
@@ -89,6 +89,12 @@ class TimeMachineStore(
                 transition
             }
         }
+    }
+
+    /** What this command is and where it goes; not its message, as a frame can be large. */
+    private fun TransportCommand.summary(): String = when (this) {
+        is Command.Send -> "Send of ${message::class.simpleName} on $connection"
+        is Command.Close -> "Close of $connection"
     }
 
     private fun report(message: String, e: Exception) {
