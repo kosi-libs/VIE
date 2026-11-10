@@ -61,7 +61,8 @@ data class TypeKey(val kind: VIEObjectKind, val typeName: String)
  *   is never lost, so the one a lost answer would have inferred is not missed.
  * @property rows The retained rows, by sequence.
  * @property retainedChars How many characters of frame text [rows] weigh.
- * @property evictedCount How many rows the bounds removed, or never placed.
+ * @property evictedCount How many rows the bounds removed (the oldest), or never placed for being
+ *   heavier than [Limits.maxChars] (wherever they sit).
  * @property rowCount How many rows it ever had, evicted ones included.
  * @property latestJson The latest JSON of each observed type, evicted rows included.
  * @property signalDelivery The delivery kind of each Signal type observed, by type name, evicted rows

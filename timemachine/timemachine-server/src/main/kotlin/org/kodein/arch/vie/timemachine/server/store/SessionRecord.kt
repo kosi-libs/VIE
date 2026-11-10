@@ -91,7 +91,11 @@ sealed interface TimelineEntry {
     /** The ViewModel's history before the inspector heard of it is out of reach. */
     data object HistoryUnavailable : TimelineEntry
 
-    /** The bounds removed the [count] oldest rows. */
+    /**
+     * [count] rows are missing: the oldest ones, which the bounds removed, and any row heavier than
+     * [Limits.maxChars], which was never placed wherever it sits. The gap is therefore not
+     * necessarily above the first row shown.
+     */
     data class Evicted(val count: Int) : TimelineEntry
 
     /** A row: a bookend, an observation or a drop report. */
