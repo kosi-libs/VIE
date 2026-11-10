@@ -47,6 +47,8 @@ data class TypeKey(val kind: VIEObjectKind, val typeName: String)
  * @property seenOnTimeline Whether any timeline message named it, rather than only a re-announce.
  * @property startSequence The sequence of its [TimeMachineClientMessage.ViewModelStarted], once
  *   seen; kept when that row is evicted.
+ * @property firstSequence The lowest sequence of any row it had, placed or not; kept when that row
+ *   is evicted. `null` before its first row.
  * @property startedAt When the probe says it started, once its [TimeMachineClientMessage.ViewModelStarted]
  *   was seen; kept when that row is evicted.
  * @property closeSequence The sequence of its [TimeMachineClientMessage.ViewModelClosed], once seen.
@@ -77,6 +79,7 @@ data class ViewModelRecord(
     val firstSeenAt: Instant,
     val seenOnTimeline: Boolean = false,
     val startSequence: TimeMachineSequence? = null,
+    val firstSequence: TimeMachineSequence? = null,
     val startedAt: Instant? = null,
     val closeSequence: TimeMachineSequence? = null,
     val closedAt: Instant? = null,
@@ -118,7 +121,7 @@ data class ViewModelRecord(
      * Whether its history before the inspector heard of it is out of reach: its start was never
      * seen, and either the session was not seen from its beginning or the ViewModel came only from
      * a re-announce. In a session seen from sequence 0, an unseen start was dropped (a drop report
-     * is then its first row) or lost (a missing range shows it).
+     * is then its first row) or lost (its timeline shows the missing ranges below its first row).
      */
     fun historyUnavailable(sequences: SequenceLedger): Boolean =
         startSequence == null && ((sequences.floor ?: TimeMachineSequence.First) > TimeMachineSequence.First || !seenOnTimeline)
@@ -147,6 +150,7 @@ data class ViewModelRecord(
         val sequence = row.sequence
         var next = copy(
             rowCount = rowCount + 1,
+            firstSequence = firstSequence?.let { minOf(it, sequence) } ?: sequence,
             lastActivity = lastActivity.newer(sequence, message.at),
             activity = activity.counting(message.at),
         )

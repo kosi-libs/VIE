@@ -255,6 +255,55 @@ class TimelineTest {
     }
 
     @Test
+    fun aMissingRangeThatSwallowedTheStartIsShownAboveTheFirstRow() {
+        val (state) = connected().after(
+            receive(c1, started(other, 0)),
+            receive(c1, observed(vm, 2)), // 1, the start of vm, missing
+            receive(c1, vmInfo(vm)),
+        )
+
+        assertFalse(state.historyUnavailable())
+        assertEquals(seq(2), state.vm(session.id, vm).firstSequence)
+        assertEquals(listOf(TimelineEntry.PossiblyIncomplete(seqs(1, 1)), 2L), state.timeline().shape())
+    }
+
+    @Test
+    fun everyMissingRangeBelowAnUnseenStartIsShown() {
+        val (state) = connected().after(
+            receive(c1, observed(other, 0)),
+            receive(c1, observed(other, 2)), // 1 missing
+            receive(c1, observed(vm, 4)), // 3 missing
+        )
+
+        assertEquals(
+            listOf(TimelineEntry.PossiblyIncomplete(seqs(1, 1)), TimelineEntry.PossiblyIncomplete(seqs(3, 3)), 4L),
+            state.timeline().shape(),
+        )
+    }
+
+    @Test
+    fun aMissingRangeBelowAnEvictedFirstRowIsStillShown() {
+        val (state) = connected(Limits(maxRows = 1)).after(
+            receive(c1, observed(other, 0)),
+            receive(c1, observed(vm, 2)), // 1 missing
+            receive(c1, observed(vm, 3)),
+            receive(c1, observed(vm, 4)),
+        )
+
+        assertEquals(listOf(TimelineEntry.Evicted(2), TimelineEntry.PossiblyIncomplete(seqs(1, 1)), 4L), state.timeline().shape())
+    }
+
+    @Test
+    fun aViewModelWithNoRetainedRowStillShowsTheRangeBelowIt() {
+        val (state) = connected(Limits(maxChars = 5)).after(
+            receive(c1, observed(other, 0)),
+            receive(c1, observed(vm, 2)), // 1 missing; heavier than the bound, never placed
+        )
+
+        assertEquals(listOf(TimelineEntry.Evicted(1), TimelineEntry.PossiblyIncomplete(seqs(1, 1))), state.timeline().shape())
+    }
+
+    @Test
     fun aHealedRangeIsNoLongerShown() {
         val (state) = connected().after(
             receive(c1, started(vm, 0)),
