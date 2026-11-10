@@ -107,13 +107,31 @@ class TimeMachineServerTest {
         val connection = probe.connect()
         connection.send(started(vm, 0))
 
-        assertNull(connection.receive())
+        assertEquals("Expected a hello, got a ViewModelStarted", connection.closeReason())
+        assertEquals(emptyMap(), store.state.value.sessions)
+    }
+
+    @Test
+    fun aBinaryFirstFrameIsClosed() = withInspector {
+        val connection = probe.connect()
+        connection.sendBinary(byteArrayOf(1, 2, 3))
+
+        assertEquals("Expected a hello, got a binary frame", connection.closeReason())
+        assertEquals(emptyMap(), store.state.value.sessions)
+    }
+
+    @Test
+    fun anUndecodableFirstFrameIsClosed() = withInspector {
+        val connection = probe.connect()
+        connection.sendText("not a message")
+
+        assertEquals("Expected a hello, got an undecodable frame", connection.closeReason())
         assertEquals(emptyMap(), store.state.value.sessions)
     }
 
     @Test
     fun aProbeThatSaysNothingIsClosedAfterTheHandshakeTimeout() = withInspector {
-        assertNull(probe.connect().receive())
+        assertEquals("Expected a hello within 500ms", probe.connect().closeReason())
     }
 
     @Test
