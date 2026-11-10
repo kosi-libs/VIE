@@ -126,6 +126,6 @@ class ActivityTest {
         )
 
         assertEquals(last(1, 2), state.session(session.id).sparkline(base))
-        assertEquals(last(), SessionRecord(session, state.session(session.id).protocolVersion, null, state.session(session.id).connections).sparkline(base))
+        assertEquals(last(), SessionRecord(session, null, state.session(session.id).connections).sparkline(base))
     }
 }

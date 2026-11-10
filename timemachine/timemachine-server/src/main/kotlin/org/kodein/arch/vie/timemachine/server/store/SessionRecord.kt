@@ -21,7 +21,6 @@ import kotlin.uuid.Uuid
  */
 data class SessionRecord(
     val session: TimeMachineSession,
-    val protocolVersion: Int,
     val connection: ConnectionId?,
     val connections: List<ConnectionSpan>,
     val sequences: SequenceLedger = SequenceLedger(),
