@@ -2,6 +2,7 @@ package org.kodein.arch.vie.timemachine.server.store
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.time.Duration.Companion.days
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.Instant
 import kotlin.uuid.Uuid
@@ -86,6 +87,17 @@ class ActivityTest {
         )
 
         assertEquals(last(2), state.sparkline(base + 1.seconds))
+    }
+
+    @Test
+    fun aProbeYearsAheadHasAllItsRowsInTheLastBucket() {
+        val ahead = base + (10 * 365).days
+        val (state) = connected().after(
+            receive(c1, observed(vm, 0, at = ahead - 6.seconds)),
+            receive(c1, observed(vm, 1, at = ahead)),
+        )
+
+        assertEquals(last(2), state.sparkline(base))
     }
 
     @Test

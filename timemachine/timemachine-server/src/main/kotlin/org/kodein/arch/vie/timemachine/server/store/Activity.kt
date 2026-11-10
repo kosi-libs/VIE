@@ -46,8 +46,9 @@ data class Activity(val newest: Long, val counts: List<Int>) {
 
     internal fun sparkline(now: Instant): List<Int> {
         val last = bucketOf(now)
-        // A row ahead of now (a probe's clock running fast) counts in the last bucket.
-        val ahead = (last + 1..newest).sumOf { countAt(it) }
+        // A row ahead of now (a probe's clock running fast) counts in the last bucket. Only the
+        // buckets held can count, however far ahead the probe is.
+        val ahead = (maxOf(last + 1, newest - ActivityBuckets + 1)..newest).sumOf { countAt(it) }
         return List(ActivityBuckets) { countAt(last - (ActivityBuckets - 1 - it)) + if (it == ActivityBuckets - 1) ahead else 0 }
     }
 
