@@ -125,7 +125,6 @@ data class TimeMachineState(
         val session = if (known == null) {
             SessionRecord(
                 session = hello.session,
-                protocolVersion = hello.protocolVersion,
                 connection = connection,
                 connections = listOf(ConnectionSpan(ConnectionSpan.Edge(event.now, null))),
             )
@@ -137,7 +136,6 @@ data class TimeMachineState(
             // An evicted connection's span keeps no disconnect: this one's start is its only divider.
             known.copy(
                 session = hello.session,
-                protocolVersion = hello.protocolVersion,
                 connection = connection,
                 connections = known.connections + ConnectionSpan(ConnectionSpan.Edge(event.now, known.sequences.highest)),
             )
