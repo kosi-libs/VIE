@@ -70,16 +70,21 @@ data class TimeMachineState(
      * The timeline of ViewModel [viewModelId] in session [sessionId]: [TimelineEntry.HistoryUnavailable],
      * then [TimelineEntry.Evicted], at the top; then the rows by sequence, with a
      * [TimelineEntry.PossiblyIncomplete] in position at each missing range that overlaps the
-     * ViewModel's alive span and lies above its oldest retained row. Empty for an unknown session or
-     * ViewModel.
+     * ViewModel's alive span and lies either below the first row it ever had, where an unseen start
+     * may have been lost, or above its oldest retained row: what lies in between is covered by
+     * [TimelineEntry.Evicted]. Empty for an unknown session or ViewModel.
      */
     fun timeline(sessionId: Uuid, viewModelId: Uuid): List<TimelineEntry> {
         val session = sessions[sessionId] ?: return emptyList()
         val vm = session.viewModels[viewModelId] ?: return emptyList()
         val span = vm.aliveSpan(session.sequences)
+        val first = vm.firstSequence
         val oldest = vm.rows.firstOrNull()?.sequence
-        val markers = if (span == null || oldest == null) emptyList()
-        else session.sequences.missing.filter { it.start > oldest && it.start <= span.endInclusive && it.endInclusive >= span.start }
+        // A range never holds the first sequence, which was received: it lies wholly below or above it.
+        val markers = if (span == null || first == null) emptyList()
+        else session.sequences.missing.filter {
+            it.start <= span.endInclusive && it.endInclusive >= span.start && (it.endInclusive < first || (oldest != null && it.start > oldest))
+        }
         return buildList {
             if (vm.historyUnavailable(session.sequences)) add(TimelineEntry.HistoryUnavailable)
             if (vm.evictedCount > 0) add(TimelineEntry.Evicted(vm.evictedCount))

@@ -64,6 +64,20 @@ class SessionTimelineTest {
     }
 
     @Test
+    fun aRangeOnlyAViewModelWithAnUnseenStartWasAliveForIsShown() {
+        val (state) = connected().after(
+            receive(c1, started(a, 0)),
+            receive(c1, closed(a, 1)),
+            receive(c1, observed(b, 3)), // 2, maybe the start of b, missing
+        )
+
+        assertEquals(
+            listOf<Any>(SessionTimelineEntry.Divider.Kind.Connected, 0L, 1L, TimelineEntry.PossiblyIncomplete(seqs(2, 2)), 3L),
+            state.shape(),
+        )
+    }
+
+    @Test
     fun topMarkersAreOnePerAffectedViewModelAndNameIt() {
         val (state) = connected(Limits(maxRows = 1)).after(
             receive(c1, observed(a, 5)),
