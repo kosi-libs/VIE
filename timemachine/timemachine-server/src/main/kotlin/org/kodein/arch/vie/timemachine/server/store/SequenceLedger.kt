@@ -14,8 +14,9 @@ import org.kodein.arch.vie.timemachine.protocol.TimeMachineSequence
  * @property highest The highest sequence received, `null` before the first.
  * @property missing The sequences between [floor] and [highest] not received yet, as sorted,
  *   disjoint ranges. Never pruned, but it stays small: a lasting range only opens for a frame skipped
- *   as undecodable, which the next acknowledgement covers and the probe forgets; a range a reconnect
- *   opens is healed by the probe's resend or by the evicted connection's late frame.
+ *   as undecodable or because the core threw on it, which the inspector acknowledges all the same and
+ *   the probe forgets; a range a reconnect opens is healed by the probe's resend or by the evicted
+ *   connection's late frame.
  */
 data class SequenceLedger(
     val floor: TimeMachineSequence? = null,

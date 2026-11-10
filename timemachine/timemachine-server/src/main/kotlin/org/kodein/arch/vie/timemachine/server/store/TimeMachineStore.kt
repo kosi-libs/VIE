@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.JsonElement
+import org.kodein.arch.vie.timemachine.protocol.TimeMachineTimelineMessage
 import org.kodein.arch.vie.timemachine.protocol.VIEObjectKind
 import kotlin.time.Clock
 import kotlin.time.Duration
@@ -74,21 +75,34 @@ class TimeMachineStore(
 
     /**
      * [batch] applied to [state]; when the core throws, its events applied one at a time, without
-     * those it throws on. A skipped frame is not held, its sequence stays missing; a later frame's
-     * acknowledgement still covers it, so its probe is not stalled.
+     * those it throws on. A timeline frame it throws on is applied as a [TimeMachineEvent.Skipped]
+     * instead: not held, its sequence stays missing, but acknowledged, so that its probe forgets it.
+     * Waiting on it, the probe could stall for good, once the frames it waits on fill its window.
      */
     private fun apply(state: TimeMachineState, batch: List<TimeMachineEvent>): Transition = try {
         state.reduce(batch)
     } catch (_: Exception) {
         batch.fold(Transition(state)) { transition, event ->
-            try {
-                transition.state.reduce(listOf(event)).let { Transition(it.state, transition.commands + it.commands) }
-            } catch (e: Exception) {
-                // Only its type: a frame can be large.
-                report("skipped an event it failed to apply: ${event::class.simpleName}", e)
-                transition
+            transition.then(event) ?: run {
+                val skipped = event.skipped() ?: return@run transition
+                transition.then(skipped) ?: transition
             }
         }
+    }
+
+    /** This transition followed by [event], or `null`, reported, when the core throws on it. */
+    private fun Transition.then(event: TimeMachineEvent): Transition? = try {
+        state.reduce(listOf(event)).let { Transition(it.state, commands + it.commands) }
+    } catch (e: Exception) {
+        // Only its type: a frame can be large.
+        report("skipped an event it failed to apply: ${event::class.simpleName}", e)
+        null
+    }
+
+    /** The [TimeMachineEvent.Skipped] standing for this event, when it delivers a timeline frame. */
+    private fun TimeMachineEvent.skipped(): TimeMachineEvent.Skipped? {
+        val message = (this as? TimeMachineEvent.MessageReceived)?.message as? TimeMachineTimelineMessage ?: return null
+        return TimeMachineEvent.Skipped(connection, message.sequence)
     }
 
     /** What this command is and where it goes; not its message, as a frame can be large. */

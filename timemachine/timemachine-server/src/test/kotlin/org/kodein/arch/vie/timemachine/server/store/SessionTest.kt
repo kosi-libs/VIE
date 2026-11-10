@@ -131,6 +131,22 @@ class SessionTest {
     }
 
     @Test
+    fun aSkippedFrameIsAcknowledgedWithTheBatchAndLeftMissing() {
+        val (state, commands) = populated.on(listOf(receive(c1, observed(alive, 3)), TimeMachineEvent.Skipped(c1, seq(5))))
+
+        assertEquals(listOf(Command.Send(c1, TimeMachineServerMessage.Received(seq(5)))), commands)
+        assertEquals(populated.session(session.id).sequences.receive(seq(3)), state.session(session.id).sequences)
+    }
+
+    @Test
+    fun aSkippedFrameOnAConnectionWhoseHelloWasNotAcceptedIsNotAcknowledged() {
+        val (state, commands) = populated.on(listOf(TimeMachineEvent.Skipped(c2, seq(5))))
+
+        assertEquals(populated, state)
+        assertEquals(emptyList(), commands)
+    }
+
+    @Test
     fun nothingIsAcknowledgedOnAConnectionWhoseHelloWasNotAccepted() {
         val (_, commands) = populated.on(listOf(receive(c2, observed(alive, 3)), receive(c1, vmInfo(alive))))
 

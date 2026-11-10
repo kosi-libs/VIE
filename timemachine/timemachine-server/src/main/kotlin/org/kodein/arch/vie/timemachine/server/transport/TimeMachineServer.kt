@@ -22,9 +22,13 @@ import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeoutOrNull
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.longOrNull
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineClientMessage
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineConnection
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineJson
+import org.kodein.arch.vie.timemachine.protocol.TimeMachineSequence
 import org.kodein.arch.vie.timemachine.server.store.ConnectionId
 import org.kodein.arch.vie.timemachine.server.store.ListenerState
 import org.kodein.arch.vie.timemachine.server.store.TimeMachineEvent
@@ -46,7 +50,9 @@ import kotlin.time.Duration.Companion.seconds
  * A connection's first frame must be a text frame holding a [TimeMachineClientMessage.Hello], within
  * [handshakeTimeout]; otherwise the connection is closed with a reason saying what arrived instead,
  * and a first frame that does not decode is printed. Every later text frame that does not decode, or
- * is a further `Hello`, is printed and skipped; a later non-text frame is ignored.
+ * is a further `Hello`, is printed and skipped; a later non-text frame is ignored. A skipped frame
+ * whose JSON object still carries a numeric `sequence` is posted as a [TimeMachineEvent.Skipped], so
+ * that its probe, acknowledged, does not wait on it.
  *
  * A frame larger than [maxFrameSize] bytes, first or later, closes the connection before it is read:
  * the probe is told it was too big, and the closing is printed. The default matches the default of
@@ -162,7 +168,12 @@ class TimeMachineServer(
                 if (frame !is Frame.Text) continue
                 val text = frame.readText()
                 when (val message = decode(text)) {
-                    null -> println("TimeMachine: skipped an undecodable ${text.length}-character frame on connection ${id.value}: ${text.excerpt()}")
+                    null -> {
+                        val sequence = sequenceOf(text)
+                        val acknowledged = if (sequence == null) "" else " at sequence ${sequence.value}, acknowledged"
+                        println("TimeMachine: skipped an undecodable ${text.length}-character frame on connection ${id.value}$acknowledged: ${text.excerpt()}")
+                        sequence?.let { store.post(TimeMachineEvent.Skipped(id, it)) }
+                    }
                     is TimeMachineClientMessage.Hello -> println("TimeMachine: skipped a further hello on connection ${id.value}")
                     else -> store.post(TimeMachineEvent.MessageReceived(id, message, text.length, Clock.System.now()))
                 }
@@ -211,6 +222,18 @@ class TimeMachineServer(
     private fun decode(text: String): TimeMachineClientMessage? =
         try {
             TimeMachineJson.decodeFromString(TimeMachineClientMessage.serializer(), text)
+        } catch (_: Exception) {
+            null
+        }
+
+    /**
+     * The `sequence` of a frame that does not decode, read leniently: `null` unless it is a JSON
+     * object holding a whole number there.
+     */
+    private fun sequenceOf(text: String): TimeMachineSequence? =
+        try {
+            ((TimeMachineJson.parseToJsonElement(text) as? JsonObject)?.get("sequence") as? JsonPrimitive)
+                ?.takeUnless { it.isString }?.longOrNull?.let(::TimeMachineSequence)
         } catch (_: Exception) {
             null
         }

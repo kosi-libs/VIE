@@ -2,6 +2,7 @@ package org.kodein.arch.vie.timemachine.server.store
 
 import kotlinx.serialization.json.JsonElement
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineClientMessage
+import org.kodein.arch.vie.timemachine.protocol.TimeMachineSequence
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineServerMessage
 import org.kodein.arch.vie.timemachine.protocol.VIEObjectKind
 import kotlin.time.Instant
@@ -38,6 +39,16 @@ sealed interface TimeMachineEvent {
         val message: TimeMachineClientMessage,
         val length: Int,
         val now: Instant,
+    ) : TimeMachineEvent
+
+    /**
+     * A timeline frame of [connection] the inspector will never hold: it did not decode, or the core
+     * threw on it. It is acknowledged all the same, so that its probe forgets it rather than waiting
+     * on it; [sequence] stays missing.
+     */
+    data class Skipped(
+        val connection: ConnectionId,
+        val sequence: TimeMachineSequence,
     ) : TimeMachineEvent
 
     /** [connection] ended, whoever ended it. */
