@@ -4,6 +4,7 @@ import io.ktor.client.HttpClient
 import io.ktor.client.engine.cio.CIO
 import io.ktor.client.plugins.websocket.DefaultClientWebSocketSession
 import io.ktor.client.plugins.websocket.WebSockets
+import io.ktor.client.plugins.websocket.cio.webSocketRawSession
 import io.ktor.client.plugins.websocket.webSocketSession
 import io.ktor.websocket.Frame
 import io.ktor.websocket.close
@@ -30,6 +31,17 @@ internal class FakeProbe(private val port: Int) : AutoCloseable {
     suspend fun welcomed(session: TimeMachineSession): Connection = connect().apply {
         send(TimeMachineClientMessage.Hello(session, TimeMachineConnection.protocolVersion))
         check(receive() == TimeMachineServerMessage.Welcome)
+    }
+
+    /**
+     * Connects and says hello as [session], expecting a welcome, then reads nothing more: a raw
+     * session answers neither pings nor the inspector's close, as a half-open peer would not.
+     */
+    suspend fun welcomedHalfOpen(session: TimeMachineSession) {
+        val raw = http.webSocketRawSession(host = "localhost", port = port, path = TimeMachineConnection.path)
+        raw.send(Frame.Text(TimeMachineJson.encodeToString(TimeMachineClientMessage.serializer(), TimeMachineClientMessage.Hello(session, TimeMachineConnection.protocolVersion))))
+        val welcome = raw.incoming.receive()
+        check(welcome is Frame.Text && TimeMachineJson.decodeFromString(TimeMachineServerMessage.serializer(), welcome.readText()) == TimeMachineServerMessage.Welcome)
     }
 
     override fun close() {

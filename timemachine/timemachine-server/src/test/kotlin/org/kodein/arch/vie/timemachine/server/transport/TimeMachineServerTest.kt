@@ -8,6 +8,7 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
+import kotlin.time.TimeSource
 import kotlin.uuid.Uuid
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
@@ -165,6 +166,18 @@ class TimeMachineServerTest {
         val state = until { it.connections.size == 1 && it.sessions[session.id]?.viewModels?.get(vm)?.info != null }
         assertEquals(1, state.sessions.size)
         assertEquals(listOf(vm), state.sessions.getValue(session.id).viewModels.keys.toList())
+    }
+
+    @Test
+    fun anEvictedConnectionThatNeverAnswersTheCloseIsCancelledAfterTheCloseTimeout() = withInspector {
+        probe.welcomedHalfOpen(session)
+        val first = until { it.connections.size == 1 }.connections.keys.single()
+
+        val evicted = TimeSource.Monotonic.markNow()
+        probe.welcomed(session)
+        until { first !in it.connections }
+
+        assertTrue(evicted.elapsedNow() >= 800.milliseconds, "cancelled after ${evicted.elapsedNow()}, before the 1 s close timeout")
     }
 
     @Test
