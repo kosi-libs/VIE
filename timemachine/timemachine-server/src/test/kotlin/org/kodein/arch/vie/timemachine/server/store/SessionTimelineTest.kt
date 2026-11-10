@@ -130,14 +130,19 @@ class SessionTimelineTest {
 
     @Test
     fun aDividerWhoseRowIsGoneStillSortsByItsSequence() {
-        val (state) = connected().after(
+        val (state) = connected(Limits(maxRows = 1)).after(
             receive(c1, observed(a, 0)),
             receive(c1, observed(a, 1)),
             hello(c2, session, now = at(2)),
-            receive(c2, observed(a, 2)),
+            receive(c2, observed(a, 2)), // evicts 1, the row the reconnect divider sits after
         )
 
-        assertEquals(listOf<Any>(SessionTimelineEntry.Divider.Kind.Connected, 0L, 1L, SessionTimelineEntry.Divider.Kind.Reconnected, 2L), state.shape())
+        assertEquals(
+            listOf<Any>(a to TimelineEntry.Evicted(2), SessionTimelineEntry.Divider.Kind.Connected, SessionTimelineEntry.Divider.Kind.Reconnected, 2L),
+            state.shape(),
+        )
+        val reconnected = state.sessionTimeline(session.id).filterIsInstance<SessionTimelineEntry.Divider>().last()
+        assertEquals(seq(1), reconnected.after)
     }
 
     @Test
