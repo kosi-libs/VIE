@@ -51,7 +51,14 @@ internal interface ComposerVIE : VIE<ComposerVIE.Model, ComposerVIE.Intent, VIE.
         val requestId: Uuid? = null,
     )
 
-    data class Model(val controls: Controls = Controls(), val projection: ComposerProjection = ComposerProjection()) : VIE.Model
+    data class Model(val controls: Controls = Controls(), val projection: ComposerProjection = ComposerProjection()) : VIE.Model {
+
+        /**
+         * What the editor shows: the draft, else the prefill. The draft is the controls', set as it is
+         * typed, so the editor never waits for a projection, and never shows a text older than the draft.
+         */
+        val editorText: String get() = controls.draft ?: projection.target?.prefill?.json.orEmpty()
+    }
 
     sealed interface Intent : VIE.Intent {
         data class SetKind(val kind: VIEObjectKind) : Intent
@@ -81,7 +88,7 @@ internal interface ComposerVIE : VIE<ComposerVIE.Model, ComposerVIE.Intent, VIE.
 
 /**
  * @property target What the composer offers; `null` before the store knows the ViewModel.
- * @property text What the editor shows: the draft, else the prefill.
+ * @property parse What the parser says of the text the editor had when this was projected.
  * @property canSend Whether Send is enabled.
  * @property current The intervention sent from here last.
  * @property history Every intervention asked of the ViewModel, newest first.
@@ -98,7 +105,6 @@ internal data class ComposerProjection(
     val blockText: String? = null,
     val unserializable: Pair<VIEObjectKind, String>? = null,
     val target: ComposerTarget? = null,
-    val text: String = "",
     val parse: JsonParse = JsonParse.Valid(JsonObject(emptyMap())),
     val canSend: Boolean = false,
     val current: InterventionView? = null,
@@ -134,8 +140,7 @@ private fun composerProjection(
     val session = state.sessions[sessionId]
     val vm = session?.viewModels?.get(viewModelId)
     val target = composerTarget(session, vm, controls.kind, controls.chosenType, selection.selectedType(vm))
-    val text = controls.draft ?: target.prefill?.json.orEmpty()
-    val parse = parseJson(text)
+    val parse = parseJson(controls.draft ?: target.prefill?.json.orEmpty())
     val interventions = vm?.interventions?.values.orEmpty().toList()
     fun Intervention.view() = InterventionView(
         number = interventions.indexOf(this) + 1,
@@ -154,7 +159,6 @@ private fun composerProjection(
         blockText = blockText(session, vm, target.block),
         unserializable = vm?.info?.let { info -> VIEObjectKind.entries.firstOrNull { !info.role(it).isSerializable }?.let { it to info.role(it).typeName } },
         target = target,
-        text = text,
         parse = parse,
         canSend = target.canSend(parse),
         current = controls.requestId?.let { id -> interventions.firstOrNull { it.requestId == id } }?.view(),

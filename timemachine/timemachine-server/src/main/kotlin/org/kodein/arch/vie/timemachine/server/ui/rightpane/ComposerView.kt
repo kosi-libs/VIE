@@ -25,7 +25,6 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -45,11 +44,9 @@ import androidx.compose.ui.input.pointer.pointerHoverIcon
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.OffsetMapping
-import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.text.input.TransformedText
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
@@ -247,7 +244,7 @@ private fun JsonSection(model: ComposerVIE.Model, editorHeight: Dp, blocked: Boo
                 )
             }
         }
-        JsonEditorBox(projection.text, invalid, !blocked, editorHeight) { post(ComposerVIE.Intent.SetText(it)) }
+        JsonEditorBox(model.editorText, invalid, !blocked, editorHeight) { post(ComposerVIE.Intent.SetText(it)) }
         target.signalNote?.let { note ->
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 Symbol("warning", size = 15.dp, tint = colors.timeout)
@@ -297,18 +294,18 @@ private class JsonColoring(private val colors: InspectorColors) : VisualTransfor
 
 /**
  * A monospace editor with a line gutter. A line the parser rejected sits on the error tint with a
- * wavy underline. The text it shows is the controls', so typing never waits for a projection.
+ * wavy underline.
+ *
+ * [text] is the controls', which [onText] sets as it is typed: the editor keeps no copy of it, so it
+ * never waits for a projection, and a text replaced from outside (a reset, a format, another kind or
+ * type, a request) is simply the text it shows next, the caret staying where it was.
  */
 @Composable
 private fun JsonEditor(text: String, errorLine: Int?, enabled: Boolean, modifier: Modifier, onText: (String) -> Unit) {
     val scheme = MaterialTheme.colorScheme
     val colors = InspectorTheme.colors
-    var value by remember { mutableStateOf(TextFieldValue(text)) }
-    LaunchedEffect(text) {
-        if (text != value.text) value = TextFieldValue(text, TextRange(text.length))
-    }
     val lineHeight = with(LocalDensity.current) { InspectorDimens.codeLine.toSp() }
-    val lines = value.text.count { it == '\n' } + 1
+    val lines = text.count { it == '\n' } + 1
     val coloring = remember(colors) { JsonColoring(colors) }
     Row(
         modifier.verticalScroll(rememberScrollState()).padding(vertical = 6.dp).drawBehind {
@@ -337,12 +334,8 @@ private fun JsonEditor(text: String, errorLine: Int?, enabled: Boolean, modifier
             }
         }
         BasicTextField(
-            value = value,
-            onValueChange = {
-                val changed = it.text != value.text
-                value = it
-                if (changed) onText(it.text)
-            },
+            value = text,
+            onValueChange = onText,
             enabled = enabled,
             textStyle = monoStyle(12f, scheme.onSurfaceVariant).copy(lineHeight = lineHeight),
             cursorBrush = SolidColor(scheme.primary),
