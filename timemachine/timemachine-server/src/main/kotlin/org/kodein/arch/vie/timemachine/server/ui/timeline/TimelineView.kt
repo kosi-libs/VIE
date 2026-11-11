@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
+import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -549,10 +550,12 @@ private fun Rows(
     val noEntries = projection.hidden == 0 && items.none { it.observation != null } && !merged &&
         (projection.header as? TimelineHeader.ViewModel)?.info != null
 
-    // Following: the end stays in view as rows arrive.
+    // Following: the end stays in view as rows arrive. The end is the last thing the list is given, which
+    // is the no-entries item when there is one.
     val following = controls.follow is FollowState.Following
-    LaunchedEffect(following, items.lastOrNull()?.key, items.size) {
-        if (following && items.isNotEmpty()) state.scrollToItem(items.lastIndex)
+    val lastEmitted = lazyRowIndex(items.lastIndex, noMatch) + if (noEntries) 1 else 0
+    LaunchedEffect(following, items.lastOrNull()?.key, lastEmitted) {
+        if (following && items.isNotEmpty()) state.scrollToItem(lastEmitted)
     }
     // The developer moving away from the end pauses following; coming back to it resumes.
     // It collects for as long as the list is there: what it posts to is read when it posts.
@@ -566,15 +569,21 @@ private fun Rows(
             wasMoving = moving
         }
     }
-    // A newly selected row scrolls into view, when the filters leave it in the list: once the list is
-    // measured, for until then no row is in view, and a scroll that ends at the end would resume.
+    // A newly selected row scrolls into view, whole, when the filters leave it in the list: once the list
+    // is measured, for until then no row is in view, and a scroll that ends at the end would resume.
     LaunchedEffect(projection.selectedRow) {
         val selected = projection.selectedRow ?: return@LaunchedEffect
         val index = items.indexOfFirst { it.sequence == selected }
         if (index < 0) return@LaunchedEffect
         snapshotFlow { state.layoutInfo.visibleItemsInfo.isNotEmpty() }.first { it }
-        val visible = state.layoutInfo.visibleItemsInfo.any { it.index == index }
-        if (!visible) state.animateScrollToItem(index)
+        val layout = state.layoutInfo
+        val shown = layout.visibleItemsInfo.firstOrNull { it.key == items[index].key }
+        // A row out of view comes to the top; one that an edge cuts moves by what it lacks, and no more.
+        if (shown == null) state.animateScrollToItem(lazyRowIndex(index, noMatch))
+        else {
+            val distance = revealDistance(shown.offset, shown.size, layout.viewportStartOffset, layout.viewportEndOffset)
+            if (distance != 0) state.animateScrollBy(distance.toFloat())
+        }
     }
 
     Box(Modifier.fillMaxSize()) {
