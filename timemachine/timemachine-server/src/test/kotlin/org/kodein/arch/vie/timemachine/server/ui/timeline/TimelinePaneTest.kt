@@ -102,23 +102,44 @@ class TimelinePaneTest {
         },
     )
 
+    /** The rows the arrow keys step through: the observations, in the order the list has them. */
+    private fun TimelineVIE.Model.steps(): List<TimeMachineSequence> = projection.items.filter { it.observation != null }.mapNotNull { it.sequence }
+
     @Test
-    fun `ten steps down select the tenth row`() = timeline { inspector ->
+    fun `ten steps down select the tenth observation`() = timeline { inspector ->
         repeat(10) { post(TimelineVIE.Intent.Step(+1)) }
         runCurrent()
-        val rows = model.projection.items.mapNotNull { it.sequence }
-        assertEquals(rows[9], inspector.selection.state.value.row)
+        val steps = model.steps()
+        assertEquals(steps[9], inspector.selection.state.value.row)
         post(TimelineVIE.Intent.Step(-1))
         runCurrent()
-        assertEquals(rows[8], inspector.selection.state.value.row)
+        assertEquals(steps[8], inspector.selection.state.value.row)
     }
 
     @Test
     fun `stepping stops at the ends`() = timeline { inspector ->
-        val rows = model.projection.items.mapNotNull { it.sequence }
-        repeat(rows.size + 5) { post(TimelineVIE.Intent.Step(+1)) }
+        val steps = model.steps()
+        repeat(steps.size + 5) { post(TimelineVIE.Intent.Step(+1)) }
         runCurrent()
-        assertEquals(rows.last(), inspector.selection.state.value.row)
+        assertEquals(steps.last(), inspector.selection.state.value.row)
+        repeat(steps.size + 5) { post(TimelineVIE.Intent.Step(-1)) }
+        runCurrent()
+        assertEquals(steps.first(), inspector.selection.state.value.row)
+    }
+
+    @Test
+    fun `stepping goes over a row that is not an observation`() = timeline { inspector ->
+        // #215 reports dropped entries, between the observations #209 and #229: it has a sequence, and no selection to show.
+        assertTrue(model.projection.items.any { it.sequence == seq(215) && it.observation == null })
+        inspector.selection.selectRow(seq(209))
+
+        post(TimelineVIE.Intent.Step(+1))
+        runCurrent()
+        assertEquals(seq(229), inspector.selection.state.value.row)
+
+        post(TimelineVIE.Intent.Step(-1))
+        runCurrent()
+        assertEquals(seq(209), inspector.selection.state.value.row)
     }
 
     @Test
