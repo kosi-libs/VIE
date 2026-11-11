@@ -30,6 +30,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
@@ -537,12 +538,14 @@ private fun Rows(
         if (following && items.isNotEmpty()) state.scrollToItem(items.lastIndex)
     }
     // The developer moving away from the end pauses following; coming back to it resumes.
+    // It collects for as long as the list is there: what it posts to is read when it posts.
+    val currentPost by rememberUpdatedState(post)
     LaunchedEffect(state) {
         var wasMoving = false
         snapshotFlow { state.isScrollInProgress to state.canScrollForward }.distinctUntilChanged().collect { (moving, forward) ->
             // Only a scroll that ends at the end resumes: a list that fits never scrolled, so it keeps a pause.
-            if (moving && forward) post(TimelineVIE.Intent.ScrolledAway)
-            else if (!moving && !forward && wasMoving) post(TimelineVIE.Intent.Resume)
+            if (moving && forward) currentPost(TimelineVIE.Intent.ScrolledAway)
+            else if (!moving && !forward && wasMoving) currentPost(TimelineVIE.Intent.Resume)
             wasMoving = moving
         }
     }
