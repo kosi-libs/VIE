@@ -50,6 +50,7 @@ internal interface CurrentModelVIE : VIE<CurrentModelVIE.Model, CurrentModelVIE.
  * @property rawText The JSON as text, only computed while the controls ask for it.
  * @property changedPaths The tree nodes that differ from the Model observed before; empty when that one was evicted.
  * @property changedFrom The sequence of that previous Model.
+ * @property canReplace Whether "Edit & replace" is open: the Model has JSON, its type serializes and nothing blocks the composer.
  */
 internal data class CurrentModelProjection(
     val typeName: String? = null,
@@ -60,6 +61,7 @@ internal data class CurrentModelProjection(
     val rawText: String? = null,
     val changedPaths: Set<JsonPath> = emptySet(),
     val changedFrom: TimeMachineSequence? = null,
+    val canReplace: Boolean = false,
 )
 
 /** The previous Model, if still retained, and the nodes of [json] that differ from it. */
@@ -88,7 +90,9 @@ private fun currentModelProjection(
     changes: (sequence: TimeMachineSequence, json: JsonElement?) -> Pair<TimeMachineSequence?, Set<JsonPath>> =
         { sequence, json -> changesFrom(state, sessionId, viewModelId, sequence, json) },
 ): CurrentModelProjection {
-    val current = state.sessions[sessionId]?.viewModels?.get(viewModelId)?.currentModel ?: return CurrentModelProjection()
+    val session = state.sessions[sessionId]
+    val vm = session?.viewModels?.get(viewModelId)
+    val current = vm?.currentModel ?: return CurrentModelProjection()
     val observation = current.value
     val json = observation.asJson
     val (changedFrom, changedPaths) = changes(current.sequence, json)
@@ -101,14 +105,8 @@ private fun currentModelProjection(
         rawText = if (raw) json?.pretty() else null,
         changedPaths = changedPaths,
         changedFrom = changedFrom,
+        canReplace = json != null && vm.info?.model?.isSerializable == true && composerBlock(session, vm) == null,
     )
-}
-
-/** Whether "Edit & replace" is open on [projection]: the Model has JSON, its type serializes and nothing blocks the composer. */
-internal fun canReplaceModel(state: TimeMachineState, sessionId: Uuid, viewModelId: Uuid, projection: CurrentModelProjection): Boolean {
-    val session = state.sessions[sessionId]
-    val vm = session?.viewModels?.get(viewModelId) ?: return false
-    return projection.json != null && vm.info?.model?.isSerializable == true && composerBlock(session, vm) == null
 }
 
 internal class CurrentModelVM(

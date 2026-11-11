@@ -64,19 +64,16 @@ private const val HighlightFadeMillis = 400
 internal fun CurrentModelView(sessionId: Uuid, viewModelId: Uuid) {
     val inspector = LocalInspector.current
     val pane = remember(inspector, sessionId, viewModelId) { inspector.currentModelPane(sessionId, viewModelId) }
-    InspectorPane(pane) { model ->
-        val canReplace = canReplaceModel(inspector.store.state.value, sessionId, viewModelId, model.projection)
-        CurrentModelContent(model, canReplace) { post(it) }
-    }
+    InspectorPane(pane) { model -> CurrentModelContent(model) { post(it) } }
 }
 
 /**
  * The pinned current model, as [model] has it: its header, what changed since the Model before, and its
- * JSON. [canReplace] opens Edit & replace. In the compact layout ([LocalCompact]) it is lower, its button
- * says "Edit", and its header ends with the button that folds the right pane away.
+ * JSON. In the compact layout ([LocalCompact]) it is lower, its button says "Edit", and its header ends
+ * with the button that folds the right pane away.
  */
 @Composable
-private fun CurrentModelContent(model: CurrentModelVIE.Model, canReplace: Boolean, post: (CurrentModelVIE.Intent) -> Unit) {
+private fun CurrentModelContent(model: CurrentModelVIE.Model, post: (CurrentModelVIE.Intent) -> Unit) {
     run {
         val scheme = MaterialTheme.colorScheme
         val projection = model.projection
@@ -101,7 +98,7 @@ private fun CurrentModelContent(model: CurrentModelVIE.Model, canReplace: Boolea
                         "content_copy", size = 16.dp, tint = scheme.onSurfaceVariant,
                         modifier = Modifier.pointerHoverIcon(PointerIcon.Hand).clickable { copyToClipboard(projection.json.pretty()) }.padding(5.dp),
                     )
-                    EditButton(if (compact) "Edit" else "Edit & replace", canReplace) { post(CurrentModelVIE.Intent.EditAndReplace) }
+                    EditButton(if (compact) "Edit" else "Edit & replace", projection.canReplace) { post(CurrentModelVIE.Intent.EditAndReplace) }
                 }
                 if (compact) {
                     val viewState = LocalInspectorViewState.current
