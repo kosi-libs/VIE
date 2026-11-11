@@ -3,6 +3,7 @@ package org.kodein.arch.vie
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.lifecycle.viewmodel.CreationExtras
 import androidx.lifecycle.viewmodel.compose.viewModel
 
@@ -31,7 +32,8 @@ import androidx.lifecycle.viewmodel.compose.viewModel
  *   as receiver, so `createSavedStateHandle()` is available. Type the lambda with the
  *   concrete class: a lambda typed `VIEViewModel<…>` gets no class discrimination.
  * @param key Tells apart several instances of one ViewModel class under one owner. Without it,
- *   views of one class share one ViewModel.
+ *   views of one class share one ViewModel. When it changes, [content] starts over with the other
+ *   ViewModel: what it remembered is dropped, and its effects are restarted.
  * @param content The view, invoked with the current model and a [VIEViewScope] receiver.
  */
 @Composable
@@ -42,8 +44,12 @@ public inline fun <reified Model : VIE.Model, Intent : VIE.Intent, Signal : VIE.
     content: @Composable VIEViewScope<Intent, Signal>.(Model) -> Unit,
 ) {
     val vm = viewModel(key = viewModelKey(VM::class.simpleName, key)) { newVM() }
-    val model by vm.modelFlow.collectAsState()
-    vm.content(model)
+    // Keyed by the string, not by the ViewModel: the key's hash is part of the one `rememberSaveable` files its
+    // state under, and a ViewModel's hash does not survive the process.
+    key(key) {
+        val model by vm.modelFlow.collectAsState()
+        vm.content(model)
+    }
 }
 
 /**
