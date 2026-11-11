@@ -2,28 +2,30 @@ package org.kodein.arch.vie.timemachine.server.ui.timeline
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import org.kodein.arch.vie.timemachine.protocol.TimeMachineSequence
 
 
 class FollowStateTest {
 
+    private val last = TimeMachineSequence(270)
+
     @Test
-    fun scrollingAwayPausesFollowingWithNothingNew() {
-        assertEquals(FollowState.Paused(0), FollowState.Following.scrolledAway())
+    fun scrollingAwayPausesFollowingAtTheLastRow() {
+        assertEquals(FollowState.Paused(last), FollowState.Following.scrolledAway(last))
     }
 
     @Test
-    fun newEntriesOnlyCountWhilePaused() {
-        assertEquals(FollowState.Following, FollowState.Following.received(3))
-        assertEquals(FollowState.Paused(5), FollowState.Following.scrolledAway().received(2).received(3))
+    fun scrollingAwayFromATimelineWithNoRowPausesBeforeAnyRow() {
+        assertEquals(FollowState.Paused(null), FollowState.Following.scrolledAway(null))
     }
 
     @Test
-    fun scrollingAwayWhilePausedKeepsTheCount() {
-        assertEquals(FollowState.Paused(2), FollowState.Paused(2).scrolledAway())
+    fun scrollingAwayWhilePausedKeepsWhereThePauseBegan() {
+        assertEquals(FollowState.Paused(last), FollowState.Paused(last).scrolledAway(TimeMachineSequence(300)))
     }
 
     @Test
-    fun resumingZeroesTheCount() {
-        assertEquals(FollowState.Following, FollowState.Paused(7).resumed())
+    fun resumingFollowsAgain() {
+        assertEquals(FollowState.Following, FollowState.Paused(last).resumed())
     }
 }

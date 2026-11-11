@@ -383,7 +383,7 @@ private fun FilterBar(
             SearchField(filter.query, onSearchFocus) { post(TimelineVIE.Intent.SetQuery(it)) }
             if (projection.filterActive) FilterSummary(projection.hidden) { post(TimelineVIE.Intent.ClearFilters) }
         }
-        FollowToggle(controls.follow) { post(if (controls.follow is FollowState.Following) TimelineVIE.Intent.ScrolledAway else TimelineVIE.Intent.Resume) }
+        FollowToggle(controls.follow, projection.newCount) { post(if (controls.follow is FollowState.Following) TimelineVIE.Intent.ScrolledAway else TimelineVIE.Intent.Resume) }
         }
         HorizontalRule()
     }
@@ -488,7 +488,7 @@ private fun SearchField(query: String, onFocus: (Boolean) -> Unit, onChange: (St
 }
 
 @Composable
-private fun FollowToggle(follow: FollowState, onClick: () -> Unit) {
+private fun FollowToggle(follow: FollowState, newCount: Int, onClick: () -> Unit) {
     val scheme = MaterialTheme.colorScheme
     val following = follow is FollowState.Following
     Row(
@@ -504,7 +504,7 @@ private fun FollowToggle(follow: FollowState, onClick: () -> Unit) {
         val color = if (following) scheme.onPrimaryContainer else scheme.onSurfaceVariant
         Symbol(if (following) "vertical_align_bottom" else "pause", size = 15.dp, tint = color)
         Text(
-            if (follow is FollowState.Paused) "Paused · ${follow.newCount} new" else "Following",
+            if (follow is FollowState.Paused) "Paused · $newCount new" else "Following",
             style = MaterialTheme.typography.labelMedium.copy(fontSize = 11.5.sp), color = color, maxLines = 1,
         )
     }
@@ -608,7 +608,7 @@ private fun Rows(
                 Text("show", style = MaterialTheme.typography.labelMedium.copy(fontSize = 12.sp), color = scheme.primary)
             }
         }
-        (controls.follow as? FollowState.Paused)?.takeIf { it.newCount > 0 }?.let { paused ->
+        if (controls.follow is FollowState.Paused && projection.newCount > 0) {
             Row(
                 Modifier.align(Alignment.BottomCenter).padding(bottom = 14.dp)
                     .height(32.dp).background(scheme.primaryContainer, CircleShape)
@@ -618,7 +618,7 @@ private fun Rows(
                 horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically,
             ) {
                 Symbol("arrow_downward", size = 18.dp, tint = scheme.onPrimaryContainer)
-                Text("${paused.newCount} new", style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold), color = scheme.onPrimaryContainer)
+                Text("${projection.newCount} new", style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold), color = scheme.onPrimaryContainer)
             }
         }
     }

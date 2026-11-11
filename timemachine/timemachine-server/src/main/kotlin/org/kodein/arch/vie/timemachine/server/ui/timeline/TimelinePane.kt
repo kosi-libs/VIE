@@ -75,9 +75,6 @@ internal interface TimelineVIE : VIE<TimelineVIE.Model, TimelineVIE.Intent, VIE.
 
         /** The "selected row is hidden by filters" chip: clears the filters that hide it. */
         data object ShowSelectedRow : Intent
-
-        /** Posted by the pane itself, when [count] entries arrived. */
-        data class EntriesArrived(val count: Int) : Intent
     }
 }
 
@@ -88,6 +85,9 @@ internal interface TimelineVIE : VIE<TimelineVIE.Model, TimelineVIE.Intent, VIE.
  * @property selectedHidden Whether the selected row is retained but hidden by the filters.
  * @property kindCounts How many observations of each kind the scope retains, whatever the filter hides.
  * @property intervenedCount How many of those observations were sent by the inspector.
+ * @property lastSequence The highest sequence the scope retains, whatever the filter hides: where a pause begins.
+ * @property newCount While paused, how many rows of [items] came after the pause began: the filters decide which
+ *   count, as they stand now. None while following.
  */
 internal data class TimelineProjection(
     val header: TimelineHeader? = null,
@@ -99,6 +99,8 @@ internal data class TimelineProjection(
     val selectedHidden: Boolean = false,
     val kindCounts: Map<VIEObjectKind, Int> = emptyMap(),
     val intervenedCount: Int = 0,
+    val lastSequence: TimeMachineSequence? = null,
+    val newCount: Int = 0,
 )
 
 internal sealed interface TimelineHeader {
@@ -206,6 +208,11 @@ internal class TimelineProjector(private val scope: InspectorScope) {
             selectedHidden = selected != null && rows.any { it.sequence == selected } && items.none { it.sequence == selected },
             kindCounts = observations.groupingBy { it.kind }.eachCount(),
             intervenedCount = observations.count { it.interventionId != null },
+            lastSequence = rows.maxOfOrNull { it.sequence },
+            newCount = when (val follow = controls.follow) {
+                FollowState.Following -> 0
+                is FollowState.Paused -> items.count { item -> item.sequence?.let { follow.after == null || it > follow.after } ?: false }
+            },
         )
     }
 
@@ -292,19 +299,12 @@ internal class TimelineVM(
             inspector.selection.state,
             modelFlow.map { it.controls }.distinctUntilChanged(),
         ) { state, selection, controls -> Triple(state, selection.resolvedIn(state), controls) }
-        var lastSequence: TimeMachineSequence? = null
         project(
             inspector.whileShown(key(scope), inputs) {
                 val projector = TimelineProjector(scope);
                 { (state, selection, controls) -> projector.project(state, selection, controls) }
             },
-        ) { projection ->
-            // What is new is whatever sits after the last row the previous projection ended on.
-            val arrived = lastSequence?.let { last -> projection.items.count { (it.sequence ?: last) > last } } ?: 0
-            lastSequence = projection.items.mapNotNull { it.sequence }.maxOrNull() ?: lastSequence
-            if (arrived > 0) post(TimelineVIE.Intent.EntriesArrived(arrived))
-            copy(projection = projection)
-        }
+        ) { copy(projection = it) }
     }
 
     override suspend fun process(intent: TimelineVIE.Intent) {
@@ -313,7 +313,8 @@ internal class TimelineVM(
             is TimelineVIE.Intent.SetIntervenedOnly -> filter { copy(intervenedOnly = intent.intervenedOnly) }
             is TimelineVIE.Intent.SetQuery -> filter { copy(query = intent.query) }
             TimelineVIE.Intent.ClearFilters -> filter { TimelineFilter() }
-            TimelineVIE.Intent.ScrolledAway -> controls { copy(follow = follow.scrolledAway()) }
+            // The pause begins at the last row of the projection the developer was looking at.
+            TimelineVIE.Intent.ScrolledAway -> update { copy(controls = controls.copy(follow = controls.follow.scrolledAway(projection.lastSequence))) }
             TimelineVIE.Intent.Resume -> controls { copy(follow = follow.resumed()) }
             is TimelineVIE.Intent.ToggleExpanded ->
                 controls { copy(expanded = if (intent.sequence in expanded) expanded - intent.sequence else expanded + intent.sequence) }
@@ -325,7 +326,6 @@ internal class TimelineVM(
                 inspector.selection.selectRow(intent.sequence)
             }
             TimelineVIE.Intent.ShowSelectedRow -> showSelectedRow()
-            is TimelineVIE.Intent.EntriesArrived -> controls { copy(follow = follow.received(intent.count)) }
         }
     }
 
