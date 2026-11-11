@@ -4,6 +4,8 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.ProvidableCompositionLocal
+import androidx.compose.runtime.key
+import androidx.compose.runtime.saveable.rememberSaveableStateHolder
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.ViewModelStore
@@ -116,6 +118,12 @@ internal fun <Model : VIE.Model, Intent : VIE.Intent, Signal : VIE.Signal> Inspe
 /**
  * A pane's view: [VIEView] under the pane's key, in the inspector's ViewModels, with the pane marked
  * shown for as long as it is composed. Every pane view goes through it, so none can forget either.
+ *
+ * One call site shows a pane per scope, one at a time, and the view state below it belongs to the pane
+ * shown: when another takes its place, what [content] remembers starts anew, so no list, no effect and
+ * no model crosses from one ViewModel to another, and what it saves (a list's or a column's scroll) is
+ * kept and given back when its pane is shown there again. The saved states are the call site's own,
+ * because two call sites can show the same pane at once, as the rail and the drawer do.
  */
 @Composable
 internal inline fun <reified Model : VIE.Model, Intent : VIE.Intent, Signal : VIE.Signal> InspectorPane(
@@ -127,8 +135,14 @@ internal inline fun <reified Model : VIE.Model, Intent : VIE.Intent, Signal : VI
         inspector.visibility.show(pane.key)
         onDispose { inspector.visibility.hide(pane.key) }
     }
-    CompositionLocalProvider(LocalViewModelStoreOwner provides inspector.viewModels) {
-        VIEView(newVM = { pane.newVM() }, key = pane.key) { model -> content(model) }
+    rememberSaveableStateHolder().SaveableStateProvider(pane.key) {
+        // The provider alone hands the nodes of the pane it replaces to the next one, which a lazy list
+        // with a prefetch in flight does not survive: under a key of its own, the next pane's are new.
+        key(pane.key) {
+            CompositionLocalProvider(LocalViewModelStoreOwner provides inspector.viewModels) {
+                VIEView(newVM = { pane.newVM() }, key = pane.key) { model -> content(model) }
+            }
+        }
     }
 }
 
