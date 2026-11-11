@@ -15,10 +15,13 @@ import androidx.compose.ui.test.DesktopComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasScrollAction
+import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performKeyInput
+import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.pressKey
 import androidx.compose.ui.test.swipeDown
@@ -116,6 +119,57 @@ class TimelineViewTest {
             assertEndsOnLastRow(inspector, session)
         }
     }
+
+    private fun Inspector.timeline(scope: InspectorScope): TimelineVIE.Model = viewModel(timelinePane(scope)).modelFlow.value
+
+    /** The observations the timeline of [scope] shows, which are the rows a click or an arrow key selects. */
+    private fun Inspector.observations(scope: InspectorScope): List<TimeMachineSequence> =
+        timeline(scope).projection.items.filter { it.observation != null }.mapNotNull { it.sequence }
+
+    @Test
+    fun `after a click on a row, Enter expands the selected row`() =
+        paneTest(height = 300, content = { TimelineView(taskList) }) { inspector ->
+            inspector.selection.selectScope(taskList)
+            until { shown(taskListTitle) && topRow() != null }
+            waitForIdle()
+            val list = onNode(hasScrollAction()).fetchSemanticsNode().boundsInRoot
+            val clicked = observationRows().filter { it.top >= list.top && it.bottom <= list.bottom }.minByOrNull { it.top }?.sequence
+                ?: fail("no row is whole in the list")
+            val observations = inspector.observations(taskList)
+            val target = observations[observations.indexOf(clicked) + 2]
+
+            // A click with the mouse, which gives the row the focus.
+            onNode(hasClickAction() and hasText("#$clicked")).performClick()
+            until { inspector.selection.state.value.row == clicked }
+            repeat(2) { onRoot().performKeyInput { pressKey(Key.DirectionDown) } }
+            until { inspector.selection.state.value.row == target }
+
+            onRoot().performKeyInput { pressKey(Key.Enter) }
+            until { inspector.timeline(taskList).controls.expanded.isNotEmpty() || inspector.selection.state.value.row != target }
+
+            assertEquals(target, inspector.selection.state.value.row, "Enter selected another row")
+            assertEquals(setOf(target), inspector.timeline(taskList).controls.expanded)
+        }
+
+    @Test
+    fun `while the search field has the keyboard, the timeline's keys are not taken`() =
+        paneTest(height = 300, content = { TimelineView(taskList) }) { inspector ->
+            inspector.selection.selectScope(taskList)
+            until { shown(taskListTitle) && topRow() != null }
+            val selected = inspector.observations(taskList).last()
+            inspector.selection.selectRow(selected)
+            until { inspector.timeline(taskList).projection.selectedRow == selected }
+
+            onNode(hasSetTextAction()).performClick()
+            waitForIdle()
+            onRoot().performKeyInput { pressKey(Key.Enter); pressKey(Key.F) }
+            // What the keys would have posted comes before this query: once it is there, they have been handled.
+            onNode(hasSetTextAction()).performTextInput("x")
+            until { inspector.timeline(taskList).controls.filter.query.isNotEmpty() }
+
+            assertEquals(emptySet(), inspector.timeline(taskList).controls.expanded, "Enter expanded the selected row")
+            assertEquals(FollowState.Following, inspector.follow(taskList), "F paused the timeline")
+        }
 
     @Test
     fun `a selected row that an edge of the list cuts comes whole into view`() =

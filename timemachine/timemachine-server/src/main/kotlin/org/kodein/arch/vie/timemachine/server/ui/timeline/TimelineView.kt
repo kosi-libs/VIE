@@ -46,7 +46,7 @@ import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
-import androidx.compose.ui.input.key.onKeyEvent
+import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.input.pointer.PointerIcon
 import androidx.compose.ui.input.pointer.pointerHoverIcon
@@ -119,6 +119,8 @@ internal fun TimelineView(scope: InspectorScope, modifier: Modifier = Modifier, 
  * The centre pane for [scope], as [model] has it: its header, [banner], the filter bar, the column
  * heads and the rows. The keys ↑ ↓ step through the rows, ⏎ expands the selected one, E edits and
  * intervenes on it, F toggles following; [selectedRow] says which that is when one is pressed.
+ * They are the pane's wherever the focus is within it, except in the search field: a control that has
+ * the focus is activated with the space bar.
  */
 @Composable
 private fun TimelineContent(
@@ -135,8 +137,10 @@ private fun TimelineContent(
     Column(
         modifier
             .focusable()
-            .onKeyEvent { event ->
-                if (searching || event.type != KeyEventType.KeyDown) return@onKeyEvent false
+            // Before what has the focus sees them: a row, a chip or any other clickable takes the focus when
+            // it is clicked with the mouse, and would then keep Enter for itself. The search field types them.
+            .onPreviewKeyEvent { event ->
+                if (searching || event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
                 val selected = selectedRow()
                 when (event.key) {
                     Key.DirectionDown -> post(TimelineVIE.Intent.Step(1))
@@ -144,7 +148,7 @@ private fun TimelineContent(
                     Key.Enter -> selected?.let { post(TimelineVIE.Intent.ToggleExpanded(it)) }
                     Key.E -> selected?.let { post(TimelineVIE.Intent.ComposeFrom(it)) }
                     Key.F -> post(if (controls.follow is FollowState.Following) TimelineVIE.Intent.ScrolledAway else TimelineVIE.Intent.Resume)
-                    else -> return@onKeyEvent false
+                    else -> return@onPreviewKeyEvent false
                 }
                 true
             },
