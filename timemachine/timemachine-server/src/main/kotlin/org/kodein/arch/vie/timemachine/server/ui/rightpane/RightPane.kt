@@ -130,7 +130,7 @@ private fun RightTabs(tab: RightTab, vm: ViewModelRecord, onSelect: (RightTab) -
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         if (entry == RightTab.Detail) "Detail" else "Intervene",
-                        style = MaterialTheme.typography.labelLarge.copy(fontSize = 12.5.sp),
+                        style = MaterialTheme.typography.labelMedium,
                         color = if (on) scheme.primary else scheme.onSurfaceVariant,
                     )
                     badge?.let {

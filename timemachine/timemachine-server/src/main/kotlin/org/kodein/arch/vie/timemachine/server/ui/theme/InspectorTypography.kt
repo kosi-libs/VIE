@@ -44,8 +44,13 @@ internal fun rememberInspectorFonts(): InspectorFonts {
 @Immutable
 data class InspectorTextStyles(val codeRow: TextStyle, val codeBlock: TextStyle)
 
-/** Material3 roles as in the type scale of the design's token table (§07). */
+/**
+ * Material3 roles as in the type scale of the design's token table (§07). The roles the scale does not
+ * define stay Material's, in Plex: a text that takes one, or no style at all, is still drawn in a
+ * bundled font.
+ */
 internal fun inspectorTypography(fonts: InspectorFonts): Typography = Typography(
+    fontFamily = fonts.plex,
     titleMedium = TextStyle(fontFamily = fonts.mono, fontSize = 15.sp, lineHeight = 20.sp, fontWeight = FontWeight.SemiBold),
     titleSmall = TextStyle(fontFamily = fonts.plex, fontSize = 12.sp, lineHeight = 16.sp, fontWeight = FontWeight.SemiBold),
     bodyMedium = TextStyle(fontFamily = fonts.plex, fontSize = 13.sp, lineHeight = 18.sp, fontWeight = FontWeight.Normal),

@@ -150,7 +150,7 @@ private fun KindSegments(kind: VIEObjectKind, enabled: Set<VIEObjectKind>, block
                 horizontalArrangement = Arrangement.spacedBy(4.dp, Alignment.CenterHorizontally), verticalAlignment = Alignment.CenterVertically,
             ) {
                 if (on) Symbol("check", size = 15.dp, tint = foreground) else if (!ok) Symbol("block", size = 15.dp, tint = foreground)
-                Text(entry.name, style = MaterialTheme.typography.labelLarge.copy(fontSize = 12.sp), color = foreground, maxLines = 1)
+                Text(entry.name, style = MaterialTheme.typography.labelMedium.copy(fontSize = 12.sp), color = foreground, maxLines = 1)
             }
         }
     }
@@ -232,14 +232,14 @@ private fun JsonSection(model: ComposerVIE.Model, editorHeight: Dp, blocked: Boo
     val invalid = projection.parse as? JsonParse.Invalid
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text("JSON", style = MaterialTheme.typography.labelLarge.copy(fontSize = 11.5.sp), color = scheme.onSurface)
+            Text("JSON", style = MaterialTheme.typography.labelMedium.copy(fontSize = 11.5.sp), color = scheme.onSurface)
             Text(
                 prefillNote(target.type.orEmpty(), target.kind, target.prefill?.source, edited = model.controls.draft != null),
                 style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.5.sp), color = scheme.outline, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f),
             )
             for ((label, intent) in listOf("Format" to ComposerVIE.Intent.Format, "Reset" to ComposerVIE.Intent.Reset)) {
                 Text(
-                    label, style = MaterialTheme.typography.labelLarge.copy(fontSize = 11.5.sp), color = scheme.primary,
+                    label, style = MaterialTheme.typography.labelMedium.copy(fontSize = 11.5.sp), color = scheme.primary,
                     modifier = Modifier.then(if (blocked) Modifier else Modifier.pointerHoverIcon(PointerIcon.Hand).clickable { post(intent) }),
                 )
             }
@@ -370,7 +370,7 @@ private fun SendRow(kind: VIEObjectKind, enabled: Boolean, onSend: () -> Unit) {
             horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically,
         ) {
             Symbol(glyph, size = 17.dp, tint = foreground)
-            Text(verb(kind), style = MaterialTheme.typography.labelLarge.copy(fontSize = 13.sp), color = foreground, maxLines = 1)
+            Text(verb(kind), style = MaterialTheme.typography.labelMedium.copy(fontSize = 13.sp), color = foreground, maxLines = 1)
         }
         Text(effect, style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.5.sp), color = scheme.onSurfaceVariant, modifier = Modifier.weight(1f))
     }
@@ -462,7 +462,7 @@ private fun ResultCard(view: InterventionView, projection: ComposerProjection, p
             CircularProgressIndicator(Modifier.padding(top = 1.dp).size(14.dp), color = scheme.primary, trackColor = InspectorTheme.colors.strongOutline, strokeWidth = 2.dp)
         } else Symbol(tone.glyph, size = 18.dp, tint = tone.glyphColor)
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text(title, style = MaterialTheme.typography.labelLarge.copy(fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold), color = tone.title)
+            Text(title, style = MaterialTheme.typography.labelMedium.copy(fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold), color = tone.title)
             Text(body, style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp), color = scheme.onSurfaceVariant)
             if (reasons.isNotEmpty()) Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 reasons.forEach { reason ->
@@ -478,7 +478,7 @@ private fun ResultCard(view: InterventionView, projection: ComposerProjection, p
                     Modifier.pointerHoverIcon(PointerIcon.Hand).clickable { post(ComposerVIE.Intent.SelectRow(status.sequence)) },
                     horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Text("Jump to #${status.sequence}", style = MaterialTheme.typography.labelLarge.copy(fontSize = 12.sp), color = scheme.primary)
+                    Text("Jump to #${status.sequence}", style = MaterialTheme.typography.labelMedium.copy(fontSize = 12.sp), color = scheme.primary)
                     Symbol("arrow_forward", size = 15.dp, tint = scheme.primary)
                 } else Text("Row #${status.sequence} is evicted", style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.5.sp), color = scheme.outline)
             }
@@ -489,7 +489,7 @@ private fun ResultCard(view: InterventionView, projection: ComposerProjection, p
                 )
             }
             if (status == InterventionStatus.TimedOut) Text(
-                "Resend", style = MaterialTheme.typography.labelLarge.copy(fontSize = 12.sp), color = scheme.primary,
+                "Resend", style = MaterialTheme.typography.labelMedium.copy(fontSize = 12.sp), color = scheme.primary,
                 modifier = Modifier.pointerHoverIcon(PointerIcon.Hand).clickable { post(ComposerVIE.Intent.Resend(view.requestId)) },
             )
         }
