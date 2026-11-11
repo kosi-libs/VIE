@@ -100,6 +100,9 @@ An argument that changes while the screen stays in the composition needs a `key`
 Otherwise, give each screen its own owner, such as a navigation entry.
 `newVM` is not a composable function: it cannot read a `State` or a `CompositionLocal`.
 
+When the `key` changes, the view starts over with the other ViewModel: what it remembered is dropped, and its effects, `SignalEffect` included, are restarted.
+The ViewModel of the previous key stays in the store with its model: going back to that key shows it again.
+
 WARNING: On the JVM, on Android and on iOS, a ViewModel declared as a local class needs a `key`: without one, `VIEView` throws an `IllegalArgumentException`, "Local and anonymous classes can not be ViewModels".
 Web targets do not throw.
 
