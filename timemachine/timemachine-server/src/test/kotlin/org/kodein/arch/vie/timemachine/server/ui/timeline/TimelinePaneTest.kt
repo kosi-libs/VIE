@@ -207,17 +207,61 @@ class TimelinePaneTest {
     @Test
     fun `entries that arrive while the developer scrolled away are counted, and resuming zeroes them`() =
         timeline { inspector ->
+            assertEquals(seq(270), model.projection.lastSequence)
             post(TimelineVIE.Intent.ScrolledAway)
             runCurrent()
-            assertEquals(FollowState.Paused(0), model.controls.follow)
+            assertEquals(FollowState.Paused(seq(270)), model.controls.follow, "paused at the last row there was")
+            assertEquals(0, model.projection.newCount)
 
             inspector.store.post(rowOfTaskList(272))
             runCurrent()
-            assertEquals(FollowState.Paused(1), model.controls.follow)
+            assertEquals(1, model.projection.newCount)
 
             post(TimelineVIE.Intent.Resume)
             runCurrent()
             assertEquals(FollowState.Following, model.controls.follow)
+            assertEquals(0, model.projection.newCount)
+        }
+
+    @Test
+    fun `a filter loosened while paused brings back rows that are not new`() = timeline {
+        post(TimelineVIE.Intent.ScrolledAway)
+        // Only two old Intents match: the newest rows are hidden.
+        post(TimelineVIE.Intent.SetQuery("UpdateTaskCompletion"))
+        runCurrent()
+        assertEquals(listOf(seq(203), seq(205)), model.projection.items.filter { it.observation != null }.mapNotNull { it.sequence })
+
+        post(TimelineVIE.Intent.ClearFilters)
+        runCurrent()
+
+        assertEquals(0, model.projection.newCount)
+    }
+
+    @Test
+    fun `a row that arrived while a filter hid it is new once the filter shows it`() = timeline { inspector ->
+        post(TimelineVIE.Intent.ScrolledAway)
+        post(TimelineVIE.Intent.ToggleKind(VIEObjectKind.Model))
+        runCurrent()
+
+        inspector.store.post(rowOfTaskList(272))
+        runCurrent()
+        assertEquals(0, model.projection.newCount, "the new row is a Model, which the filter hides")
+
+        post(TimelineVIE.Intent.ClearFilters)
+        runCurrent()
+        assertEquals(1, model.projection.newCount)
+    }
+
+    @Test
+    fun `a pause on a timeline with no row counts every row that comes`() =
+        timeline("noEntries", InspectorScope.ViewModel(Demo.session.id, Demo.silent)) { inspector ->
+            post(TimelineVIE.Intent.ScrolledAway)
+            runCurrent()
+            assertEquals(FollowState.Paused(null), model.controls.follow)
+
+            inspector.store.post(rowOf(Demo.silent, 272))
+            runCurrent()
+            assertEquals(1, model.projection.newCount)
         }
 
     @Test
@@ -278,11 +322,13 @@ class TimelinePaneTest {
             assertIs<TimelineHeader.ViewModel>(model.projection.header)
         }
 
-    private fun rowOfTaskList(sequence: Long): TimeMachineEvent = TimeMachineEvent.MessageReceived(
+    private fun rowOfTaskList(sequence: Long): TimeMachineEvent = rowOf(Demo.taskList, sequence)
+
+    private fun rowOf(viewModelId: kotlin.uuid.Uuid, sequence: Long): TimeMachineEvent = TimeMachineEvent.MessageReceived(
         Demo.connection,
         org.kodein.arch.vie.timemachine.protocol.TimeMachineClientMessage.Observed(
             org.kodein.arch.vie.timemachine.protocol.VIEObservation(
-                Demo.taskList, Demo.now, VIEObjectKind.Model, Demo.TaskListModel, "Model(tasks=[], work=[])",
+                viewModelId, Demo.now, VIEObjectKind.Model, Demo.TaskListModel, "Model(tasks=[], work=[])",
                 Demo.taskListModel(emptyList()),
             ),
             seq(sequence),
