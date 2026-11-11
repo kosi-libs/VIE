@@ -64,7 +64,7 @@ internal interface TimelineVIE : VIE<TimelineVIE.Model, TimelineVIE.Intent, VIE.
         data class ToggleExpanded(val sequence: TimeMachineSequence) : Intent
         data class SelectRow(val sequence: TimeMachineSequence) : Intent
 
-        /** The arrow keys: the row [delta] places after the selected one, in the filtered list. */
+        /** The arrow keys: the observation [delta] places after the selected one, in the filtered list. */
         data class Step(val delta: Int) : Intent
 
         /** Edit & intervene on a row. */
@@ -335,10 +335,13 @@ internal class TimelineVM(
 
     /**
      * Read from the holder's current value, so held keys never race: a first press selects the first
-     * row (the last, going up), and the ends stop.
+     * observation (the last, going up), and the ends stop.
+     *
+     * Only the observations are steps. A bookend or a drop report has a sequence too, but it draws no
+     * selection, a click does not select it, and the Detail tab has nothing to say of it.
      */
     private fun step(delta: Int) {
-        val rows = model.projection.items.mapNotNull { it.sequence }
+        val rows = model.projection.items.filter { it.observation != null }.mapNotNull { it.sequence }
         if (rows.isEmpty()) return
         val current = inspector.selection.state.value.row?.let(rows::indexOf)?.takeIf { it >= 0 }
         val next = when {
