@@ -92,7 +92,7 @@ class ComposerPaneTest {
         post(ComposerVIE.Intent.SetKind(VIEObjectKind.Intent))
         runCurrent()
         assertEquals(PrefillSource.Observed(TimeMachineSequence(266)), model.projection.target?.prefill?.source)
-        assertTrue(model.projection.text.contains("taskId"))
+        assertTrue(model.editorText.contains("taskId"))
         assertEquals(listOf(Demo.DeleteTask, Demo.UpdateTaskCompletion), model.projection.target?.types)
     }
 
@@ -128,12 +128,13 @@ class ComposerPaneTest {
         composer(shown = false) { inspector ->
             inspector.selection.composeFrom(Demo.taskList, VIEObjectKind.Intent, Demo.DeleteTask, "{\"#type\": \"x\"}")
             runCurrent()
-            assertEquals("", model.projection.text, "nothing is projected while hidden")
+            assertNull(model.projection.target, "nothing is projected while hidden")
 
             inspector.visibility.show(ComposerVM.key(Demo.taskList))
             runCurrent()
 
-            assertEquals("{\"#type\": \"x\"}", model.projection.text)
+            assertEquals(VIEObjectKind.Intent, model.projection.target?.kind)
+            assertEquals("{\"#type\": \"x\"}", model.editorText)
             assertNull(inspector.selection.state.value.composerRequest)
         }
 
