@@ -552,10 +552,15 @@ private fun Rows(
 
     // Following: the end stays in view as rows arrive. The end is the last thing the list is given, which
     // is the no-entries item when there is one.
+    // It goes there again each time the list's own height changes: under the header that comes with the
+    // first projection, a banner or a filter bar that wraps, the list is shortened from its end.
+    // The position is asked for the next measure, not forced: this can run within a layout pass, and
+    // before the list has been measured at its new height.
     val following = controls.follow is FollowState.Following
     val lastEmitted = lazyRowIndex(items.lastIndex, noMatch) + if (noEntries) 1 else 0
-    LaunchedEffect(following, items.lastOrNull()?.key, lastEmitted) {
-        if (following && items.isNotEmpty()) state.scrollToItem(lastEmitted)
+    LaunchedEffect(state, following, items.lastOrNull()?.key, lastEmitted) {
+        if (!following || items.isEmpty()) return@LaunchedEffect
+        snapshotFlow { state.layoutInfo.viewportSize }.collect { state.requestScrollToItem(lastEmitted) }
     }
     // The developer moving away from the end pauses following; coming back to it resumes.
     // It collects for as long as the list is there: what it posts to is read when it posts.

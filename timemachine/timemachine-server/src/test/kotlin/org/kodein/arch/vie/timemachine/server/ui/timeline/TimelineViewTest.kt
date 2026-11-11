@@ -2,9 +2,12 @@
 
 package org.kodein.arch.vie.timemachine.server.ui.timeline
 
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.height
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.getOrNull
@@ -20,6 +23,7 @@ import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.pressKey
 import androidx.compose.ui.test.swipeDown
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.unit.dp
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -78,6 +82,39 @@ class TimelineViewTest {
     private fun DesktopComposeUiTest.cutRows(): List<RowBounds> {
         val list = onNode(hasScrollAction()).fetchSemanticsNode().boundsInRoot
         return observationRows().filter { (it.top < list.top && it.bottom > list.top) || (it.top < list.bottom && it.bottom > list.bottom) }
+    }
+
+    /** Fails unless the last row of the timeline of [scope] is whole in the list. */
+    private fun DesktopComposeUiTest.assertEndsOnLastRow(inspector: Inspector, scope: InspectorScope) {
+        val last = inspector.viewModel(inspector.timelinePane(scope)).modelFlow.value.projection.items.last().sequence
+        val list = onNode(hasScrollAction()).fetchSemanticsNode().boundsInRoot
+        val row = observationRows().firstOrNull { it.sequence == last } ?: fail("row #$last, the last one, is not in the list")
+        assertTrue(row.top >= list.top && row.bottom <= list.bottom, "row #$last, the last one, is cut: ${row.top}..${row.bottom} in ${list.top}..${list.bottom}")
+    }
+
+    @Test
+    fun `a timeline shown for the first time ends on its last row`() =
+        paneTest(height = 300, content = { TimelineView(session) }) { inspector ->
+            until { shown(sessionTitle) && topRow() != null }
+            waitForIdle()
+
+            assertEquals(FollowState.Following, inspector.follow(session))
+            assertEndsOnLastRow(inspector, session)
+        }
+
+    @Test
+    fun `a following timeline whose list gets shorter stays on its last row`() {
+        var height by mutableStateOf(300)
+        paneTest(height = 300, content = { Box(Modifier.height(height.dp)) { TimelineView(session) } }) { inspector ->
+            until { shown(sessionTitle) && topRow() != null }
+            waitForIdle()
+
+            height = 240
+            waitForIdle()
+
+            assertEquals(FollowState.Following, inspector.follow(session))
+            assertEndsOnLastRow(inspector, session)
+        }
     }
 
     @Test
