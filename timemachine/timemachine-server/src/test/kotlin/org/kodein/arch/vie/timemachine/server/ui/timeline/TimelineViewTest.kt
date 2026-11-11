@@ -10,6 +10,7 @@ import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.DesktopComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasScrollAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.onNodeWithText
@@ -25,6 +26,8 @@ import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertNotEquals
 import kotlin.test.assertTrue
+import kotlin.test.fail
+import org.kodein.arch.vie.timemachine.protocol.TimeMachineSequence
 import org.kodein.arch.vie.timemachine.server.fixtures.Demo
 import org.kodein.arch.vie.timemachine.server.fixtures.paneTest
 import org.kodein.arch.vie.timemachine.server.fixtures.shown
@@ -61,6 +64,42 @@ class TimelineViewTest {
             .minByOrNull { it.boundsInRoot.top }
             ?.config?.getOrNull(SemanticsProperties.Text)?.firstOrNull()?.let(AnnotatedString::text)
     }
+
+    /** An observation's row as the list lays it out: its bounds are the whole row's, even where the list cuts it. */
+    private class RowBounds(val sequence: TimeMachineSequence, val top: Float, val bottom: Float)
+
+    private fun DesktopComposeUiTest.observationRows(): List<RowBounds> =
+        onAllNodes(hasClickAction() and hasText("#", substring = true)).fetchSemanticsNodes().mapNotNull { node ->
+            val sequence = node.config.getOrNull(SemanticsProperties.Text)?.firstOrNull()?.text?.removePrefix("#")?.toLongOrNull()
+            sequence?.let { RowBounds(TimeMachineSequence(it), node.positionInRoot.y, node.positionInRoot.y + node.size.height) }
+        }
+
+    /** The rows that an edge of the list cuts. */
+    private fun DesktopComposeUiTest.cutRows(): List<RowBounds> {
+        val list = onNode(hasScrollAction()).fetchSemanticsNode().boundsInRoot
+        return observationRows().filter { (it.top < list.top && it.bottom > list.top) || (it.top < list.bottom && it.bottom > list.bottom) }
+    }
+
+    @Test
+    fun `a selected row that an edge of the list cuts comes whole into view`() =
+        paneTest(height = 300, content = { TimelineView(session) }) { inspector ->
+            // A row is only selected in the scope the window has selected.
+            inspector.selection.selectScope(session)
+            until { shown(sessionTitle) && topRow() != null }
+            waitForIdle()
+            val list = onNode(hasScrollAction()).fetchSemanticsNode().boundsInRoot
+
+            // Once at each edge: revealing the first row leaves another one cut.
+            repeat(2) {
+                val cut = cutRows().maxByOrNull { it.top } ?: fail("no row is cut by an edge of the list")
+                inspector.selection.selectRow(cut.sequence)
+                until { inspector.viewModel(inspector.timelinePane(session)).modelFlow.value.projection.selectedRow == cut.sequence }
+                waitForIdle()
+
+                val row = observationRows().first { it.sequence == cut.sequence }
+                assertTrue(row.top >= list.top && row.bottom <= list.bottom, "row #${cut.sequence} is cut: ${row.top}..${row.bottom} in ${list.top}..${list.bottom}")
+            }
+        }
 
     @Test
     fun `scrolling the timeline shown second pauses that one, not the first`() {
