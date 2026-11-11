@@ -8,6 +8,7 @@ import org.kodein.arch.vie.timemachine.protocol.TimeMachineSequence
 import org.kodein.arch.vie.timemachine.protocol.VIEObjectKind
 import org.kodein.arch.vie.timemachine.server.fixtures.Demo
 import org.kodein.arch.vie.timemachine.server.fixtures.inspector
+import org.kodein.arch.vie.timemachine.server.store.TimeMachineEvent
 import org.kodein.arch.vie.timemachine.server.ui.core.Inspector
 import org.kodein.arch.vie.timemachine.server.ui.core.RightTab
 import kotlin.test.Test
@@ -41,6 +42,16 @@ class CurrentModelPaneTest {
         // #238 (the third intervention) had two tasks; #270 has the milk task only.
         assertTrue(model.projection.changedPaths.isNotEmpty())
         assertNull(model.projection.rawText)
+    }
+
+    @Test
+    fun `Edit and replace is open on a live ViewModel, and closes when its session disconnects`() = current { inspector ->
+        assertTrue(model.projection.canReplace)
+
+        inspector.store.post(TimeMachineEvent.Disconnected(Demo.connection, Demo.at(29_000)))
+        runCurrent()
+
+        assertTrue(!model.projection.canReplace)
     }
 
     @Test
