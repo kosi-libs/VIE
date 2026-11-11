@@ -219,14 +219,24 @@ private fun CollapsedRightPane(onOpen: () -> Unit) {
 /** [max], but never under [min]: a narrow window overflows rather than inverting the range. */
 private fun widest(max: Dp, min: Dp): Dp = if (max < min) min else max
 
-/** The centre pane over what the store and the selection hold: the timeline of the selected scope. */
+/**
+ * The centre pane over what the store and the selection hold: the timeline of the selected scope, which
+ * takes the keyboard when its scope is selected.
+ */
 @Composable
 private fun CentrePane(notices: NoticesVIE.Model, modifier: Modifier) {
     val selection by LocalInspector.current.selection.state.collectAsState()
     val state by LocalInspector.current.store.state.collectAsState()
+    val scope = selection.resolvedIn(state).scope
+    // The timeline's keys go to what has the focus within it, and a scope is picked with a click on the
+    // sessions, which keeps the focus there. There is nothing to give it to when no timeline is shown.
+    val focus = remember { FocusRequester() }
+    LaunchedEffect(scope) {
+        if (scope != null) runCatching { focus.requestFocus() }
+    }
     CentreLayout(
-        scope = selection.resolvedIn(state).scope,
-        modifier = modifier,
+        scope = scope,
+        modifier = modifier.focusRequester(focus),
         noViewModel = { NoViewModel(it) },
         timeline = { scope, slot -> TimelineView(scope, slot) { notices.disconnected?.let { DisconnectedBanner(it) } } },
     )

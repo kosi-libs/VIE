@@ -30,6 +30,7 @@ import java.util.Collections
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNotNull
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
 import kotlinx.coroutines.CoroutineScope
@@ -157,6 +158,36 @@ class CompactLayoutTest {
         // The sheet had the keyboard; the centre pane was given it back.
         onRoot().performKeyInput { pressKey(Key.DirectionDown) }
         until { inspector.selection.state.value.row != null }
+    }
+
+    /** Waits for the timeline of [scope] to have rows to step through, then presses ↓ on whatever has the keyboard. */
+    private fun DesktopComposeUiTest.stepDownIn(inspector: Inspector, scope: InspectorScope) {
+        until { inspector.selection.state.value.scope == scope }
+        until { inspector.viewModel(inspector.timelinePane(scope)).modelFlow.value.projection.items.isNotEmpty() }
+        waitForIdle()
+        assertEquals(null, inspector.selection.state.value.row)
+        onRoot().performKeyInput { pressKey(Key.DirectionDown) }
+        waitForIdle()
+    }
+
+    @Test
+    fun `in the full layout, picking a ViewModel in the sessions pane gives its timeline the keyboard`() = window(1440.dp) { inspector, _, _ ->
+        until { shown("SettingsVM") }
+        onNodeWithText("SettingsVM").performClick()
+
+        stepDownIn(inspector, settings)
+
+        assertNotNull(inspector.selection.state.value.row, "the arrow key did not reach the timeline")
+    }
+
+    @Test
+    fun `picking a ViewModel on the rail gives its timeline the keyboard`() = window { inspector, _, _ ->
+        until { described("SettingsVM c3d7") }
+        onNodeWithContentDescription("SettingsVM c3d7").performClick()
+
+        stepDownIn(inspector, settings)
+
+        assertNotNull(inspector.selection.state.value.row, "the arrow key did not reach the timeline")
     }
 
     @Test
