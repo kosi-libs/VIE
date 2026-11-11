@@ -49,6 +49,7 @@ import androidx.compose.ui.input.key.onKeyEvent
 import androidx.compose.ui.input.key.type
 import androidx.compose.ui.input.pointer.PointerIcon
 import androidx.compose.ui.input.pointer.pointerHoverIcon
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
@@ -56,8 +57,11 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.window.Popup
+import androidx.compose.ui.window.PopupProperties
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineClientMessage
@@ -85,7 +89,6 @@ import org.kodein.arch.vie.timemachine.server.ui.common.splitSerialName
 import org.kodein.arch.vie.timemachine.server.ui.core.InspectorPane
 import org.kodein.arch.vie.timemachine.server.ui.core.InspectorScope
 import org.kodein.arch.vie.timemachine.server.ui.core.LocalInspector
-import org.kodein.arch.vie.timemachine.server.ui.core.LocalInspectorViewState
 import org.kodein.arch.vie.timemachine.server.ui.core.ViewModelStatus
 import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorDimens
 import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorPillShape
@@ -159,16 +162,12 @@ private fun TimelineContent(
 
 @Composable
 private fun TimelineHeaderView(header: TimelineHeader) {
-    val scheme = MaterialTheme.colorScheme
-    Box(Modifier.fillMaxWidth()) {
-        Column(Modifier.fillMaxWidth()) {
-            when (header) {
-                is TimelineHeader.ViewModel -> ViewModelHeader(header)
-                is TimelineHeader.Session -> SessionHeader(header)
-            }
-            HorizontalRule()
+    Column(Modifier.fillMaxWidth()) {
+        when (header) {
+            is TimelineHeader.ViewModel -> ViewModelHeader(header)
+            is TimelineHeader.Session -> SessionHeader(header)
         }
-        if (header is TimelineHeader.ViewModel) header.info?.let { TypeInfoPopover(it, Modifier.align(Alignment.TopEnd).padding(top = 50.dp, end = 14.dp)) }
+        HorizontalRule()
     }
 }
 
@@ -198,7 +197,9 @@ private fun ViewModelHeader(header: TimelineHeader.ViewModel) {
     val scheme = MaterialTheme.colorScheme
     val colors = InspectorTheme.colors
     val info = header.info
-    val state = LocalInspectorViewState.current
+    // The chip that opened the type info, `null` while it is closed. It is this header's own: the one
+    // of another ViewModel starts closed.
+    var typeInfo by remember { mutableStateOf<VIEObjectKind?>(null) }
     val gone = header.status == ViewModelStatus.Closed || !header.sessionConnected
     Row(
         Modifier.fillMaxWidth().padding(start = 14.dp, end = 14.dp, top = 10.dp, bottom = 9.dp),
@@ -234,12 +235,27 @@ private fun ViewModelHeader(header: TimelineHeader.ViewModel) {
             )
         }
         if (info != null) {
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                for (kind in VIEObjectKind.entries) {
-                    val role = info.role(kind)
-                    TypeChip(kind, role, open = state.typeInfoPopover != null) {
-                        state.typeInfoPopover = if (state.typeInfoPopover == null) kind else null
+            Box {
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    for (kind in VIEObjectKind.entries) {
+                        val role = info.role(kind)
+                        TypeChip(kind, role, open = typeInfo != null) { typeInfo = if (typeInfo == null) kind else null }
                     }
+                }
+                if (typeInfo != null) {
+                    // Under the chips, its end on theirs, over whatever is below: it takes no room in the header.
+                    // It has the keyboard while it is open: Escape closes it, as a click outside does.
+                    Popup(
+                        alignment = Alignment.TopEnd,
+                        offset = with(LocalDensity.current) { IntOffset(0, (InspectorDimens.chip + TypeInfoGap).roundToPx()) },
+                        onDismissRequest = { typeInfo = null },
+                        properties = PopupProperties(focusable = true),
+                        onKeyEvent = { event ->
+                            val escape = event.type == KeyEventType.KeyDown && event.key == Key.Escape
+                            if (escape) typeInfo = null
+                            escape
+                        },
+                    ) { TypeInfoPopover(info) }
                 }
             }
         }
@@ -275,14 +291,15 @@ private fun TypeChip(kind: VIEObjectKind, role: VIETypeInfo, open: Boolean, onCl
     }
 }
 
+/** How far under the chips the type info opens. */
+private val TypeInfoGap = 16.dp
+
 @Composable
-private fun TypeInfoPopover(info: org.kodein.arch.vie.timemachine.protocol.VIEViewModelInfo, modifier: Modifier) {
-    val state = LocalInspectorViewState.current
-    if (state.typeInfoPopover == null) return
+private fun TypeInfoPopover(info: org.kodein.arch.vie.timemachine.protocol.VIEViewModelInfo) {
     val scheme = MaterialTheme.colorScheme
     val colors = InspectorTheme.colors
     Column(
-        modifier.width(InspectorDimens.popover).background(scheme.surfaceContainerHigh, RoundedCornerShape(12.dp)).padding(horizontal = 14.dp, vertical = 12.dp),
+        Modifier.width(InspectorDimens.popover).background(scheme.surfaceContainerHigh, RoundedCornerShape(12.dp)).padding(horizontal = 14.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Text("Type info", style = MaterialTheme.typography.titleSmall, color = scheme.onSurface)

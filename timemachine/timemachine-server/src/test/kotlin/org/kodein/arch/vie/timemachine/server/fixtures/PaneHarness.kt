@@ -38,10 +38,11 @@ internal fun paneTest(
 ) = runDesktopComposeUiTest(width, height) {
     val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     val inspector = ScenarioData.of(id).newInspector(scope, compute)
+    val viewState = InspectorViewState()
     try {
         setContent {
             InspectorTheme(dark = false) {
-                CompositionLocalProvider(LocalInspector provides inspector, LocalInspectorViewState provides InspectorViewState()) {
+                CompositionLocalProvider(LocalInspector provides inspector, LocalInspectorViewState provides viewState) {
                     content()
                 }
             }
