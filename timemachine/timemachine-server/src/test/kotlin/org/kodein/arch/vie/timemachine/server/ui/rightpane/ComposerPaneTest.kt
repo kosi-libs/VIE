@@ -14,6 +14,7 @@ import org.kodein.arch.vie.timemachine.server.fixtures.inspector
 import org.kodein.arch.vie.timemachine.server.store.InterventionStatus
 import org.kodein.arch.vie.timemachine.server.ui.core.Inspector
 import kotlin.test.Test
+import kotlin.uuid.Uuid
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertNotNull
@@ -256,6 +257,22 @@ class ComposerPaneTest {
         post(ComposerVIE.Intent.Reset)
         runCurrent()
         assertNull(model.controls.draft)
+    }
+
+    @Test
+    fun `the history is the 20 latest interventions, and counts the older ones`() = composer { inspector ->
+        assertEquals(0, model.projection.olderInterventions)
+
+        Demo.Builder(Demo.connection).apply {
+            repeat(25) {
+                intervene(Demo.taskList, Uuid.fromLongs(7L, it.toLong()), VIEObjectKind.Intent, Demo.DeleteTask, Demo.deleteTask(Demo.Milk), Demo.at(29_000L + it))
+            }
+        }.events.forEach(inspector.store::post)
+        runCurrent()
+
+        // 4 in the scenario and 25 more: #29 down to #10 are listed, #9 down to #1 are counted.
+        assertEquals((29 downTo 10).toList(), model.projection.history.map { it.number })
+        assertEquals(9, model.projection.olderInterventions)
     }
 
     @Test

@@ -131,7 +131,7 @@ internal fun VIEViewScope<ComposerVIE.Intent, NoSignal>.ComposerContent(model: C
                 SendRow(target.kind, projection.canSend && !blocked) { post(ComposerVIE.Intent.Send) }
             }
             projection.current?.let { ResultCard(it, projection, ::post) }
-            RecentInterventions(projection.history, ::post)
+            RecentInterventions(projection.history, projection.olderInterventions, ::post)
         }
     }
 }
@@ -521,7 +521,7 @@ private fun ResultCard(view: InterventionView, projection: ComposerProjection, p
 // ---- Recent interventions --------------------------------------------------------------------
 
 @Composable
-private fun RecentInterventions(history: List<InterventionView>, post: (ComposerVIE.Intent) -> Unit) {
+private fun RecentInterventions(history: List<InterventionView>, older: Int, post: (ComposerVIE.Intent) -> Unit) {
     val scheme = MaterialTheme.colorScheme
     Column(Modifier.padding(top = 4.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
         Text(
@@ -560,6 +560,8 @@ private fun RecentInterventions(history: List<InterventionView>, post: (Composer
             }
             HorizontalRule(color = InspectorTheme.colors.rowLine)
         }
+        // The timeline still has the rows of the older ones that were observed.
+        if (older > 0) Text("$older older", style = InspectorTheme.text.body, color = scheme.outline, modifier = Modifier.padding(start = 4.dp, top = 6.dp))
     }
 }
 
