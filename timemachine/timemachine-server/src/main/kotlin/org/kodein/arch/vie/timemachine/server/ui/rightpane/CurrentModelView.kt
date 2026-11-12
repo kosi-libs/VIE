@@ -25,7 +25,10 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import kotlin.uuid.Uuid
 import kotlinx.coroutines.delay
+import org.kodein.arch.vie.VIE.NoSignal
+import org.kodein.arch.vie.VIEViewScope
 import org.kodein.arch.vie.timemachine.server.ui.common.HorizontalRule
 import org.kodein.arch.vie.timemachine.server.ui.common.JsonTree
 import org.kodein.arch.vie.timemachine.server.ui.common.LocalCompact
@@ -42,7 +45,6 @@ import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorDimens
 import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorPillShape
 import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorTheme
 import org.kodein.arch.vie.timemachine.server.ui.theme.Symbol
-import kotlin.uuid.Uuid
 
 /** The pinned current model's height, and the compact layout's, which leaves the tabs more room. */
 private val PinnedHeight = 300.dp
@@ -60,7 +62,7 @@ private const val HighlightFadeMillis = 400
 internal fun CurrentModelView(sessionId: Uuid, viewModelId: Uuid) {
     val inspector = LocalInspector.current
     val pane = remember(inspector, sessionId, viewModelId) { inspector.currentModelPane(sessionId, viewModelId) }
-    InspectorPane(pane) { model -> CurrentModelContent(model) { post(it) } }
+    InspectorPane(pane) { model -> CurrentModelContent(model) }
 }
 
 /**
@@ -69,7 +71,7 @@ internal fun CurrentModelView(sessionId: Uuid, viewModelId: Uuid) {
  * with the button that folds the right pane away.
  */
 @Composable
-private fun CurrentModelContent(model: CurrentModelVIE.Model, post: (CurrentModelVIE.Intent) -> Unit) {
+internal fun VIEViewScope<CurrentModelVIE.Intent, NoSignal>.CurrentModelContent(model: CurrentModelVIE.Model) {
     val scheme = MaterialTheme.colorScheme
     val projection = model.projection
     val compact = LocalCompact.current

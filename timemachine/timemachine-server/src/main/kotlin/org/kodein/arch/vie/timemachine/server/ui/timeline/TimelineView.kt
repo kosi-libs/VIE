@@ -62,8 +62,11 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupProperties
+import kotlin.time.Instant
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
+import org.kodein.arch.vie.VIE.NoSignal
+import org.kodein.arch.vie.VIEViewScope
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineClientMessage
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineSequence
 import org.kodein.arch.vie.timemachine.protocol.VIEObjectKind
@@ -96,7 +99,6 @@ import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorDimens
 import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorPillShape
 import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorTheme
 import org.kodein.arch.vie.timemachine.server.ui.theme.Symbol
-import kotlin.time.Instant
 
 
 /** What the glyphs of the timeline say they are. */
@@ -119,7 +121,7 @@ internal fun TimelineView(scope: InspectorScope, modifier: Modifier = Modifier, 
     val inspector = LocalInspector.current
     val pane = remember(inspector, scope) { inspector.timelinePane(scope) }
     InspectorPane(pane) { model ->
-        TimelineContent(scope, model, selectedRow = { inspector.selection.state.value.row }, modifier, banner) { post(it) }
+        TimelineContent(scope, model, selectedRow = { inspector.selection.state.value.row }, modifier, banner)
     }
 }
 
@@ -131,13 +133,12 @@ internal fun TimelineView(scope: InspectorScope, modifier: Modifier = Modifier, 
  * the focus is activated with the space bar.
  */
 @Composable
-private fun TimelineContent(
+internal fun VIEViewScope<TimelineVIE.Intent, NoSignal>.TimelineContent(
     scope: InspectorScope,
     model: TimelineVIE.Model,
     selectedRow: () -> TimeMachineSequence?,
     modifier: Modifier = Modifier,
     banner: @Composable () -> Unit = {},
-    post: (TimelineVIE.Intent) -> Unit,
 ) {
     val projection = model.projection
     val controls = model.controls

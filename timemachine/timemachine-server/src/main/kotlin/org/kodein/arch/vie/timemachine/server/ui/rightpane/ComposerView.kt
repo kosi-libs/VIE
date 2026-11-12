@@ -56,6 +56,9 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.constrainWidth
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlin.uuid.Uuid
+import org.kodein.arch.vie.VIE.NoSignal
+import org.kodein.arch.vie.VIEViewScope
 import org.kodein.arch.vie.timemachine.protocol.VIEInterventionResult
 import org.kodein.arch.vie.timemachine.protocol.VIEObjectKind
 import org.kodein.arch.vie.timemachine.server.store.InterventionStatus
@@ -73,7 +76,6 @@ import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorDimens
 import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorPillShape
 import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorTheme
 import org.kodein.arch.vie.timemachine.server.ui.theme.Symbol
-import kotlin.uuid.Uuid
 
 
 private val EditorHeight = 200.dp
@@ -87,12 +89,13 @@ internal fun ComposerView(sessionId: Uuid, viewModelId: Uuid) {
     val inspector = LocalInspector.current
     val pane = remember(inspector, sessionId, viewModelId) { inspector.composerPane(sessionId, viewModelId) }
     InspectorPane(pane) { model ->
-        ComposerContent(model, EditorHeight) { post(it) }
+        ComposerContent(model)
     }
 }
 
+/** The Intervene tab, as [model] has it, its editor [editorHeight] high. */
 @Composable
-private fun ComposerContent(model: ComposerVIE.Model, editorHeight: Dp, post: (ComposerVIE.Intent) -> Unit) {
+internal fun VIEViewScope<ComposerVIE.Intent, NoSignal>.ComposerContent(model: ComposerVIE.Model, editorHeight: Dp = EditorHeight) {
     val scheme = MaterialTheme.colorScheme
     val projection = model.projection
     val target = projection.target
@@ -126,8 +129,8 @@ private fun ComposerContent(model: ComposerVIE.Model, editorHeight: Dp, post: (C
                 JsonSection(model, editorHeight, blocked) { post(it) }
                 SendRow(target.kind, projection.canSend && !blocked) { post(ComposerVIE.Intent.Send) }
             }
-            projection.current?.let { ResultCard(it, projection, post) }
-            RecentInterventions(projection.history, post)
+            projection.current?.let { ResultCard(it, projection, ::post) }
+            RecentInterventions(projection.history, ::post)
         }
     }
 }

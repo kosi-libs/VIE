@@ -22,6 +22,8 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import org.kodein.arch.vie.VIE.NoSignal
+import org.kodein.arch.vie.VIEViewScope
 import org.kodein.arch.vie.timemachine.server.ui.common.LiveDot
 import org.kodein.arch.vie.timemachine.server.ui.common.TextAction
 import org.kodein.arch.vie.timemachine.server.ui.common.action
@@ -47,30 +49,27 @@ internal enum class SessionsPresentation { Pane, Rail, Drawer }
 @Composable
 internal fun SessionsView(modifier: Modifier = Modifier, presentation: SessionsPresentation = SessionsPresentation.Pane) {
     val pane = LocalInspector.current.sessionsPane()
-    InspectorPane(pane) { model -> SessionsSlot(model, presentation, modifier) { post(it) } }
+    InspectorPane(pane) { model -> SessionsSlot(model, presentation, modifier) }
 }
 
 /**
- * [model] in [presentation], [post] being what its clicks send. The window's layout and the Inspector
- * window's page both fill their sessions slot with it, so that the three look the same in both. The rail's
- * menu opens the drawer, and a scope picked in the drawer closes it.
+ * [model] in [presentation]. The window's layout and the Inspector window's page both fill their sessions
+ * slot with it, so that the three look the same in both. The rail's menu opens the drawer, and a scope
+ * picked in the drawer closes it.
  */
 @Composable
-private fun SessionsSlot(model: SessionsVIE.Model, presentation: SessionsPresentation, modifier: Modifier, post: (SessionsVIE.Intent) -> Unit) {
+private fun VIEViewScope<SessionsVIE.Intent, NoSignal>.SessionsSlot(model: SessionsVIE.Model, presentation: SessionsPresentation, modifier: Modifier) {
     val viewState = LocalInspectorViewState.current
     when (presentation) {
-        SessionsPresentation.Pane -> SessionsContent(model, modifier, post)
-        SessionsPresentation.Rail -> SessionsRail(model, modifier, onMenu = { viewState.drawerOpen = true }, post)
-        SessionsPresentation.Drawer -> SessionsContent(model, modifier) { intent ->
-            post(intent)
-            if (intent is SessionsVIE.Intent.SelectScope) viewState.drawerOpen = false
-        }
+        SessionsPresentation.Pane -> SessionsContent(model, modifier)
+        SessionsPresentation.Rail -> SessionsRail(model, modifier, onMenu = { viewState.drawerOpen = true }) { post(it) }
+        SessionsPresentation.Drawer -> SessionsContent(model, modifier, onScopePicked = { viewState.drawerOpen = false })
     }
 }
 
-/** What the left pane shows of [model], [post] being what its clicks send. */
+/** What the left pane shows of [model]. [onScopePicked] is called once a click has picked a scope. */
 @Composable
-private fun SessionsContent(model: SessionsVIE.Model, modifier: Modifier = Modifier, post: (SessionsVIE.Intent) -> Unit) {
+internal fun VIEViewScope<SessionsVIE.Intent, NoSignal>.SessionsContent(model: SessionsVIE.Model, modifier: Modifier = Modifier, onScopePicked: () -> Unit = {}) {
     Column(modifier.background(MaterialTheme.colorScheme.surfaceContainerLow)) {
         Row(
             Modifier.fillMaxWidth().height(InspectorDimens.paneHeader).padding(start = InspectorDimens.paneHorizontalPadding, end = 8.dp),
@@ -89,7 +88,10 @@ private fun SessionsContent(model: SessionsVIE.Model, modifier: Modifier = Modif
             verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
             items(model.sessions, key = { it.id.toString() }) { session ->
-                SessionBlock(session, model.selected) { post(it) }
+                SessionBlock(session, model.selected) { intent ->
+                    post(intent)
+                    if (intent is SessionsVIE.Intent.SelectScope) onScopePicked()
+                }
             }
         }
     }
