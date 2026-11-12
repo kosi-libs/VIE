@@ -51,6 +51,18 @@ val exportAppIcon = tasks.register<JavaExec>("exportAppIcon") {
     outputs.dir(out)
 }
 
+// The window's screens as images, to look at after a change to the views: nothing compares them, and no
+// build needs them. The exporter lives in the test source set, beside the fixtures it renders.
+tasks.register<JavaExec>("exportShellRenders") {
+    group = "verification"
+    description = "Renders the inspector window's screens, in both themes, to build/shell-render/."
+    val out = layout.buildDirectory.dir("shell-render")
+    classpath = sourceSets["test"].runtimeClasspath
+    mainClass = "org.kodein.arch.vie.timemachine.server.ui.shell.ShellRenderExporterKt"
+    args(out.get().asFile.absolutePath)
+    outputs.dir(out)
+}
+
 // One of the files `exportAppIcon` writes. It is derived with `map`, which keeps the dependency on the
 // task for whatever reads it: `flatMap` would drop it, and the packaging would find no icon.
 fun appIcon(name: String): Provider<File> = exportAppIcon.map { File(it.outputs.files.singleFile, name) }
