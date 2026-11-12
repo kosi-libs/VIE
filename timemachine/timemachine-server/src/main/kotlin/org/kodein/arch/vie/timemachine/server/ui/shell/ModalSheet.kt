@@ -37,7 +37,7 @@ private const val ScrimAlpha = 0.32f
 
 /**
  * [content], and over it a sheet coming in from the left edge while [open]: a scrim that [onDismiss]
- * answers a click on, and [sheet] at [sheetWidth]. Escape dismisses it too.
+ * answers a click on, and [sheet] at [sheetWidth], which [title] names as a pane. Escape dismisses it too.
  *
  * The open state is the caller's: this keeps none, so what opens it and what closes it write the same
  * flag. [sheet] is composed only while the sheet is open or on its way out. It takes the keyboard while
@@ -47,6 +47,7 @@ private const val ScrimAlpha = 0.32f
 internal fun ModalSheet(
     open: Boolean,
     onDismiss: () -> Unit,
+    title: String,
     sheetWidth: Dp,
     sheet: @Composable () -> Unit,
     content: @Composable () -> Unit,
@@ -71,7 +72,7 @@ internal fun ModalSheet(
                         if (escape) onDismiss()
                         escape
                     }
-                    .semantics { paneTitle = "Sessions" },
+                    .semantics { paneTitle = title },
                 color = MaterialTheme.colorScheme.surfaceContainerLow,
                 shadowElevation = 8.dp,
             ) { sheet() }

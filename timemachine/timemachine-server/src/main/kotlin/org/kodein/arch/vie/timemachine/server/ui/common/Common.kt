@@ -25,6 +25,7 @@ import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorPillShape
@@ -91,7 +92,10 @@ internal fun LiveDot(live: Boolean, modifier: Modifier = Modifier) {
     )
 }
 
-/** A pill action with an optional leading glyph: "Clear disconnected", "Retry", "Dismiss". */
+/**
+ * A pill action with an optional leading glyph: "Clear disconnected", "Retry", "Dismiss". Disabled, it
+ * is drawn in the outline's colour whatever its [color].
+ */
 @Composable
 internal fun TextAction(
     label: String,
@@ -99,25 +103,26 @@ internal fun TextAction(
     glyph: String? = null,
     color: Color = MaterialTheme.colorScheme.primary,
     enabled: Boolean = true,
-    height: Int = 26,
+    height: Dp = 26.dp,
     onClick: () -> Unit,
 ) {
+    val tint = if (enabled) color else MaterialTheme.colorScheme.outline
     Row(
         modifier
-            .height(height.dp)
+            .height(height)
             .background(Color.Transparent, InspectorPillShape)
             .action(enabled = enabled, onClick = onClick)
             .padding(horizontal = 8.dp),
         horizontalArrangement = Arrangement.spacedBy(4.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        glyph?.let { Symbol(it, size = 15.dp, tint = color) }
-        Text(label, style = MaterialTheme.typography.labelMedium.copy(fontSize = 11.5.sp), color = color, maxLines = 1)
+        glyph?.let { Symbol(it, size = 15.dp, tint = tint) }
+        Text(label, style = MaterialTheme.typography.labelMedium.copy(fontSize = 11.5.sp), color = tint, maxLines = 1)
     }
 }
 
 /** A thin full-width rule. */
 @Composable
-internal fun HorizontalRule(color: Color = MaterialTheme.colorScheme.outlineVariant, modifier: Modifier = Modifier) {
+internal fun HorizontalRule(modifier: Modifier = Modifier, color: Color = MaterialTheme.colorScheme.outlineVariant) {
     Box(modifier.fillMaxWidth().height(1.dp).background(color))
 }

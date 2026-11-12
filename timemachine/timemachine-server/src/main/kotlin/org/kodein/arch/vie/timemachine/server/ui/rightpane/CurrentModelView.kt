@@ -141,7 +141,7 @@ private fun CurrentModelContent(model: CurrentModelVIE.Model, post: (CurrentMode
                     ) { post(CurrentModelVIE.Intent.ToggleNode(it)) }
                 }
             }
-            HorizontalRule(InspectorTheme.colors.strongOutline)
+            HorizontalRule(color = InspectorTheme.colors.strongOutline)
         }
     }
 }

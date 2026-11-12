@@ -71,7 +71,7 @@ internal fun InspectorShell() {
             onIntent = { post(it) },
             empty = { EmptyScreen() },
             statusBar = { StatusBar() },
-            sessions = { presentation, modifier -> SessionsView(presentation, modifier) },
+            sessions = { presentation, modifier -> SessionsView(modifier, presentation) },
             centre = { CentrePane(notices, it) },
             right = { RightPane(it) },
         )
@@ -171,6 +171,7 @@ private fun CompactPanes(
     ModalSheet(
         open = viewState.drawerOpen,
         onDismiss = { viewState.drawerOpen = false },
+        title = "Sessions",
         sheetWidth = viewState.sessionsWidth.coerceAtLeast(InspectorDimens.minSessionsPane),
         sheet = { sessionsPane(SessionsPresentation.Drawer, Modifier.fillMaxSize()) },
     ) {

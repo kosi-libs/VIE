@@ -15,7 +15,7 @@ class SymbolTest {
     /** The bounding box of the opaque pixels of [name] drawn in a 48 dp box by the bundled font. */
     private fun inkWidth(name: String): Int {
         val scene = ImageComposeScene(120, 48, Density(1f)) {
-            InspectorTheme(dark = true) { Symbol(name, 48.dp, Color.White) }
+            InspectorTheme(dark = true) { Symbol(name, size = 48.dp, tint = Color.White) }
         }
         // Compose resources load asynchronously: render until the font is in.
         val bitmap = Bitmap()

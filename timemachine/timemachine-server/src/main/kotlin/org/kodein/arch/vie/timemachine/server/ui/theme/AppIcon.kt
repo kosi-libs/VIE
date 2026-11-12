@@ -41,8 +41,9 @@ private const val Grid = 64f
  * the exported icon files.
  */
 @Composable
-fun AppIcon(modifier: Modifier = Modifier.size(64.dp)) {
-    Canvas(modifier) { drawAppIcon() }
+fun AppIcon(modifier: Modifier = Modifier) {
+    // 64 dp, unless the caller sizes it: a size of theirs comes first, and holds.
+    Canvas(modifier.size(64.dp)) { drawAppIcon() }
 }
 
 /**
@@ -83,7 +84,7 @@ private fun DrawScope.drawInnerBorder(k: Float) {
 
 /** "VIE" in Plex Sans SemiBold with +4% tracking, then "TimeMachine" in Regular, `onSurfaceVariant`. */
 @Composable
-private fun Wordmark(fontSize: TextUnit = 26.sp, modifier: Modifier = Modifier) {
+private fun Wordmark(modifier: Modifier = Modifier, fontSize: TextUnit = 26.sp) {
     Text(
         text = buildAnnotatedString {
             withStyle(SpanStyle(fontWeight = FontWeight.SemiBold, letterSpacing = 0.04.em)) { append("VIE") }
@@ -100,9 +101,9 @@ private fun Wordmark(fontSize: TextUnit = 26.sp, modifier: Modifier = Modifier) 
 
 /** The icon beside the wordmark, as in the design's lock-up. */
 @Composable
-fun AppLockup(iconSize: Dp = 44.dp, fontSize: TextUnit = 26.sp, modifier: Modifier = Modifier) {
+fun AppLockup(modifier: Modifier = Modifier, iconSize: Dp = 44.dp, fontSize: TextUnit = 26.sp) {
     Row(modifier, horizontalArrangement = Arrangement.spacedBy(14.dp), verticalAlignment = Alignment.CenterVertically) {
         AppIcon(Modifier.size(iconSize))
-        Wordmark(fontSize)
+        Wordmark(fontSize = fontSize)
     }
 }

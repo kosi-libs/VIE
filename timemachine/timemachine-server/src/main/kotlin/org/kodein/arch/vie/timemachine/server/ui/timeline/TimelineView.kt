@@ -428,14 +428,16 @@ private fun IntervenedFilterChip(on: Boolean, count: Int, onClick: () -> Unit) {
 @Composable
 private fun FilterSummary(hidden: Int, onClear: () -> Unit) {
     val scheme = MaterialTheme.colorScheme
-    Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
-        Symbol("filter_alt", size = 15.dp, tint = InspectorTheme.colors.intent)
-        Text(
-            "$hidden ${if (hidden == 1) "entry" else "entries"} hidden",
-            style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.5.sp), color = scheme.onSurfaceVariant,
-        )
+    Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
+            Symbol("filter_alt", size = 15.dp, tint = InspectorTheme.colors.intent)
+            Text(
+                "$hidden ${if (hidden == 1) "entry" else "entries"} hidden",
+                style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.5.sp), color = scheme.onSurfaceVariant,
+            )
+        }
+        TextAction("Clear filters", onClick = onClear)
     }
-    TextAction("Clear filters", onClick = onClear)
 }
 
 @Composable
@@ -744,7 +746,7 @@ private fun ObservationRow(
             // The compact layout has no room for them: E, the Detail tab and the pinned model's Edit reach the same places.
             if (selected && item.canIntervene && !LocalCompact.current) RowActions(observation) { post(TimelineVIE.Intent.ComposeFrom(sequence)) }
         }
-        HorizontalRule(colors.rowLine)
+        HorizontalRule(color = colors.rowLine)
         if (expanded) ExpandedRow(observation)
     }
 }
@@ -786,16 +788,18 @@ private fun InterventionChip(number: Int) {
 @Composable
 private fun RowActions(observation: VIEObservation, onEdit: () -> Unit) {
     val scheme = MaterialTheme.colorScheme
-    Row(
-        Modifier.height(22.dp).background(scheme.primary, InspectorPillShape)
-            .action(onClick = onEdit).padding(start = 6.dp, end = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Symbol("edit_note", size = 14.dp, tint = scheme.onPrimary)
-        Text("Edit & intervene", style = MaterialTheme.typography.labelMedium.copy(fontSize = 11.sp), color = scheme.onPrimary, maxLines = 1)
-    }
-    observation.asJson?.let { json ->
-        Symbol("content_copy", size = 16.dp, tint = scheme.onSurfaceVariant, modifier = Modifier.action(description = CopyRowDescription) { copyToClipboard(json.pretty()) })
+    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+        Row(
+            Modifier.height(22.dp).background(scheme.primary, InspectorPillShape)
+                .action(onClick = onEdit).padding(start = 6.dp, end = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Symbol("edit_note", size = 14.dp, tint = scheme.onPrimary)
+            Text("Edit & intervene", style = MaterialTheme.typography.labelMedium.copy(fontSize = 11.sp), color = scheme.onPrimary, maxLines = 1)
+        }
+        observation.asJson?.let { json ->
+            Symbol("content_copy", size = 16.dp, tint = scheme.onSurfaceVariant, modifier = Modifier.action(description = CopyRowDescription) { copyToClipboard(json.pretty()) })
+        }
     }
 }
 
@@ -862,7 +866,7 @@ private fun Bookend(sequence: TimeMachineSequence, at: kotlin.time.Instant, star
             )
             Box(Modifier.weight(1f).height(1.dp).background(scheme.outlineVariant))
         }
-        HorizontalRule(colors.rowLine)
+        HorizontalRule(color = colors.rowLine)
     }
 }
 
@@ -902,7 +906,7 @@ private fun GapRow(count: Int, sequence: TimeMachineSequence, label: String?) {
             }
         },
     ) {
-        HorizontalRule(colors.gap)
+        HorizontalRule(color = colors.gap)
         Row(
             Modifier.fillMaxWidth().height(InspectorDimens.topMarker).padding(start = 28.dp, end = 12.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically,
@@ -916,7 +920,7 @@ private fun GapRow(count: Int, sequence: TimeMachineSequence, label: String?) {
             )
             Text("#$sequence", style = monoStyle(11f, colors.gap))
         }
-        HorizontalRule(colors.gap)
+        HorizontalRule(color = colors.gap)
     }
 }
 
@@ -990,6 +994,6 @@ private fun HistoryUnavailableRow() {
                 style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp), color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis,
             )
         }
-        HorizontalRule(colors.rowLine)
+        HorizontalRule(color = colors.rowLine)
     }
 }

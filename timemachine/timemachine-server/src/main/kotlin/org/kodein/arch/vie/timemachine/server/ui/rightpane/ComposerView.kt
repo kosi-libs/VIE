@@ -537,7 +537,7 @@ private fun RecentInterventions(history: List<InterventionView>, post: (Composer
                     modifier = Modifier.action(description = "Put this intervention in the editor") { post(ComposerVIE.Intent.LoadFromHistory(view.requestId)) },
                 )
             }
-            HorizontalRule(InspectorTheme.colors.rowLine)
+            HorizontalRule(color = InspectorTheme.colors.rowLine)
         }
     }
 }
