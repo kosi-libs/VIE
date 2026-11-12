@@ -14,12 +14,15 @@ import org.kodein.arch.vie.timemachine.protocol.TimeMachineConnection
  *
  * @property appName Names this application's session in the inspector. Several running instances
  *   may share it.
+ * @property enabled Whether [TimeMachine.start] starts the probe. It has no default: every
+ *   application has to say where it comes from, and it must come from a debug flag, since the probe
+ *   streams every model in cleartext and lets the inspector drive every ViewModel. When `false`,
+ *   [TimeMachine.start] does nothing: no socket, no allocation, and [TimeMachine.middleware] returns
+ *   a middleware that does nothing.
  * @property host The inspector's host. The `localhost` default reaches an inspector on the same
  *   machine, which covers desktop apps, the Android emulator (through `adb reverse`) and the iOS
  *   simulator; a physical device on wifi needs the inspector machine's address.
  * @property port The inspector's port. Invalid outside 1..65535.
- * @property enabled When `false`, [TimeMachine.start] does nothing: no socket, no allocation, and
- *   [TimeMachine.middleware] returns a middleware that does nothing. Wire it to a debug flag.
  * @property bufferSize How many messages wait for the inspector, e.g. while it is not connected, before
  *   the oldest are dropped. Dropped messages are reported to the inspector as a gap. A waiting message
  *   holds the observed object itself, not a description of it: while no inspector is connected, up to
@@ -29,9 +32,9 @@ import org.kodein.arch.vie.timemachine.protocol.TimeMachineConnection
  */
 public class TimeMachineConfig(
     public val appName: String,
+    public val enabled: Boolean,
     public val host: String = "localhost",
     public val port: Int = TimeMachineConnection.port,
-    public val enabled: Boolean = true,
     public val bufferSize: Int = 1024,
 ) {
     /** What makes this configuration invalid, i.e. what keeps a probe from starting with it, or

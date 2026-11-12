@@ -34,7 +34,7 @@ class TimeMachineConfigTest {
     @Test
     fun aPortOutsideTheValidRangeIsAProblem() {
         for (port in invalidPorts) {
-            val problem = assertNotNull(TimeMachineConfig(appName = "Test", port = port).problem, "port $port")
+            val problem = assertNotNull(TimeMachineConfig(appName = "Test", enabled = true, port = port).problem, "port $port")
             assertTrue("port" in problem && port.toString() in problem, problem)
         }
     }
@@ -42,31 +42,31 @@ class TimeMachineConfigTest {
     @Test
     fun thePortBoundsAreAccepted() {
         for (port in listOf(1, 65535)) {
-            assertNull(TimeMachineConfig(appName = "Test", port = port).problem, "port $port")
+            assertNull(TimeMachineConfig(appName = "Test", enabled = true, port = port).problem, "port $port")
         }
     }
 
     @Test
     fun aNonPositiveBufferSizeIsAProblem() {
         for (bufferSize in invalidBufferSizes) {
-            val problem = assertNotNull(TimeMachineConfig(appName = "Test", bufferSize = bufferSize).problem, "bufferSize $bufferSize")
+            val problem = assertNotNull(TimeMachineConfig(appName = "Test", enabled = true, bufferSize = bufferSize).problem, "bufferSize $bufferSize")
             assertTrue("bufferSize" in problem && bufferSize.toString() in problem, problem)
         }
     }
 
     @Test
-    fun theDefaultConfigurationHasNoProblem() {
-        assertNull(TimeMachineConfig(appName = "Test").problem)
+    fun aConfigurationLeftAtItsDefaultsHasNoProblem() {
+        assertNull(TimeMachineConfig(appName = "Test", enabled = true).problem)
     }
 
     @Test
     fun startingAnInvalidConfigurationPrintsItAndStartsNoProbe() {
         for (port in invalidPorts) {
-            TimeMachine.start(TimeMachineConfig(appName = "Test", port = port))
+            TimeMachine.start(TimeMachineConfig(appName = "Test", enabled = true, port = port))
             assertFalse(TimeMachine.isStarted, "port $port")
         }
         for (bufferSize in invalidBufferSizes) {
-            TimeMachine.start(TimeMachineConfig(appName = "Test", bufferSize = bufferSize))
+            TimeMachine.start(TimeMachineConfig(appName = "Test", enabled = true, bufferSize = bufferSize))
             assertFalse(TimeMachine.isStarted, "bufferSize $bufferSize")
         }
     }

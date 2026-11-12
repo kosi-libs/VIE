@@ -132,7 +132,7 @@ class TimeMachineTest {
     @Test
     fun aProbeWhoseConnectionLoopDiesOfAnErrorIsRetiredAndCanBeStartedAgain() {
         FakeInspector().use { inspector ->
-            val config = TimeMachineConfig(appName = "Retired", port = inspector.port)
+            val config = TimeMachineConfig(appName = "Retired", enabled = true, port = inspector.port)
             val retired = CompletableDeferred<Unit>()
             TimeMachine.start(config) { onRetired ->
                 TimeMachineClient(
@@ -180,7 +180,7 @@ class TimeMachineTest {
     /** Starts the probe against an inspector, builds a ViewModel with [newVM], and returns how it was announced. */
     private fun announcedInfoOf(newVM: () -> VIEViewModel<*, *, *>): VIEViewModelInfo =
         FakeInspector().use { inspector ->
-            TimeMachine.start(TimeMachineConfig(appName = "Announced", port = inspector.port))
+            TimeMachine.start(TimeMachineConfig(appName = "Announced", enabled = true, port = inspector.port))
             ViewModelStore().apply { put("vm", newVM()) }.clear()
 
             runBlocking {

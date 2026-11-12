@@ -9,7 +9,7 @@ import kotlin.test.assertSame
 class TimeMachineClientRolesTest {
 
     private fun withClient(block: (TimeMachineClient) -> Unit) {
-        val client = TimeMachineClient(TimeMachineConfig(appName = "RolesTest"))
+        val client = TimeMachineClient(TimeMachineConfig(appName = "RolesTest", enabled = true))
         try {
             block(client)
         } finally {
