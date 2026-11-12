@@ -25,6 +25,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.pointer.PointerIcon
 import androidx.compose.ui.input.pointer.pointerHoverIcon
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
@@ -41,6 +42,7 @@ import org.kodein.arch.vie.timemachine.server.ui.common.monoStyle
 import org.kodein.arch.vie.timemachine.server.ui.core.InspectorPane
 import org.kodein.arch.vie.timemachine.server.ui.core.LocalInspector
 import org.kodein.arch.vie.timemachine.server.ui.theme.AppLockup
+import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorColors
 import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorPillShape
 import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorTheme
 import org.kodein.arch.vie.timemachine.server.ui.theme.Symbol
@@ -116,6 +118,35 @@ class TaskListVM : VIEViewModel<…>(
     middlewares = listOf(TimeMachine.middleware()),
 )"""
 
+private val SnippetKeyword = Regex("\\b(class|true)\\b")
+
+/** [ProbeSnippet] with its strings and its keywords coloured. */
+private fun probeSnippetText(colors: InspectorColors): AnnotatedString = buildAnnotatedString {
+    val lines = ProbeSnippet.lines()
+    lines.forEachIndexed { index, line ->
+        var rest = line
+        while (rest.isNotEmpty()) {
+            val quoted = rest.indexOf('"').takeIf { it >= 0 }
+            val keyword = SnippetKeyword.find(rest)
+            when {
+                quoted != null && (keyword == null || quoted < keyword.range.first) -> {
+                    val end = rest.indexOf('"', quoted + 1).let { if (it < 0) rest.length - 1 else it }
+                    append(rest.substring(0, quoted))
+                    withStyle(SpanStyle(color = colors.jsonString)) { append(rest.substring(quoted, end + 1)) }
+                    rest = rest.substring(end + 1)
+                }
+                keyword != null -> {
+                    append(rest.substring(0, keyword.range.first))
+                    withStyle(SpanStyle(color = colors.jsonLiteral)) { append(keyword.value) }
+                    rest = rest.substring(keyword.range.last + 1)
+                }
+                else -> { append(rest); rest = "" }
+            }
+        }
+        if (index < lines.lastIndex) append("\n")
+    }
+}
+
 @Composable
 private fun SnippetCard() {
     val scheme = MaterialTheme.colorScheme
@@ -128,31 +159,7 @@ private fun SnippetCard() {
         }
         HorizontalRule()
         Text(
-            buildAnnotatedString {
-                val lines = ProbeSnippet.lines()
-                lines.forEachIndexed { index, line ->
-                    var rest = line
-                    while (rest.isNotEmpty()) {
-                        val quoted = rest.indexOf('"').takeIf { it >= 0 }
-                        val keyword = Regex("\\b(class|true)\\b").find(rest)
-                        when {
-                            quoted != null && (keyword == null || quoted < keyword.range.first) -> {
-                                val end = rest.indexOf('"', quoted + 1).let { if (it < 0) rest.length - 1 else it }
-                                append(rest.substring(0, quoted))
-                                withStyle(SpanStyle(color = colors.jsonString)) { append(rest.substring(quoted, end + 1)) }
-                                rest = rest.substring(end + 1)
-                            }
-                            keyword != null -> {
-                                append(rest.substring(0, keyword.range.first))
-                                withStyle(SpanStyle(color = colors.jsonLiteral)) { append(keyword.value) }
-                                rest = rest.substring(keyword.range.last + 1)
-                            }
-                            else -> { append(rest); rest = "" }
-                        }
-                    }
-                    if (index < lines.lastIndex) append("\n")
-                }
-            },
+            remember(colors) { probeSnippetText(colors) },
             style = monoStyle(12.5f, scheme.onSurface).copy(lineHeight = 20.sp),
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
         )
