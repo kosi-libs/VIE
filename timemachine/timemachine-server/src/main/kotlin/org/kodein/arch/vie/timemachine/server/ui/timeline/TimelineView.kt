@@ -831,11 +831,11 @@ private fun ExpandedRow(observation: VIEObservation) {
 private fun MarkerRow(item: TimelineItem) {
     when (val entry = item.entry) {
         is SessionTimelineEntry.Divider -> DividerRow(entry)
-        is SessionTimelineEntry.Shared -> PossiblyIncompleteRow(entry.entry.range)
+        is SessionTimelineEntry.Shared -> PossiblyIncompleteRow(entry.entry.range, shared = true)
         is SessionTimelineEntry.Scoped -> when (val e = entry.entry) {
             TimelineEntry.HistoryUnavailable -> HistoryUnavailableRow()
             is TimelineEntry.Evicted -> EvictedRow(e.count)
-            is TimelineEntry.PossiblyIncomplete -> PossiblyIncompleteRow(e.range)
+            is TimelineEntry.PossiblyIncomplete -> PossiblyIncompleteRow(e.range, shared = false)
             is TimelineEntry.Message -> when (val message = e.row.message) {
                 is TimeMachineClientMessage.ViewModelStarted -> Bookend(e.row.sequence, message.at, started = true, label = item.source)
                 is TimeMachineClientMessage.ViewModelClosed -> Bookend(e.row.sequence, message.at, started = false, label = item.source)
@@ -923,8 +923,12 @@ private fun GapRow(count: Int, sequence: TimeMachineSequence, label: String?) {
     }
 }
 
+/**
+ * The session's sequences [range] never arrived. In a ViewModel's timeline some may be that ViewModel's;
+ * in a session's, where the row is [shared] by the ViewModels alive then, they may be any of theirs.
+ */
 @Composable
-private fun PossiblyIncompleteRow(range: ClosedRange<TimeMachineSequence>) {
+private fun PossiblyIncompleteRow(range: ClosedRange<TimeMachineSequence>, shared: Boolean) {
     val colors = InspectorTheme.colors
     val dash = androidx.compose.ui.graphics.PathEffect.dashPathEffect(floatArrayOf(6f, 4f))
     Row(
@@ -939,7 +943,8 @@ private fun PossiblyIncompleteRow(range: ClosedRange<TimeMachineSequence>) {
         Symbol("help", size = 16.dp, tint = colors.possiblyIncomplete)
         Text("Possibly incomplete", style = MaterialTheme.typography.labelMedium.copy(fontSize = 12.sp, fontWeight = FontWeight.SemiBold), color = colors.possiblyIncomplete)
         Text(
-            "entries were lost in this session here; some may belong to this ViewModel",
+            if (shared) "entries were lost in this session here; they may belong to any of its ViewModels"
+            else "entries were lost in this session here; some may belong to this ViewModel",
             style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp), color = MaterialTheme.colorScheme.onSurfaceVariant,
             maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f),
         )
