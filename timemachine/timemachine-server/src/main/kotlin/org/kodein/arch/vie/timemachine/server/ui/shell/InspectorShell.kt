@@ -17,10 +17,9 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.movableContentOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
-import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -29,6 +28,7 @@ import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.map
 import org.kodein.arch.vie.timemachine.server.ui.common.CompactBelow
@@ -163,10 +163,9 @@ private fun CompactPanes(
     // The sheet takes the keyboard while it is open, so the centre pane, whose keys step through the rows,
     // is given it back when the sheet closes. There is nothing to give it to when no timeline is shown.
     val centreFocus = remember { FocusRequester() }
-    var wasOpen by remember { mutableStateOf(viewState.drawerOpen) }
-    LaunchedEffect(viewState.drawerOpen) {
-        if (wasOpen && !viewState.drawerOpen) runCatching { centreFocus.requestFocus() }
-        wasOpen = viewState.drawerOpen
+    LaunchedEffect(viewState, centreFocus) {
+        // The first value is where the sheet stands, not a change: after it, each `false` is a sheet that closed.
+        snapshotFlow { viewState.drawerOpen }.drop(1).filter { !it }.collect { runCatching { centreFocus.requestFocus() } }
     }
     ModalSheet(
         open = viewState.drawerOpen,
