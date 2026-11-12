@@ -83,6 +83,9 @@ private fun TimeMachineState.resolve(scope: InspectorScope): Pair<SessionRecord,
     }
 }
 
+/** Whether the store still holds [scope]: its session, and for a ViewModel's scope that ViewModel in it. */
+internal fun TimeMachineState.holds(scope: InspectorScope): Boolean = resolve(scope) != null
+
 /**
  * The [Selection] holder, one atomic update per rule so no pane ever sees half of one. It owns no
  * coroutine: [Selection.resolvedIn] reads it against the store.

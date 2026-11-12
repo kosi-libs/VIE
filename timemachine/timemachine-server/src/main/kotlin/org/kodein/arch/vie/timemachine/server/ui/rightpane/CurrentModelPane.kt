@@ -14,6 +14,7 @@ import org.kodein.arch.vie.timemachine.server.ui.common.diffJson
 import org.kodein.arch.vie.timemachine.server.ui.common.nearestNodePath
 import org.kodein.arch.vie.timemachine.server.ui.common.pretty
 import org.kodein.arch.vie.timemachine.server.ui.core.Inspector
+import org.kodein.arch.vie.timemachine.server.ui.core.InspectorScope
 import org.kodein.arch.vie.timemachine.server.ui.core.Pane
 import org.kodein.arch.vie.timemachine.server.ui.core.PaneViewModel
 import org.kodein.arch.vie.timemachine.server.ui.core.whileShown
@@ -151,4 +152,4 @@ internal class CurrentModelVM(
 internal fun <T> Set<T>.toggled(element: T): Set<T> = if (element in this) this - element else this + element
 
 internal fun Inspector.currentModelPane(sessionId: Uuid, viewModelId: Uuid) =
-    Pane(CurrentModelVM.key(viewModelId)) { CurrentModelVM(this, sessionId, viewModelId) }
+    Pane(CurrentModelVM.key(viewModelId), InspectorScope.ViewModel(sessionId, viewModelId)) { CurrentModelVM(this, sessionId, viewModelId) }
