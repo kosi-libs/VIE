@@ -318,8 +318,9 @@ prefix on every base marker.
 
 ## 19. The TimeMachine probe is enabled in a release build
 
-**Smell:** `TimeMachine.start(TimeMachineConfig(…))` whose `enabled` is left at its default
-(`true`), or is tied to something that is also `true` in a release build.
+**Smell:** `TimeMachine.start(TimeMachineConfig(…))` whose `enabled` is a literal `true`, or is tied
+to something that is also `true` in a release build. `enabled` has no default, so every call site
+says where it comes from.
 
 **Grep:** `TimeMachine\.start` and `TimeMachineConfig\(` — read the `enabled` argument.
 
