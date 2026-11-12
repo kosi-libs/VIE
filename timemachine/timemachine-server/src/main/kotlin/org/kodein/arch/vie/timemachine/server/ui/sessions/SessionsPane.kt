@@ -1,10 +1,13 @@
 package org.kodein.arch.vie.timemachine.server.ui.sessions
 
+import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
 import org.kodein.arch.vie.VIE
 import org.kodein.arch.vie.timemachine.server.store.ActivityBucketMillis
 import org.kodein.arch.vie.timemachine.server.store.SessionRecord
@@ -27,12 +30,21 @@ import kotlin.uuid.Uuid
 internal interface SessionsVIE : VIE<SessionsVIE.Model, SessionsVIE.Intent, VIE.NoSignal> {
 
     /**
-     * The sessions tree. No controls: what the developer sets here, the selected scope, is the holder's.
+     * What the developer sets in the pane. The selected scope is not here: it is the holder's.
+     *
+     * @property collapsed The sessions whose ViewModels are folded away. A session is unfolded until it
+     *   is folded, so a new one arrives unfolded.
+     */
+    data class Controls(val collapsed: Set<Uuid> = emptySet())
+
+    /**
+     * The sessions tree.
      *
      * @property selected The scope the holder selects, as the store still holds it.
      * @property disconnectedSessions How many sessions are disconnected: what "Clear disconnected" removes.
      */
     data class Model(
+        val controls: Controls = Controls(),
         val sessions: List<SessionItem> = emptyList(),
         val selected: InspectorScope? = null,
         val disconnectedSessions: Int = 0,
@@ -40,6 +52,9 @@ internal interface SessionsVIE : VIE<SessionsVIE.Model, SessionsVIE.Intent, VIE.
 
     sealed interface Intent : VIE.Intent {
         data class SelectScope(val scope: InspectorScope) : Intent
+
+        /** Folds the ViewModels of session [sessionId] away, or unfolds them. */
+        data class ToggleSession(val sessionId: Uuid) : Intent
         data class ClearSession(val sessionId: Uuid) : Intent
         data object ClearDisconnected : Intent
     }
@@ -92,7 +107,19 @@ internal class SessionsVM(private val inspector: Inspector) :
                 SessionsKey,
                 combine(inspector.store.state, inspector.selection.state, ticker()) { state, selection, now -> Triple(state, selection, now) },
             ) { { (state, selection, now) -> sessionsModel(state, selection.resolvedIn(state).scope, now) } },
-        ) { it }
+        ) { projection ->
+            // The controls are the developer's, not the store's: a projection keeps them, but for the sessions
+            // the store dropped.
+            val held = projection.sessions.mapTo(HashSet()) { it.id }
+            projection.copy(controls = controls.copy(collapsed = controls.collapsed.filterTo(LinkedHashSet()) { it in held }))
+        }
+        // A ViewModel the selection moves to is shown: its session unfolds. Folding one leaves the selection
+        // where it is, and the selection that is already there does not unfold it again.
+        viewModelScope.launch {
+            inspector.selection.state.map { it.scope }.distinctUntilChanged().collect { scope ->
+                if (scope is InspectorScope.ViewModel) update { copy(controls = controls.copy(collapsed = controls.collapsed - scope.sessionId)) }
+            }
+        }
     }
 
     /** `clock.now()` at each bucket boundary of the activity sparkline. */
@@ -107,6 +134,10 @@ internal class SessionsVM(private val inspector: Inspector) :
     override suspend fun process(intent: SessionsVIE.Intent) {
         when (intent) {
             is SessionsVIE.Intent.SelectScope -> inspector.selection.selectScope(intent.scope)
+            is SessionsVIE.Intent.ToggleSession -> update {
+                val collapsed = controls.collapsed
+                copy(controls = controls.copy(collapsed = if (intent.sessionId in collapsed) collapsed - intent.sessionId else collapsed + intent.sessionId))
+            }
             is SessionsVIE.Intent.ClearSession -> inspector.store.post(TimeMachineEvent.ClearSession(intent.sessionId))
             SessionsVIE.Intent.ClearDisconnected -> inspector.store.post(TimeMachineEvent.ClearDisconnected)
         }

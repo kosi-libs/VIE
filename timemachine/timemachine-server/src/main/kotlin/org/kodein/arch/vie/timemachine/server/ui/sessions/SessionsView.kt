@@ -67,6 +67,10 @@ private fun VIEViewScope<SessionsVIE.Intent, NoSignal>.SessionsSlot(model: Sessi
     }
 }
 
+/** What a session's chevron says a click on it does. */
+internal const val CollapseSessionDescription = "Fold the session's ViewModels away"
+internal const val ExpandSessionDescription = "Unfold the session's ViewModels"
+
 /** What the left pane shows of [model]. [onScopePicked] is called once a click has picked a scope. */
 @Composable
 internal fun VIEViewScope<SessionsVIE.Intent, NoSignal>.SessionsContent(model: SessionsVIE.Model, modifier: Modifier = Modifier, onScopePicked: () -> Unit = {}) {
@@ -88,7 +92,7 @@ internal fun VIEViewScope<SessionsVIE.Intent, NoSignal>.SessionsContent(model: S
             verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
             items(model.sessions, key = { it.id.toString() }) { session ->
-                SessionBlock(session, model.selected) { intent ->
+                SessionBlock(session, model.selected, collapsed = session.id in model.controls.collapsed) { intent ->
                     post(intent)
                     if (intent is SessionsVIE.Intent.SelectScope) onScopePicked()
                 }
@@ -97,8 +101,12 @@ internal fun VIEViewScope<SessionsVIE.Intent, NoSignal>.SessionsContent(model: S
     }
 }
 
+/**
+ * A session: its row, which selects it, and under it its ViewModels and its clear action. [collapsed],
+ * only its row is left, which then says how many ViewModels it hides; the row's chevron folds and unfolds.
+ */
 @Composable
-private fun SessionBlock(session: SessionItem, selected: InspectorScope?, post: (SessionsVIE.Intent) -> Unit) {
+private fun SessionBlock(session: SessionItem, selected: InspectorScope?, collapsed: Boolean, post: (SessionsVIE.Intent) -> Unit) {
     val scheme = MaterialTheme.colorScheme
     val onSession = selected == InspectorScope.Session(session.id)
     Column(
@@ -114,7 +122,12 @@ private fun SessionBlock(session: SessionItem, selected: InspectorScope?, post: 
             horizontalArrangement = Arrangement.spacedBy(6.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Symbol("expand_more", size = 18.dp, tint = scheme.outline)
+            Symbol(
+                if (collapsed) "chevron_right" else "expand_more", size = 18.dp, tint = scheme.outline,
+                modifier = Modifier.action(description = if (collapsed) ExpandSessionDescription else CollapseSessionDescription) {
+                    post(SessionsVIE.Intent.ToggleSession(session.id))
+                },
+            )
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
                     Text(
@@ -125,9 +138,12 @@ private fun SessionBlock(session: SessionItem, selected: InspectorScope?, post: 
                     Text(session.shortId, style = InspectorTheme.text.monoMeta, color = scheme.outline, maxLines = 1)
                     LiveDot(session.connected)
                 }
-                Text(
+                val since =
                     if (session.connected) "connected ${clock(session.connectedAt)}"
-                    else "${clock(session.connectedAt)} – ${session.disconnectedAt?.let(::clock) ?: "?"} · disconnected",
+                    else "${clock(session.connectedAt)} – ${session.disconnectedAt?.let(::clock) ?: "?"} · disconnected"
+                val count = session.viewModels.size
+                Text(
+                    if (collapsed) "$since · $count ${if (count == 1) "ViewModel" else "ViewModels"}" else since,
                     style = InspectorTheme.text.monoMeta, color = scheme.outline, maxLines = 1, overflow = TextOverflow.Ellipsis,
                 )
             }
@@ -135,18 +151,20 @@ private fun SessionBlock(session: SessionItem, selected: InspectorScope?, post: 
                 Text("all ViewModels", style = InspectorTheme.text.tag, color = scheme.onPrimaryContainer, maxLines = 1)
             }
         }
-        session.viewModels.forEach { vm ->
-            ViewModelRow(vm, session, selected == InspectorScope.ViewModel(session.id, vm.id)) {
-                post(SessionsVIE.Intent.SelectScope(InspectorScope.ViewModel(session.id, vm.id)))
+        if (!collapsed) {
+            session.viewModels.forEach { vm ->
+                ViewModelRow(vm, session, selected == InspectorScope.ViewModel(session.id, vm.id)) {
+                    post(SessionsVIE.Intent.SelectScope(InspectorScope.ViewModel(session.id, vm.id)))
+                }
             }
+            TextAction(
+                session.clearLabel,
+                modifier = Modifier.padding(start = 16.dp).align(Alignment.Start),
+                glyph = if (session.connected) "clear_all" else "delete_sweep",
+                enabled = session.clearEnabled,
+                height = 24.dp,
+            ) { post(SessionsVIE.Intent.ClearSession(session.id)) }
         }
-        TextAction(
-            session.clearLabel,
-            modifier = Modifier.padding(start = 16.dp).align(Alignment.Start),
-            glyph = if (session.connected) "clear_all" else "delete_sweep",
-            enabled = session.clearEnabled,
-            height = 24.dp,
-        ) { post(SessionsVIE.Intent.ClearSession(session.id)) }
     }
 }
 

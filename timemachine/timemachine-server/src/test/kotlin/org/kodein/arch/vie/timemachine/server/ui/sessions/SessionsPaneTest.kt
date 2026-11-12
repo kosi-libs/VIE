@@ -16,6 +16,7 @@ import org.kodein.arch.vie.timemachine.server.fixtures.inspector
 import org.kodein.arch.vie.timemachine.server.fixtures.taskListScope
 import org.kodein.arch.vie.timemachine.server.store.TimeMachineEvent
 import org.kodein.arch.vie.timemachine.server.ui.core.Inspector
+import org.kodein.arch.vie.timemachine.server.ui.core.InspectorScope
 import org.kodein.arch.vie.timemachine.server.ui.core.ViewModelStatus
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -84,6 +85,68 @@ class SessionsPaneTest {
         inspector.store.post(TimeMachineEvent.ClearSession(Demo.session.id))
         runCurrent()
         assertEquals(null, model.selected)
+    }
+
+    // Folding: the developer's, kept in the pane's controls.
+
+    private val settingsScope = InspectorScope.ViewModel(Demo.session.id, Demo.settings)
+
+    @Test
+    fun `a session is unfolded until its chevron folds it, and unfolds again`() = sessions {
+        assertEquals(emptySet(), model.controls.collapsed)
+
+        post(SessionsVIE.Intent.ToggleSession(Demo.session.id))
+        runCurrent()
+        assertEquals(setOf(Demo.session.id), model.controls.collapsed)
+
+        post(SessionsVIE.Intent.ToggleSession(Demo.session.id))
+        runCurrent()
+        assertEquals(emptySet(), model.controls.collapsed)
+    }
+
+    @Test
+    fun `folding the session of the selected ViewModel leaves the selection where it is`() = sessions { inspector ->
+        post(SessionsVIE.Intent.SelectScope(taskListScope))
+        runCurrent()
+
+        post(SessionsVIE.Intent.ToggleSession(Demo.session.id))
+        runCurrent()
+
+        assertEquals(setOf(Demo.session.id), model.controls.collapsed)
+        assertEquals(taskListScope, inspector.selection.state.value.scope)
+        assertEquals(taskListScope, model.selected)
+    }
+
+    @Test
+    fun `a selection that moves to a ViewModel of a folded session unfolds it, and one that moves to the session does not`() = sessions { inspector ->
+        post(SessionsVIE.Intent.SelectScope(taskListScope))
+        runCurrent()
+        post(SessionsVIE.Intent.ToggleSession(Demo.session.id))
+        runCurrent()
+        assertEquals(setOf(Demo.session.id), model.controls.collapsed)
+
+        // The session's own row, which is still there when folded.
+        inspector.selection.selectScope(demoSession)
+        runCurrent()
+        assertEquals(setOf(Demo.session.id), model.controls.collapsed)
+
+        // From elsewhere than the pane: the chip of a row in the session's timeline.
+        inspector.selection.selectScope(settingsScope)
+        runCurrent()
+        assertEquals(emptySet(), model.controls.collapsed)
+    }
+
+    @Test
+    fun `a session the store drops is not kept as folded, and the others are`() = sessions { inspector ->
+        post(SessionsVIE.Intent.ToggleSession(Demo.session.id))
+        post(SessionsVIE.Intent.ToggleSession(Demo.oldSession.id))
+        runCurrent()
+        assertEquals(setOf(Demo.session.id, Demo.oldSession.id), model.controls.collapsed)
+
+        inspector.store.post(TimeMachineEvent.ClearDisconnected)
+        runCurrent()
+
+        assertEquals(setOf(Demo.session.id), model.controls.collapsed)
     }
 
     @Test
