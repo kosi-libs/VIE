@@ -32,9 +32,9 @@ import org.kodein.arch.vie.timemachine.server.ui.common.LocalCompact
 import org.kodein.arch.vie.timemachine.server.ui.common.RawJson
 import org.kodein.arch.vie.timemachine.server.ui.common.TreeRawSwitch
 import org.kodein.arch.vie.timemachine.server.ui.common.action
-import org.kodein.arch.vie.timemachine.server.ui.common.copyToClipboard
 import org.kodein.arch.vie.timemachine.server.ui.common.formatTime
 import org.kodein.arch.vie.timemachine.server.ui.common.pretty
+import org.kodein.arch.vie.timemachine.server.ui.common.rememberCopy
 import org.kodein.arch.vie.timemachine.server.ui.core.InspectorPane
 import org.kodein.arch.vie.timemachine.server.ui.core.LocalInspector
 import org.kodein.arch.vie.timemachine.server.ui.core.LocalInspectorViewState
@@ -70,77 +70,76 @@ internal fun CurrentModelView(sessionId: Uuid, viewModelId: Uuid) {
  */
 @Composable
 private fun CurrentModelContent(model: CurrentModelVIE.Model, post: (CurrentModelVIE.Intent) -> Unit) {
-    run {
-        val scheme = MaterialTheme.colorScheme
-        val projection = model.projection
-        val compact = LocalCompact.current
-        Column(Modifier.fillMaxWidth().height(if (compact) CompactPinnedHeight else PinnedHeight)) {
-            Row(
-                Modifier.fillMaxWidth().height(InspectorDimens.paneHeader).padding(start = 14.dp, end = 8.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Symbol("push_pin", size = 16.dp, tint = InspectorTheme.colors.model)
-                Text("Current model", style = MaterialTheme.typography.titleSmall, color = scheme.onSurface, maxLines = 1)
-                projection.sequence?.let {
-                    Text(
-                        "#$it${projection.at?.let { at -> " · " + formatTime(at) }.orEmpty()}",
-                        style = InspectorTheme.text.monoSecondary, color = scheme.outline, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false),
-                    )
-                }
-                Spacer(Modifier.weight(1f))
-                if (projection.json != null) {
-                    TreeRawSwitch(model.controls.raw) { post(CurrentModelVIE.Intent.SetRaw(it)) }
-                    Symbol(
-                        "content_copy", size = 16.dp, tint = scheme.onSurfaceVariant,
-                        modifier = Modifier.action(description = CopyModelDescription) { copyToClipboard(projection.json.pretty()) }.padding(5.dp),
-                    )
-                    EditButton(if (compact) "Edit" else "Edit & replace", projection.canReplace) { post(CurrentModelVIE.Intent.EditAndReplace) }
-                }
-                if (compact) {
-                    val viewState = LocalInspectorViewState.current
-                    Symbol(
-                        "right_panel_close", size = 18.dp, tint = scheme.onSurfaceVariant,
-                        modifier = Modifier.action(description = HideRightPaneDescription) { viewState.rightCollapsed = true }.padding(4.dp),
-                    )
-                }
+    val scheme = MaterialTheme.colorScheme
+    val projection = model.projection
+    val compact = LocalCompact.current
+    val copy = rememberCopy()
+    Column(Modifier.fillMaxWidth().height(if (compact) CompactPinnedHeight else PinnedHeight)) {
+        Row(
+            Modifier.fillMaxWidth().height(InspectorDimens.paneHeader).padding(start = 14.dp, end = 8.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Symbol("push_pin", size = 16.dp, tint = InspectorTheme.colors.model)
+            Text("Current model", style = MaterialTheme.typography.titleSmall, color = scheme.onSurface, maxLines = 1)
+            projection.sequence?.let {
+                Text(
+                    "#$it${projection.at?.let { at -> " · " + formatTime(at) }.orEmpty()}",
+                    style = InspectorTheme.text.monoSecondary, color = scheme.outline, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false),
+                )
             }
-            val fade = remember(projection.sequence) { Animatable(1f) }
-            LaunchedEffect(projection.sequence) {
-                fade.snapTo(1f)
-                delay(HighlightHoldMillis)
-                fade.animateTo(0f, tween(HighlightFadeMillis))
+            Spacer(Modifier.weight(1f))
+            if (projection.json != null) {
+                TreeRawSwitch(model.controls.raw) { post(CurrentModelVIE.Intent.SetRaw(it)) }
+                Symbol(
+                    "content_copy", size = 16.dp, tint = scheme.onSurfaceVariant,
+                    modifier = Modifier.action(description = CopyModelDescription) { copy(projection.json.pretty()) }.padding(5.dp),
+                )
+                EditButton(if (compact) "Edit" else "Edit & replace", projection.canReplace) { post(CurrentModelVIE.Intent.EditAndReplace) }
             }
-            if (projection.changedFrom != null && projection.json != null && projection.changedPaths.isNotEmpty()) {
-                Row(
-                    Modifier.fillMaxWidth().padding(start = 14.dp, end = 14.dp, bottom = 4.dp),
-                    horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Box(Modifier.size(8.dp).background(InspectorTheme.colors.modelContainer, RoundedCornerShape(2.dp)).border(1.dp, InspectorTheme.colors.model, RoundedCornerShape(2.dp)))
-                    Text(
-                        "highlighted: changed in #${projection.sequence} vs #${projection.changedFrom}",
-                        style = MaterialTheme.typography.bodySmall, color = InspectorTheme.colors.model, maxLines = 1,
-                    )
-                }
+            if (compact) {
+                val viewState = LocalInspectorViewState.current
+                Symbol(
+                    "right_panel_close", size = 18.dp, tint = scheme.onSurfaceVariant,
+                    modifier = Modifier.action(description = HideRightPaneDescription) { viewState.rightCollapsed = true }.padding(4.dp),
+                )
             }
-            Box(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(start = 8.dp, end = 8.dp, bottom = 8.dp)) {
-                when {
-                    projection.sequence == null -> Text("No model yet.", style = InspectorTheme.text.body, color = scheme.outline, modifier = Modifier.padding(horizontal = 6.dp, vertical = 16.dp))
-                    projection.json == null -> Column(Modifier.padding(horizontal = 6.dp, vertical = 4.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text(projection.asString.orEmpty(), style = InspectorTheme.text.code, color = scheme.onSurface)
-                        Text(
-                            "toString only — this model has no JSON, so it can't be shown as a tree or replaced.",
-                            style = InspectorTheme.text.note, color = scheme.outline,
-                        )
-                    }
-                    model.controls.raw -> RawJson(projection.rawText.orEmpty())
-                    else -> JsonTree(
-                        projection.json, model.controls.expanded,
-                        changed = projection.changedPaths, highlight = { fade.value },
-                    ) { post(CurrentModelVIE.Intent.ToggleNode(it)) }
-                }
-            }
-            HorizontalRule(color = InspectorTheme.colors.strongOutline)
         }
+        val fade = remember(projection.sequence) { Animatable(1f) }
+        LaunchedEffect(projection.sequence) {
+            fade.snapTo(1f)
+            delay(HighlightHoldMillis)
+            fade.animateTo(0f, tween(HighlightFadeMillis))
+        }
+        if (projection.changedFrom != null && projection.json != null && projection.changedPaths.isNotEmpty()) {
+            Row(
+                Modifier.fillMaxWidth().padding(start = 14.dp, end = 14.dp, bottom = 4.dp),
+                horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Box(Modifier.size(8.dp).background(InspectorTheme.colors.modelContainer, RoundedCornerShape(2.dp)).border(1.dp, InspectorTheme.colors.model, RoundedCornerShape(2.dp)))
+                Text(
+                    "highlighted: changed in #${projection.sequence} vs #${projection.changedFrom}",
+                    style = MaterialTheme.typography.bodySmall, color = InspectorTheme.colors.model, maxLines = 1,
+                )
+            }
+        }
+        Box(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(start = 8.dp, end = 8.dp, bottom = 8.dp)) {
+            when {
+                projection.sequence == null -> Text("No model yet.", style = InspectorTheme.text.body, color = scheme.outline, modifier = Modifier.padding(horizontal = 6.dp, vertical = 16.dp))
+                projection.json == null -> Column(Modifier.padding(horizontal = 6.dp, vertical = 4.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(projection.asString.orEmpty(), style = InspectorTheme.text.code, color = scheme.onSurface)
+                    Text(
+                        "toString only — this model has no JSON, so it can't be shown as a tree or replaced.",
+                        style = InspectorTheme.text.note, color = scheme.outline,
+                    )
+                }
+                model.controls.raw -> RawJson(projection.rawText.orEmpty())
+                else -> JsonTree(
+                    projection.json, model.controls.expanded,
+                    changed = projection.changedPaths, highlight = { fade.value },
+                ) { post(CurrentModelVIE.Intent.ToggleNode(it)) }
+            }
+        }
+        HorizontalRule(color = InspectorTheme.colors.strongOutline)
     }
 }
 

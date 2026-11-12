@@ -38,10 +38,10 @@ import org.kodein.arch.vie.timemachine.server.ui.common.KindBadge
 import org.kodein.arch.vie.timemachine.server.ui.common.RawJson
 import org.kodein.arch.vie.timemachine.server.ui.common.TreeRawSwitch
 import org.kodein.arch.vie.timemachine.server.ui.common.action
-import org.kodein.arch.vie.timemachine.server.ui.common.copyToClipboard
 import org.kodein.arch.vie.timemachine.server.ui.common.formatTime
 import org.kodein.arch.vie.timemachine.server.ui.common.kind
 import org.kodein.arch.vie.timemachine.server.ui.common.pretty
+import org.kodein.arch.vie.timemachine.server.ui.common.rememberCopy
 import org.kodein.arch.vie.timemachine.server.ui.common.splitSerialName
 import org.kodein.arch.vie.timemachine.server.ui.common.verb
 import org.kodein.arch.vie.timemachine.server.ui.core.InspectorPane
@@ -81,88 +81,87 @@ private fun DetailContent(model: DetailVIE.Model, observation: VIEObservation, s
     val scheme = MaterialTheme.colorScheme
     val colors = InspectorTheme.colors
     val projection = model.projection
-    run {
-        val kind = observation.kind
-        val name = splitSerialName(observation.typeName)
-        val label = MaterialTheme.typography.labelSmall.copy(letterSpacing = 0.06.sp)
-        Column(
-            Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(start = 14.dp, end = 14.dp, top = 12.dp, bottom = 16.dp),
-            verticalArrangement = Arrangement.spacedBy(14.dp),
-        ) {
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    KindBadge(kind)
-                    Symbol(if (kind == VIEObjectKind.Intent) "login" else "logout", size = 16.dp, tint = colors.kind(kind), mirrored = kind != VIEObjectKind.Intent)
-                    Text(
-                        if (kind == VIEObjectKind.Intent) "into the ViewModel" else "out of the ViewModel",
-                        style = InspectorTheme.text.body, color = scheme.onSurfaceVariant,
-                    )
-                    Spacer(Modifier.weight(1f))
-                    Text("#$sequence · ${formatTime(observation.at)}", style = InspectorTheme.text.codeRow, color = scheme.onSurfaceVariant, maxLines = 1)
-                }
+    val copy = rememberCopy()
+    val kind = observation.kind
+    val name = splitSerialName(observation.typeName)
+    val label = MaterialTheme.typography.labelSmall.copy(letterSpacing = 0.06.sp)
+    Column(
+        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(start = 14.dp, end = 14.dp, top = 12.dp, bottom = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp),
+    ) {
+        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                KindBadge(kind)
+                Symbol(if (kind == VIEObjectKind.Intent) "login" else "logout", size = 16.dp, tint = colors.kind(kind), mirrored = kind != VIEObjectKind.Intent)
                 Text(
-                    buildAnnotatedString {
-                        withStyle(SpanStyle(color = scheme.outline)) { append(name.prefix) }
-                        withStyle(SpanStyle(color = scheme.onSurface, fontWeight = FontWeight.SemiBold)) { append(name.last) }
-                    },
-                    style = InspectorTheme.text.code, color = scheme.onSurface,
+                    if (kind == VIEObjectKind.Intent) "into the ViewModel" else "out of the ViewModel",
+                    style = InspectorTheme.text.body, color = scheme.onSurfaceVariant,
                 )
-                projection.interventionNumber?.let { number ->
-                    Row(
-                        Modifier.fillMaxWidth().background(colors.intervenedContainer, RoundedCornerShape(8.dp)).padding(horizontal = 10.dp, vertical = 6.dp),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Symbol("touch_app", size = 16.dp, tint = colors.intervened)
-                        Text(
-                            buildAnnotatedString {
-                                append("Sent by the inspector — ")
-                                withStyle(SpanStyle(fontWeight = FontWeight.SemiBold)) { append("intervention #$number") }
-                                projection.interventionKind?.let { append(" · ${verb(it)}") }
-                            },
-                            style = InspectorTheme.text.body, color = scheme.onSurface, modifier = Modifier.weight(1f),
-                        )
-                        Text(
-                            "Show", style = InspectorTheme.text.label, color = colors.intervened,
-                            modifier = Modifier.action { post(DetailVIE.Intent.ShowInterventions) },
-                        )
-                    }
-                }
-                observation.asJson?.let { json ->
-                    Row(Modifier.padding(top = 2.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        if (projection.canIntervene) PillButton("Edit & intervene", "edit_note", filled = true) { post(DetailVIE.Intent.EditAndIntervene) }
-                        PillButton("Copy JSON", "content_copy", filled = false) { copyToClipboard(json.pretty()) }
-                    }
-                }
+                Spacer(Modifier.weight(1f))
+                Text("#$sequence · ${formatTime(observation.at)}", style = InspectorTheme.text.codeRow, color = scheme.onSurfaceVariant, maxLines = 1)
             }
-            projection.diff?.let { diff ->
-                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text("CHANGES VS #${diff.previous}", style = label, color = scheme.outline)
-                    Column(
-                        Modifier.fillMaxWidth().background(scheme.surfaceContainer, RoundedCornerShape(8.dp))
-                            .border(1.dp, scheme.outlineVariant, RoundedCornerShape(8.dp)).padding(vertical = 6.dp),
-                    ) {
-                        if (diff.ops.isEmpty()) Text("No differences.", style = InspectorTheme.text.body, color = scheme.outline, modifier = Modifier.padding(horizontal = 10.dp, vertical = 3.dp))
-                        diff.ops.forEach { Box(Modifier.padding(horizontal = 10.dp, vertical = 3.dp)) { DiffText(it) } }
-                    }
+            Text(
+                buildAnnotatedString {
+                    withStyle(SpanStyle(color = scheme.outline)) { append(name.prefix) }
+                    withStyle(SpanStyle(color = scheme.onSurface, fontWeight = FontWeight.SemiBold)) { append(name.last) }
+                },
+                style = InspectorTheme.text.code, color = scheme.onSurface,
+            )
+            projection.interventionNumber?.let { number ->
+                Row(
+                    Modifier.fillMaxWidth().background(colors.intervenedContainer, RoundedCornerShape(8.dp)).padding(horizontal = 10.dp, vertical = 6.dp),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Symbol("touch_app", size = 16.dp, tint = colors.intervened)
+                    Text(
+                        buildAnnotatedString {
+                            append("Sent by the inspector — ")
+                            withStyle(SpanStyle(fontWeight = FontWeight.SemiBold)) { append("intervention #$number") }
+                            projection.interventionKind?.let { append(" · ${verb(it)}") }
+                        },
+                        style = InspectorTheme.text.body, color = scheme.onSurface, modifier = Modifier.weight(1f),
+                    )
+                    Text(
+                        "Show", style = InspectorTheme.text.label, color = colors.intervened,
+                        modifier = Modifier.action { post(DetailVIE.Intent.ShowInterventions) },
+                    )
                 }
-            }
-            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text("TOSTRING", style = label, color = scheme.outline)
-                Text(observation.asString, style = InspectorTheme.text.codeRow.copy(lineHeight = 17.sp), color = scheme.onSurface)
             }
             observation.asJson?.let { json ->
-                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Text(if (kind == VIEObjectKind.Model) "FULL MODEL" else "JSON", style = label, color = scheme.outline, modifier = Modifier.weight(1f))
-                        TreeRawSwitch(model.controls.raw) { post(DetailVIE.Intent.SetRaw(it)) }
-                    }
-                    Box(
-                        Modifier.fillMaxWidth().background(scheme.surfaceContainer, RoundedCornerShape(8.dp))
-                            .border(1.dp, scheme.outlineVariant, RoundedCornerShape(8.dp)).padding(horizontal = 4.dp, vertical = 6.dp),
-                    ) {
-                        if (model.controls.raw) RawJson(projection.rawText.orEmpty())
-                        else JsonTree(json, model.controls.expanded) { post(DetailVIE.Intent.ToggleNode(it)) }
-                    }
+                Row(Modifier.padding(top = 2.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    if (projection.canIntervene) PillButton("Edit & intervene", "edit_note", filled = true) { post(DetailVIE.Intent.EditAndIntervene) }
+                    PillButton("Copy JSON", "content_copy", filled = false) { copy(json.pretty()) }
+                }
+            }
+        }
+        projection.diff?.let { diff ->
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Text("CHANGES VS #${diff.previous}", style = label, color = scheme.outline)
+                Column(
+                    Modifier.fillMaxWidth().background(scheme.surfaceContainer, RoundedCornerShape(8.dp))
+                        .border(1.dp, scheme.outlineVariant, RoundedCornerShape(8.dp)).padding(vertical = 6.dp),
+                ) {
+                    if (diff.ops.isEmpty()) Text("No differences.", style = InspectorTheme.text.body, color = scheme.outline, modifier = Modifier.padding(horizontal = 10.dp, vertical = 3.dp))
+                    diff.ops.forEach { Box(Modifier.padding(horizontal = 10.dp, vertical = 3.dp)) { DiffText(it) } }
+                }
+            }
+        }
+        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text("TOSTRING", style = label, color = scheme.outline)
+            Text(observation.asString, style = InspectorTheme.text.codeRow.copy(lineHeight = 17.sp), color = scheme.onSurface)
+        }
+        observation.asJson?.let { json ->
+            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    Text(if (kind == VIEObjectKind.Model) "FULL MODEL" else "JSON", style = label, color = scheme.outline, modifier = Modifier.weight(1f))
+                    TreeRawSwitch(model.controls.raw) { post(DetailVIE.Intent.SetRaw(it)) }
+                }
+                Box(
+                    Modifier.fillMaxWidth().background(scheme.surfaceContainer, RoundedCornerShape(8.dp))
+                        .border(1.dp, scheme.outlineVariant, RoundedCornerShape(8.dp)).padding(horizontal = 4.dp, vertical = 6.dp),
+                ) {
+                    if (model.controls.raw) RawJson(projection.rawText.orEmpty())
+                    else JsonTree(json, model.controls.expanded) { post(DetailVIE.Intent.ToggleNode(it)) }
                 }
             }
         }

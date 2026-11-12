@@ -18,6 +18,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -105,7 +106,7 @@ private fun SessionBlock(session: SessionItem, selected: InspectorScope?, post: 
         Row(
             Modifier
                 .fillMaxWidth().height(InspectorDimens.sessionItem)
-                .background(if (onSession) scheme.primaryContainer else Color0, RoundedCornerShape(8.dp))
+                .background(if (onSession) scheme.primaryContainer else Color.Transparent, RoundedCornerShape(8.dp))
                 .action { post(SessionsVIE.Intent.SelectScope(InspectorScope.Session(session.id))) }
                 .padding(start = 6.dp, end = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -157,7 +158,7 @@ private fun ViewModelRow(vm: ViewModelItem, session: SessionItem, selected: Bool
         Modifier
             .fillMaxWidth().height(InspectorDimens.viewModelItem)
             .alpha(if (closed && session.connected) 0.6f else 1f)
-            .background(if (selected) scheme.primaryContainer else Color0, RoundedCornerShape(8.dp))
+            .background(if (selected) scheme.primaryContainer else Color.Transparent, RoundedCornerShape(8.dp))
             .action(onClick = onClick)
             .padding(start = 30.dp, end = 10.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -204,5 +205,3 @@ private fun Sparkline(counts: List<Int>, dead: Boolean) {
         }
     }
 }
-
-private val Color0 = androidx.compose.ui.graphics.Color.Transparent
