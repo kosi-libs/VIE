@@ -9,9 +9,13 @@ import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.KSerializer
+import kotlinx.serialization.SealedSerializationApi
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.descriptors.PolymorphicKind
 import kotlinx.serialization.descriptors.PrimitiveKind
 import kotlinx.serialization.descriptors.PrimitiveSerialDescriptor
+import kotlinx.serialization.descriptors.SerialDescriptor
+import kotlinx.serialization.descriptors.SerialKind
 import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
 import kotlinx.serialization.json.JsonClassDiscriminator
@@ -50,6 +54,52 @@ private object UnimplementedSerializer : KSerializer<Unimplemented> {
     override fun serialize(encoder: Encoder, value: Unimplemented) = error("not needed")
     override fun deserialize(decoder: Decoder): Unimplemented = TODO()
 }
+
+/** Reading its serializer's descriptor throws, as a custom serializer's own code might. */
+@Serializable(with = ThrowingDescriptorSerializer::class)
+private class ThrowingDescriptor
+
+private object ThrowingDescriptorSerializer : KSerializer<ThrowingDescriptor> {
+    override val descriptor: SerialDescriptor get() = error("descriptor boom")
+    override fun serialize(encoder: Encoder, value: ThrowingDescriptor) = error("not needed")
+    override fun deserialize(decoder: Decoder): ThrowingDescriptor = error("not needed")
+}
+
+/** Reading its serializer's descriptor throws an `Error`, as one left as `TODO()` does. */
+@Serializable(with = UnimplementedDescriptorSerializer::class)
+private class UnimplementedDescriptor
+
+private object UnimplementedDescriptorSerializer : KSerializer<UnimplementedDescriptor> {
+    override val descriptor: SerialDescriptor get() = TODO()
+    override fun serialize(encoder: Encoder, value: UnimplementedDescriptor) = error("not needed")
+    override fun deserialize(decoder: Decoder): UnimplementedDescriptor = error("not needed")
+}
+
+/** Its descriptor says it is sealed, and throws an `Error` once asked for its subtypes. */
+@Serializable(with = HalfSealedSerializer::class)
+private class HalfSealed
+
+@OptIn(SealedSerializationApi::class)
+private object HalfSealedDescriptor : SerialDescriptor {
+    override val serialName: String = "HalfSealed"
+    override val kind: SerialKind = PolymorphicKind.SEALED
+    override val elementsCount: Int = 2
+    override fun getElementName(index: Int): String = TODO()
+    override fun getElementIndex(name: String): Int = TODO()
+    override fun getElementAnnotations(index: Int): List<Annotation> = TODO()
+    override fun getElementDescriptor(index: Int): SerialDescriptor = TODO()
+    override fun isElementOptional(index: Int): Boolean = TODO()
+}
+
+private object HalfSealedSerializer : KSerializer<HalfSealed> {
+    override val descriptor: SerialDescriptor = HalfSealedDescriptor
+    override fun serialize(encoder: Encoder, value: HalfSealed) = error("not needed")
+    override fun deserialize(decoder: Decoder): HalfSealed = error("not needed")
+}
+
+/** `Box<*>` has no serializer to look up: kotlinx-serialization throws on a star projection. */
+@Serializable
+private class Box<T>(val value: T)
 
 @Serializable
 private data class SimpleModel(val count: Int)
@@ -122,6 +172,47 @@ class VIERoleTest {
         assertNull(role.sealedSubTypes)
         assertNull(role.encode(PlainIntent.A))
         assertTrue(role.typeName.endsWith("PlainIntent"), role.typeName)
+    }
+
+    @Test
+    fun aRoleWhoseDescriptorThrowsIsNotSerializable() {
+        val role = role<ThrowingDescriptor>()
+
+        assertNotIntrospected(role)
+        assertTrue(role.typeName.endsWith("ThrowingDescriptor"), role.typeName)
+    }
+
+    @Test
+    fun aRoleWhoseDescriptorThrowsAnErrorIsNotSerializable() {
+        val role = role<UnimplementedDescriptor>()
+
+        assertNotIntrospected(role)
+        assertTrue(role.typeName.endsWith("UnimplementedDescriptor"), role.typeName)
+    }
+
+    @Test
+    fun aRoleWhoseSealedSubTypesThrowAnErrorIsNotSerializable() {
+        val role = role<HalfSealed>()
+
+        assertNotIntrospected(role)
+        assertTrue(role.typeName.endsWith("HalfSealed"), role.typeName)
+    }
+
+    @Test
+    fun aStarProjectedRoleIsNotSerializable() {
+        assertNotIntrospected(role<Box<*>>())
+    }
+
+    /** [role] fell back to a role without a serializer, and nothing it is asked afterwards throws. */
+    private fun assertNotIntrospected(role: VIERole<*>) {
+        assertFalse(role.isSerializable)
+        assertNull(role.serializer)
+        assertNull(role.sealedSubTypes)
+        val info = role.toVIETypeInfo()
+        assertEquals(role.typeName, info.typeName)
+        assertFalse(info.isSerializable)
+        assertNull(info.sealedSubTypes)
+        assertEquals(VIEInterventionResult.Reason.NotSerializable, role.decodeForIntervention(role.typeName, JsonNull).reason())
     }
 
     @Test

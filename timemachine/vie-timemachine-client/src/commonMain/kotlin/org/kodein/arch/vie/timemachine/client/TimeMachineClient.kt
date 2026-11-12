@@ -102,7 +102,8 @@ internal class TimeMachineClient(
     private val address = "ws://${config.host}:${config.port}${TimeMachineConnection.path}"
 
     // Roles depend only on their type, and building one is a reflective lookup on the thread that builds
-    // the ViewModel: it is done once per type. Copy-on-write, like the sink's registry.
+    // the ViewModel: it is done once per type, a type that fails to introspect included, so that it
+    // is printed once and not for every ViewModel. Copy-on-write, like the sink's registry.
     private val roles = AtomicReference<Map<KType, VIERole<*>>>(emptyMap())
 
     @Suppress("UNCHECKED_CAST")
