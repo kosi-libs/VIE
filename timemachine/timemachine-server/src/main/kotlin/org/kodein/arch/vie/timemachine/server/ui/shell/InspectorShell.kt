@@ -1,7 +1,6 @@
 package org.kodein.arch.vie.timemachine.server.ui.shell
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -27,11 +26,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
-import androidx.compose.ui.input.pointer.PointerIcon
-import androidx.compose.ui.input.pointer.pointerHoverIcon
-import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -41,6 +35,7 @@ import kotlinx.coroutines.flow.map
 import org.kodein.arch.vie.timemachine.server.ui.common.CompactBelow
 import org.kodein.arch.vie.timemachine.server.ui.common.LocalCompact
 import org.kodein.arch.vie.timemachine.server.ui.common.ProvideCompact
+import org.kodein.arch.vie.timemachine.server.ui.common.action
 import org.kodein.arch.vie.timemachine.server.ui.core.InspectorPane
 import org.kodein.arch.vie.timemachine.server.ui.core.InspectorScope
 import org.kodein.arch.vie.timemachine.server.ui.core.LocalInspector
@@ -208,8 +203,7 @@ private fun CollapsedRightPane(onOpen: () -> Unit) {
         Box(Modifier.weight(1f).height(InspectorDimens.paneHeader), contentAlignment = Alignment.Center) {
             Box(
                 Modifier.size(26.dp).clip(CircleShape)
-                    .pointerHoverIcon(PointerIcon.Hand).clickable(role = Role.Button, onClick = onOpen)
-                    .semantics { contentDescription = ShowRightPaneDescription },
+                    .action(description = ShowRightPaneDescription, onClick = onOpen),
                 contentAlignment = Alignment.Center,
             ) {
                 Symbol("right_panel_open", size = 18.dp, tint = scheme.onSurfaceVariant)

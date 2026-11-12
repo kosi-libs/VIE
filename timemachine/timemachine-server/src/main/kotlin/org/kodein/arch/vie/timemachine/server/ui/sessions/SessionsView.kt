@@ -1,7 +1,6 @@
 package org.kodein.arch.vie.timemachine.server.ui.sessions
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -19,14 +18,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.input.pointer.PointerIcon
-import androidx.compose.ui.input.pointer.pointerHoverIcon
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.kodein.arch.vie.timemachine.server.ui.common.LiveDot
 import org.kodein.arch.vie.timemachine.server.ui.common.TextAction
+import org.kodein.arch.vie.timemachine.server.ui.common.action
 import org.kodein.arch.vie.timemachine.server.ui.common.clock
 import org.kodein.arch.vie.timemachine.server.ui.common.monoStyle
 import org.kodein.arch.vie.timemachine.server.ui.common.viewModelName
@@ -110,8 +108,7 @@ private fun SessionBlock(session: SessionItem, selected: InspectorScope?, post: 
             Modifier
                 .fillMaxWidth().height(InspectorDimens.sessionItem)
                 .background(if (onSession) scheme.primaryContainer else Color0, RoundedCornerShape(8.dp))
-                .pointerHoverIcon(PointerIcon.Hand)
-                .clickable { post(SessionsVIE.Intent.SelectScope(InspectorScope.Session(session.id))) }
+                .action { post(SessionsVIE.Intent.SelectScope(InspectorScope.Session(session.id))) }
                 .padding(start = 6.dp, end = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(6.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -164,8 +161,7 @@ private fun ViewModelRow(vm: ViewModelItem, session: SessionItem, selected: Bool
             .fillMaxWidth().height(InspectorDimens.viewModelItem)
             .alpha(if (closed && session.connected) 0.6f else 1f)
             .background(if (selected) scheme.primaryContainer else Color0, RoundedCornerShape(8.dp))
-            .pointerHoverIcon(PointerIcon.Hand)
-            .clickable(onClick = onClick)
+            .action(onClick = onClick)
             .padding(start = 30.dp, end = 10.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically,

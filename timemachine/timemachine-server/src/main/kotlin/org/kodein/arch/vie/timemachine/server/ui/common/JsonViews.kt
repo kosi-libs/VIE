@@ -2,7 +2,6 @@ package org.kodein.arch.vie.timemachine.server.ui.common
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -21,8 +20,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawOutline
-import androidx.compose.ui.input.pointer.PointerIcon
-import androidx.compose.ui.input.pointer.pointerHoverIcon
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -132,7 +130,7 @@ internal fun JsonTree(
                             drawOutline(shape.createOutline(size, layoutDirection, this), colors.modelContainer.copy(alpha = highlight()))
                         } else Modifier,
                     )
-                    .then(if (line.openable) Modifier.pointerHoverIcon(PointerIcon.Hand).clickable { onToggle(line.path) } else Modifier)
+                    .then(if (line.openable) Modifier.action { onToggle(line.path) } else Modifier)
                     .padding(horizontal = 6.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -179,7 +177,7 @@ internal fun TreeRawSwitch(raw: Boolean, modifier: Modifier = Modifier, onChange
             val on = raw == isRaw
             Row(
                 Modifier.fillMaxHeight().background(if (on) scheme.primaryContainer else Color.Transparent)
-                    .pointerHoverIcon(PointerIcon.Hand).clickable { onChange(isRaw) }.padding(horizontal = 10.dp),
+                    .action(role = Role.RadioButton, selected = on) { onChange(isRaw) }.padding(horizontal = 10.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 Text(label, style = MaterialTheme.typography.labelMedium.copy(fontSize = 11.sp), color = if (on) scheme.onPrimaryContainer else scheme.onSurfaceVariant, maxLines = 1)

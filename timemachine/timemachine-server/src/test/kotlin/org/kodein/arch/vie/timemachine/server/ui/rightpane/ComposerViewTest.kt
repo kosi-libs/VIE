@@ -2,10 +2,16 @@
 
 package org.kodein.arch.vie.timemachine.server.ui.rightpane
 
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.DesktopComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.assertIsNotSelected
+import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasText
@@ -47,6 +53,9 @@ class ComposerViewTest {
     private fun DesktopComposeUiTest.editorText(): String =
         onNode(hasSetTextAction()).fetchSemanticsNode().config[SemanticsProperties.EditableText].text
 
+    /** The segment of kind [name]: the type field shows a type's name as well, which can be "Model". */
+    private fun segment(name: String) = hasText(name) and SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.RadioButton)
+
     private fun Inspector.draft(): String? = viewModel(composerPane(Demo.session.id, Demo.taskList)).modelFlow.value.controls.draft
 
     @Test
@@ -68,6 +77,18 @@ class ComposerViewTest {
         until { inspector.draft() == null }
         waitForIdle()
         assertEquals(prefill, editorText())
+    }
+
+    @Test
+    fun `Send is disabled for as long as the JSON does not parse, and the kind chosen is the selected segment`() = composer { _ ->
+        projected { editorShown() }
+        onNodeWithText("Replace model").assertIsEnabled()
+        onNode(segment("Model")).assertIsSelected()
+        onNode(segment("Intent")).assertIsNotSelected()
+
+        onNode(hasSetTextAction()).performTextInput("not JSON ")
+
+        projected { runCatching { onNodeWithText("Replace model").assertIsNotEnabled() }.isSuccess }
     }
 
     @Test

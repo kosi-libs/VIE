@@ -4,7 +4,6 @@ import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -24,11 +23,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.input.pointer.PointerIcon
-import androidx.compose.ui.input.pointer.pointerHoverIcon
-import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -38,6 +32,7 @@ import org.kodein.arch.vie.timemachine.server.ui.common.JsonTree
 import org.kodein.arch.vie.timemachine.server.ui.common.LocalCompact
 import org.kodein.arch.vie.timemachine.server.ui.common.RawJson
 import org.kodein.arch.vie.timemachine.server.ui.common.TreeRawSwitch
+import org.kodein.arch.vie.timemachine.server.ui.common.action
 import org.kodein.arch.vie.timemachine.server.ui.common.copyToClipboard
 import org.kodein.arch.vie.timemachine.server.ui.common.formatTime
 import org.kodein.arch.vie.timemachine.server.ui.common.monoStyle
@@ -54,6 +49,9 @@ import kotlin.uuid.Uuid
 /** The pinned current model's height, and the compact layout's, which leaves the tabs more room. */
 private val PinnedHeight = 300.dp
 private val CompactPinnedHeight = 220.dp
+
+/** What the copy glyph of the pinned model's header says it is. */
+internal const val CopyModelDescription = "Copy the current model's JSON"
 
 /** How long the changed-node highlight holds, then fades. */
 private const val HighlightHoldMillis = 1500L
@@ -96,7 +94,7 @@ private fun CurrentModelContent(model: CurrentModelVIE.Model, post: (CurrentMode
                     TreeRawSwitch(model.controls.raw) { post(CurrentModelVIE.Intent.SetRaw(it)) }
                     Symbol(
                         "content_copy", size = 16.dp, tint = scheme.onSurfaceVariant,
-                        modifier = Modifier.pointerHoverIcon(PointerIcon.Hand).clickable { copyToClipboard(projection.json.pretty()) }.padding(5.dp),
+                        modifier = Modifier.action(description = CopyModelDescription) { copyToClipboard(projection.json.pretty()) }.padding(5.dp),
                     )
                     EditButton(if (compact) "Edit" else "Edit & replace", projection.canReplace) { post(CurrentModelVIE.Intent.EditAndReplace) }
                 }
@@ -104,10 +102,7 @@ private fun CurrentModelContent(model: CurrentModelVIE.Model, post: (CurrentMode
                     val viewState = LocalInspectorViewState.current
                     Symbol(
                         "right_panel_close", size = 18.dp, tint = scheme.onSurfaceVariant,
-                        modifier = Modifier.pointerHoverIcon(PointerIcon.Hand)
-                            .clickable(role = Role.Button) { viewState.rightCollapsed = true }
-                            .semantics { contentDescription = HideRightPaneDescription }
-                            .padding(4.dp),
+                        modifier = Modifier.action(description = HideRightPaneDescription) { viewState.rightCollapsed = true }.padding(4.dp),
                     )
                 }
             }
@@ -157,7 +152,7 @@ private fun EditButton(label: String, enabled: Boolean, onClick: () -> Unit) {
     val foreground = if (enabled) scheme.onPrimaryContainer else scheme.outline
     Row(
         Modifier.height(26.dp).background(if (enabled) scheme.primaryContainer else scheme.surfaceContainerHigh, InspectorPillShape)
-            .then(if (enabled) Modifier.pointerHoverIcon(PointerIcon.Hand).clickable(onClick = onClick) else Modifier)
+            .action(enabled = enabled, onClick = onClick)
             .padding(start = 8.dp, end = 10.dp),
         horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically,
     ) {

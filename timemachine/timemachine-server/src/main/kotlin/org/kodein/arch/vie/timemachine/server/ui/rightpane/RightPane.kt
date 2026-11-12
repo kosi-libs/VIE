@@ -1,7 +1,6 @@
 package org.kodein.arch.vie.timemachine.server.ui.rightpane
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -21,12 +20,12 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.input.pointer.PointerIcon
-import androidx.compose.ui.input.pointer.pointerHoverIcon
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.kodein.arch.vie.timemachine.server.ui.common.HorizontalRule
+import org.kodein.arch.vie.timemachine.server.ui.common.action
 import org.kodein.arch.vie.timemachine.server.ui.common.monoStyle
 import org.kodein.arch.vie.timemachine.server.ui.core.InspectorPane
 import org.kodein.arch.vie.timemachine.server.ui.core.InspectorScope
@@ -109,7 +108,7 @@ private fun RightTabs(tab: RightTab, interventions: Int, onSelect: (RightTab) ->
             val on = tab == entry
             val badge = if (entry == RightTab.Composer) interventions.takeIf { it > 0 }?.toString() else null
             Box(
-                Modifier.fillMaxHeight().pointerHoverIcon(PointerIcon.Hand).clickable { onSelect(entry) }
+                Modifier.fillMaxHeight().action(role = Role.Tab, selected = on) { onSelect(entry) }
                     .drawBehind {
                         if (on) drawRoundRect(
                             scheme.primary,

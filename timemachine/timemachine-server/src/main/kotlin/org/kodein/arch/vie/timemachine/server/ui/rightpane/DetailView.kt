@@ -2,7 +2,6 @@ package org.kodein.arch.vie.timemachine.server.ui.rightpane
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -22,8 +21,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.input.pointer.PointerIcon
-import androidx.compose.ui.input.pointer.pointerHoverIcon
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
@@ -40,6 +37,7 @@ import org.kodein.arch.vie.timemachine.server.ui.common.JsonTree
 import org.kodein.arch.vie.timemachine.server.ui.common.KindBadge
 import org.kodein.arch.vie.timemachine.server.ui.common.RawJson
 import org.kodein.arch.vie.timemachine.server.ui.common.TreeRawSwitch
+import org.kodein.arch.vie.timemachine.server.ui.common.action
 import org.kodein.arch.vie.timemachine.server.ui.common.copyToClipboard
 import org.kodein.arch.vie.timemachine.server.ui.common.formatTime
 import org.kodein.arch.vie.timemachine.server.ui.common.kind
@@ -126,7 +124,7 @@ private fun DetailContent(model: DetailVIE.Model, observation: VIEObservation, s
                         )
                         Text(
                             "Show", style = MaterialTheme.typography.labelMedium.copy(fontSize = 12.sp), color = colors.intervened,
-                            modifier = Modifier.pointerHoverIcon(PointerIcon.Hand).clickable { post(DetailVIE.Intent.ShowInterventions) },
+                            modifier = Modifier.action { post(DetailVIE.Intent.ShowInterventions) },
                         )
                     }
                 }
@@ -179,7 +177,7 @@ private fun PillButton(label: String, glyph: String, filled: Boolean, onClick: (
     Row(
         Modifier.height(28.dp)
             .then(if (filled) Modifier.background(scheme.primaryContainer, InspectorPillShape) else Modifier.border(1.dp, InspectorTheme.colors.strongOutline, InspectorPillShape))
-            .clip(InspectorPillShape).pointerHoverIcon(PointerIcon.Hand).clickable(onClick = onClick).padding(start = 9.dp, end = 12.dp),
+            .clip(InspectorPillShape).action(onClick = onClick).padding(start = 9.dp, end = 12.dp),
         horizontalArrangement = Arrangement.spacedBy(5.dp), verticalAlignment = Alignment.CenterVertically,
     ) {
         Symbol(glyph, size = if (filled) 16.dp else 15.dp, tint = foreground)

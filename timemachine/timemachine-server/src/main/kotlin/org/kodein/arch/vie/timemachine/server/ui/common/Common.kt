@@ -20,6 +20,10 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.PointerIcon
 import androidx.compose.ui.input.pointer.pointerHoverIcon
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.selected
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -47,6 +51,30 @@ internal fun clock(at: Instant): String = formatTime(at).take(8)
 internal fun copyToClipboard(text: String) {
     Toolkit.getDefaultToolkit().systemClipboard.setContents(StringSelection(text), null)
 }
+
+/**
+ * What a click does here: [onClick], with the hand over it, as the [role] it has. Disabled, it keeps
+ * its place in the semantics, as an action that cannot be taken, rather than becoming plain content.
+ *
+ * @param description What a glyph with no text says it is.
+ * @param selected Whether it is the one chosen among its siblings; `null` when it is not a choice.
+ */
+internal fun Modifier.action(
+    enabled: Boolean = true,
+    role: Role = Role.Button,
+    description: String? = null,
+    selected: Boolean? = null,
+    onClick: () -> Unit,
+): Modifier = this
+    .then(if (enabled) Modifier.pointerHoverIcon(PointerIcon.Hand) else Modifier)
+    .clickable(enabled = enabled, role = role, onClick = onClick)
+    .then(
+        if (description == null && selected == null) Modifier
+        else Modifier.semantics {
+            description?.let { contentDescription = it }
+            selected?.let { this.selected = it }
+        },
+    )
 
 /** The presence dot: filled with a 3 dp halo when [live], a hollow ring otherwise. */
 @Composable
@@ -78,7 +106,7 @@ internal fun TextAction(
         modifier
             .height(height.dp)
             .background(Color.Transparent, InspectorPillShape)
-            .then(if (enabled) Modifier.pointerHoverIcon(PointerIcon.Hand).clickable(onClick = onClick) else Modifier)
+            .action(enabled = enabled, onClick = onClick)
             .padding(horizontal = 8.dp),
         horizontalArrangement = Arrangement.spacedBy(4.dp),
         verticalAlignment = Alignment.CenterVertically,

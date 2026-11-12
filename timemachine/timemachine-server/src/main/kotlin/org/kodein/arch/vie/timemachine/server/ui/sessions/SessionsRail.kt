@@ -2,7 +2,6 @@ package org.kodein.arch.vie.timemachine.server.ui.sessions
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -23,13 +22,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
-import androidx.compose.ui.input.pointer.PointerIcon
-import androidx.compose.ui.input.pointer.pointerHoverIcon
-import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.contentDescription
-import androidx.compose.ui.semantics.selected
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import org.kodein.arch.vie.timemachine.server.ui.common.action
 import org.kodein.arch.vie.timemachine.server.ui.common.monoStyle
 import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorTheme
 import org.kodein.arch.vie.timemachine.server.ui.theme.Symbol
@@ -54,8 +48,7 @@ internal fun SessionsRail(model: SessionsVIE.Model, modifier: Modifier = Modifie
         ) {
             Box(
                 Modifier.size(width = 40.dp, height = 36.dp).clip(RoundedCornerShape(18.dp))
-                    .pointerHoverIcon(PointerIcon.Hand).clickable(role = Role.Button, onClick = onMenu)
-                    .semantics { contentDescription = RailMenuDescription },
+                    .action(description = RailMenuDescription, onClick = onMenu),
                 contentAlignment = Alignment.Center,
             ) {
                 Symbol("menu", size = 20.dp, tint = scheme.onSurfaceVariant)
@@ -77,8 +70,7 @@ private fun RailTile(item: RailItem, onClick: () -> Unit) {
             .alpha(if (item.dimmed) 0.55f else 1f)
             .background(if (item.selected) scheme.primaryContainer else scheme.surfaceContainerHigh, shape)
             .clip(shape)
-            .pointerHoverIcon(PointerIcon.Hand).clickable(role = Role.Button, onClick = onClick)
-            .semantics { contentDescription = item.description; selected = item.selected },
+            .action(description = item.description, selected = item.selected, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
         Text(

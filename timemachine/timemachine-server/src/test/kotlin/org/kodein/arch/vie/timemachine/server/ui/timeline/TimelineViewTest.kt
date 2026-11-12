@@ -17,6 +17,8 @@ import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasScrollAction
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.onAllNodesWithContentDescription
+import androidx.compose.ui.test.onLast
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
@@ -151,6 +153,21 @@ class TimelineViewTest {
 
             assertEquals(target, inspector.selection.state.value.row, "Enter selected another row")
             assertEquals(setOf(target), inspector.timeline(taskList).controls.expanded)
+        }
+
+    @Test
+    fun `a row's chevron says what a click on it does, and does it`() =
+        paneTest(height = 300, content = { TimelineView(taskList) }) { inspector ->
+            inspector.selection.selectScope(taskList)
+            until { shown(taskListTitle) && topRow() != null }
+            waitForIdle()
+            assertTrue(onAllNodesWithContentDescription(CollapseRowDescription).fetchSemanticsNodes().isEmpty())
+
+            // The last row: the timeline ends on it, whole.
+            onAllNodesWithContentDescription(ExpandRowDescription).onLast().performClick()
+
+            until { inspector.timeline(taskList).controls.expanded.size == 1 }
+            until { onAllNodesWithContentDescription(CollapseRowDescription).fetchSemanticsNodes().size == 1 }
         }
 
     @Test

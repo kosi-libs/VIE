@@ -3,6 +3,10 @@
 package org.kodein.arch.vie.timemachine.server.ui.shell
 
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.assertIsNotSelected
+import androidx.compose.ui.test.assertIsSelected
+import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
 import androidx.lifecycle.viewModelScope
 import kotlin.test.Test
 import kotlin.test.assertFalse
@@ -15,8 +19,10 @@ import org.kodein.arch.vie.timemachine.server.fixtures.Demo
 import org.kodein.arch.vie.timemachine.server.fixtures.SampleWorld
 import org.kodein.arch.vie.timemachine.server.fixtures.paneTest
 import org.kodein.arch.vie.timemachine.server.fixtures.shown
+import org.kodein.arch.vie.timemachine.server.fixtures.taskListScope
 import org.kodein.arch.vie.timemachine.server.fixtures.until
 import org.kodein.arch.vie.timemachine.server.store.TimeMachineEvent
+import org.kodein.arch.vie.timemachine.server.ui.core.RightTab
 import org.kodein.arch.vie.timemachine.server.ui.core.holds
 import org.kodein.arch.vie.timemachine.server.ui.core.viewModel
 import org.kodein.arch.vie.timemachine.server.ui.sessions.sessionsPane
@@ -43,6 +49,21 @@ class InspectorShellTest {
 
             until { !timeline.viewModelScope.isActive }
             assertTrue(sessions.viewModelScope.isActive)
+        }
+
+    @Test
+    fun `the right pane's tab that shows is the selected one`() =
+        paneTest(width = 1440, height = 900, content = { InspectorShell() }) { inspector ->
+            inspector.selection.selectScope(taskListScope)
+            until { shown("Detail") }
+            onNodeWithText("Detail").assertIsSelected()
+            onNodeWithText("Intervene").assertIsNotSelected()
+
+            onNodeWithText("Intervene").performClick()
+
+            until { inspector.selection.state.value.tab == RightTab.Composer }
+            until { runCatching { onNodeWithText("Intervene").assertIsSelected() }.isSuccess }
+            onNodeWithText("Detail").assertIsNotSelected()
         }
 
     @Test
