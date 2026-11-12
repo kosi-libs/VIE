@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.rememberScrollbarAdapter
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
 import androidx.compose.foundation.verticalScroll
@@ -50,8 +51,8 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.OffsetMapping
 import androidx.compose.ui.text.input.TransformedText
 import androidx.compose.ui.text.input.VisualTransformation
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.constrainWidth
@@ -64,6 +65,7 @@ import org.kodein.arch.vie.timemachine.protocol.VIEInterventionResult
 import org.kodein.arch.vie.timemachine.protocol.VIEObjectKind
 import org.kodein.arch.vie.timemachine.server.store.InterventionStatus
 import org.kodein.arch.vie.timemachine.server.ui.common.HorizontalRule
+import org.kodein.arch.vie.timemachine.server.ui.common.ScrollbarBox
 import org.kodein.arch.vie.timemachine.server.ui.common.action
 import org.kodein.arch.vie.timemachine.server.ui.common.colorJsonLine
 import org.kodein.arch.vie.timemachine.server.ui.common.formatDelay
@@ -101,37 +103,40 @@ internal fun VIEViewScope<ComposerVIE.Intent, NoSignal>.ComposerContent(model: C
     val projection = model.projection
     val target = projection.target
     val blocked = projection.blockText != null
-    Column(
-        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(start = InspectorDimens.paneHorizontalPadding, end = InspectorDimens.paneHorizontalPadding, top = 12.dp, bottom = 16.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        projection.blockText?.let { text ->
-            Row(
-                Modifier.fillMaxWidth().background(scheme.surfaceContainerHigh, RoundedCornerShape(8.dp)).padding(horizontal = 12.dp, vertical = 10.dp),
-                horizontalArrangement = Arrangement.spacedBy(10.dp),
-            ) {
-                Symbol("do_not_disturb_on", size = 18.dp, tint = scheme.outline)
-                Text(text, style = InspectorTheme.text.bodyEmphasis, color = scheme.onSurface, modifier = Modifier.weight(1f))
-            }
-        }
-        if (target != null) {
-            Column(
-                Modifier.alpha(if (blocked) 0.45f else 1f),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text("Target", style = InspectorTheme.text.body, color = scheme.outline, modifier = Modifier.width(44.dp))
-                    Text(projection.name, style = InspectorTheme.text.code, color = scheme.onSurface, fontWeight = FontWeight.SemiBold, maxLines = 1)
-                    Text(projection.shortId, style = InspectorTheme.text.monoSecondary, color = scheme.outline, maxLines = 1)
+    val scroll = rememberScrollState()
+    ScrollbarBox(rememberScrollbarAdapter(scroll), Modifier.fillMaxSize()) {
+        Column(
+            Modifier.fillMaxSize().verticalScroll(scroll).padding(start = InspectorDimens.paneHorizontalPadding, end = InspectorDimens.paneHorizontalPadding, top = 12.dp, bottom = 16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            projection.blockText?.let { text ->
+                Row(
+                    Modifier.fillMaxWidth().background(scheme.surfaceContainerHigh, RoundedCornerShape(8.dp)).padding(horizontal = 12.dp, vertical = 10.dp),
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    Symbol("do_not_disturb_on", size = 18.dp, tint = scheme.outline)
+                    Text(text, style = InspectorTheme.text.bodyEmphasis, color = scheme.onSurface, modifier = Modifier.weight(1f))
                 }
-                KindSegments(target.kind, target.enabledKinds, blocked) { post(ComposerVIE.Intent.SetKind(it)) }
-                projection.unserializable?.let { (kind, typeName) -> KindReason(kind, typeName) }
-                TypeField(target.type.orEmpty(), target.types, model.controls.typeMenuOpen, blocked) { post(it) }
-                JsonSection(model, editorHeight, blocked) { post(it) }
-                SendRow(target.kind, projection.canSend && !blocked) { post(ComposerVIE.Intent.Send) }
             }
-            projection.current?.let { ResultCard(it, projection, ::post) }
-            RecentInterventions(projection.history, projection.olderInterventions, ::post)
+            if (target != null) {
+                Column(
+                    Modifier.alpha(if (blocked) 0.45f else 1f),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Text("Target", style = InspectorTheme.text.body, color = scheme.outline, modifier = Modifier.width(44.dp))
+                        Text(projection.name, style = InspectorTheme.text.code, color = scheme.onSurface, fontWeight = FontWeight.SemiBold, maxLines = 1)
+                        Text(projection.shortId, style = InspectorTheme.text.monoSecondary, color = scheme.outline, maxLines = 1)
+                    }
+                    KindSegments(target.kind, target.enabledKinds, blocked) { post(ComposerVIE.Intent.SetKind(it)) }
+                    projection.unserializable?.let { (kind, typeName) -> KindReason(kind, typeName) }
+                    TypeField(target.type.orEmpty(), target.types, model.controls.typeMenuOpen, blocked) { post(it) }
+                    JsonSection(model, editorHeight, blocked) { post(it) }
+                    SendRow(target.kind, projection.canSend && !blocked) { post(ComposerVIE.Intent.Send) }
+                }
+                projection.current?.let { ResultCard(it, projection, ::post) }
+                RecentInterventions(projection.history, projection.olderInterventions, ::post)
+            }
         }
     }
 }
@@ -322,47 +327,50 @@ private fun JsonEditor(text: String, errorLine: Int?, enabled: Boolean, modifier
     val lineHeight = with(LocalDensity.current) { InspectorDimens.codeLine.toSp() }
     val lines = text.count { it == '\n' } + 1
     val coloring = remember(colors) { JsonColoring(colors) }
-    Row(
-        modifier.verticalScroll(rememberScrollState()).padding(vertical = 6.dp).drawBehind {
-            if (errorLine != null) {
-                val top = (errorLine - 1) * InspectorDimens.codeLine.toPx()
-                val bottom = top + InspectorDimens.codeLine.toPx()
-                drawRect(colors.errorContainer, Offset(0f, top), Size(size.width, bottom - top))
-                val y = bottom - 3.dp.toPx()
-                val step = 3.dp.toPx()
-                val wave = Path().apply {
-                    moveTo(40.dp.toPx(), y)
-                    var x = 40.dp.toPx()
-                    var up = true
-                    while (x < size.width) { x += step; lineTo(x, if (up) y - 1.5.dp.toPx() else y + 1.5.dp.toPx()); up = !up }
+    val scroll = rememberScrollState()
+    ScrollbarBox(rememberScrollbarAdapter(scroll), modifier) {
+        Row(
+            Modifier.fillMaxWidth().verticalScroll(scroll).padding(vertical = 6.dp).drawBehind {
+                if (errorLine != null) {
+                    val top = (errorLine - 1) * InspectorDimens.codeLine.toPx()
+                    val bottom = top + InspectorDimens.codeLine.toPx()
+                    drawRect(colors.errorContainer, Offset(0f, top), Size(size.width, bottom - top))
+                    val y = bottom - 3.dp.toPx()
+                    val step = 3.dp.toPx()
+                    val wave = Path().apply {
+                        moveTo(40.dp.toPx(), y)
+                        var x = 40.dp.toPx()
+                        var up = true
+                        while (x < size.width) { x += step; lineTo(x, if (up) y - 1.5.dp.toPx() else y + 1.5.dp.toPx()); up = !up }
+                    }
+                    drawPath(wave, colors.error, style = Stroke(1.dp.toPx()))
                 }
-                drawPath(wave, colors.error, style = Stroke(1.dp.toPx()))
-            }
-        },
-    ) {
-        // One text for all the numbers, a line each, as high as the editor's: a long draft adds no node.
-        val errorColor = colors.error
-        val numbers = remember(lines, errorLine, errorColor) {
-            buildAnnotatedString {
-                for (line in 1..lines) {
-                    if (line > 1) append('\n')
-                    if (line == errorLine) withStyle(SpanStyle(color = errorColor)) { append(line.toString()) } else append(line.toString())
+            },
+        ) {
+            // One text for all the numbers, a line each, as high as the editor's: a long draft adds no node.
+            val errorColor = colors.error
+            val numbers = remember(lines, errorLine, errorColor) {
+                buildAnnotatedString {
+                    for (line in 1..lines) {
+                        if (line > 1) append('\n')
+                        if (line == errorLine) withStyle(SpanStyle(color = errorColor)) { append(line.toString()) } else append(line.toString())
+                    }
                 }
             }
+            Text(
+                numbers, style = InspectorTheme.text.code.copy(lineHeight = lineHeight), color = scheme.outline, textAlign = TextAlign.End,
+                softWrap = false, modifier = Modifier.width(34.dp).padding(end = 12.dp),
+            )
+            BasicTextField(
+                value = text,
+                onValueChange = onText,
+                enabled = enabled,
+                textStyle = InspectorTheme.text.code.copy(color = scheme.onSurfaceVariant, lineHeight = lineHeight),
+                cursorBrush = SolidColor(scheme.primary),
+                visualTransformation = coloring,
+                modifier = Modifier.weight(1f).horizontalScroll(rememberScrollState()).padding(end = 10.dp),
+            )
         }
-        Text(
-            numbers, style = InspectorTheme.text.code.copy(lineHeight = lineHeight), color = scheme.outline, textAlign = TextAlign.End,
-            softWrap = false, modifier = Modifier.width(34.dp).padding(end = 12.dp),
-        )
-        BasicTextField(
-            value = text,
-            onValueChange = onText,
-            enabled = enabled,
-            textStyle = InspectorTheme.text.code.copy(color = scheme.onSurfaceVariant, lineHeight = lineHeight),
-            cursorBrush = SolidColor(scheme.primary),
-            visualTransformation = coloring,
-            modifier = Modifier.weight(1f).horizontalScroll(rememberScrollState()).padding(end = 10.dp),
-        )
     }
 }
 

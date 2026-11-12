@@ -10,11 +10,14 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollbarAdapter
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -31,6 +34,7 @@ import org.kodein.arch.vie.VIE.NoSignal
 import org.kodein.arch.vie.VIEViewScope
 import org.kodein.arch.vie.timemachine.server.ui.common.HorizontalRule
 import org.kodein.arch.vie.timemachine.server.ui.common.LocalCompact
+import org.kodein.arch.vie.timemachine.server.ui.common.ScrollbarBox
 import org.kodein.arch.vie.timemachine.server.ui.common.TreeRawSwitch
 import org.kodein.arch.vie.timemachine.server.ui.common.action
 import org.kodein.arch.vie.timemachine.server.ui.common.formatTime
@@ -132,22 +136,25 @@ internal fun VIEViewScope<CurrentModelVIE.Intent, NoSignal>.CurrentModelContent(
         val expanded = model.controls.expanded
         val treeLines = remember(json, expanded, raw) { if (json == null || raw) emptyList() else treeLines(json, expanded) }
         val textLines = rememberJsonLines(if (raw) projection.rawText.orEmpty() else "")
-        LazyColumn(Modifier.weight(1f).fillMaxWidth(), contentPadding = PaddingValues(start = 8.dp, end = 8.dp, bottom = 8.dp)) {
-            when {
-                projection.sequence == null -> item {
-                    Text("No model yet.", style = InspectorTheme.text.body, color = scheme.outline, modifier = Modifier.padding(horizontal = 6.dp, vertical = 16.dp))
-                }
-                json == null -> item {
-                    Column(Modifier.padding(horizontal = 6.dp, vertical = 4.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text(projection.asString.orEmpty(), style = InspectorTheme.text.code, color = scheme.onSurface)
-                        Text(
-                            "toString only — this model has no JSON, so it can't be shown as a tree or replaced.",
-                            style = InspectorTheme.text.note, color = scheme.outline,
-                        )
+        val list = rememberLazyListState()
+        ScrollbarBox(rememberScrollbarAdapter(list), Modifier.weight(1f).fillMaxWidth()) {
+            LazyColumn(Modifier.fillMaxSize(), state = list, contentPadding = PaddingValues(start = 8.dp, end = 8.dp, bottom = 8.dp)) {
+                when {
+                    projection.sequence == null -> item {
+                        Text("No model yet.", style = InspectorTheme.text.body, color = scheme.outline, modifier = Modifier.padding(horizontal = 6.dp, vertical = 16.dp))
                     }
+                    json == null -> item {
+                        Column(Modifier.padding(horizontal = 6.dp, vertical = 4.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text(projection.asString.orEmpty(), style = InspectorTheme.text.code, color = scheme.onSurface)
+                            Text(
+                                "toString only — this model has no JSON, so it can't be shown as a tree or replaced.",
+                                style = InspectorTheme.text.note, color = scheme.outline,
+                            )
+                        }
+                    }
+                    raw -> rawJson(textLines)
+                    else -> jsonTree(treeLines, changed = projection.changedPaths, highlight = { fade.value }) { post(CurrentModelVIE.Intent.ToggleNode(it)) }
                 }
-                raw -> rawJson(textLines)
-                else -> jsonTree(treeLines, changed = projection.changedPaths, highlight = { fade.value }) { post(CurrentModelVIE.Intent.ToggleNode(it)) }
             }
         }
         HorizontalRule(color = InspectorTheme.colors.strongOutline)

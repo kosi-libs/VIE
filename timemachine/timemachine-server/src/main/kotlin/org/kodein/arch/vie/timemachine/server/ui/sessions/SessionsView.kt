@@ -5,12 +5,15 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollbarAdapter
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -25,6 +28,7 @@ import androidx.compose.ui.unit.dp
 import org.kodein.arch.vie.VIE.NoSignal
 import org.kodein.arch.vie.VIEViewScope
 import org.kodein.arch.vie.timemachine.server.ui.common.LiveDot
+import org.kodein.arch.vie.timemachine.server.ui.common.ScrollbarBox
 import org.kodein.arch.vie.timemachine.server.ui.common.TextAction
 import org.kodein.arch.vie.timemachine.server.ui.common.action
 import org.kodein.arch.vie.timemachine.server.ui.common.clock
@@ -87,14 +91,18 @@ internal fun VIEViewScope<SessionsVIE.Intent, NoSignal>.SessionsContent(model: S
                 "Clear disconnected", glyph = "delete_sweep", enabled = model.disconnectedSessions > 0,
             ) { post(SessionsVIE.Intent.ClearDisconnected) }
         }
-        LazyColumn(
-            Modifier.weight(1f).fillMaxWidth().padding(horizontal = 6.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp),
-        ) {
-            items(model.sessions, key = { it.id.toString() }) { session ->
-                SessionBlock(session, model.selected, collapsed = session.id in model.controls.collapsed) { intent ->
-                    post(intent)
-                    if (intent is SessionsVIE.Intent.SelectScope) onScopePicked()
+        val list = rememberLazyListState()
+        ScrollbarBox(rememberScrollbarAdapter(list), Modifier.weight(1f).fillMaxWidth()) {
+            LazyColumn(
+                Modifier.fillMaxSize().padding(horizontal = 6.dp),
+                state = list,
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                items(model.sessions, key = { it.id.toString() }) { session ->
+                    SessionBlock(session, model.selected, collapsed = session.id in model.controls.collapsed) { intent ->
+                        post(intent)
+                        if (intent is SessionsVIE.Intent.SelectScope) onScopePicked()
+                    }
                 }
             }
         }

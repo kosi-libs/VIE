@@ -1,10 +1,13 @@
 package org.kodein.arch.vie.timemachine.server.ui.theme
 
+import androidx.compose.foundation.LocalScrollbarStyle
+import androidx.compose.foundation.ScrollbarStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.runtime.remember
+import androidx.compose.ui.unit.dp
 
 /** The inspector's theme: a Material3 scheme per mode, plus the colours and the steps of the type scale Material3 has no slot for. */
 @Composable
@@ -21,8 +24,18 @@ fun InspectorTheme(dark: Boolean, content: @Composable () -> Unit) {
             colorScheme = if (dark) DarkInspectorScheme else LightInspectorScheme,
             typography = typography,
             shapes = InspectorShapes,
-            content = content,
-        )
+        ) {
+            // The scrollbars of the panes: the outline of a rule at rest, the one of a hovered grip under the pointer.
+            val scrollbars = ScrollbarStyle(
+                minimalHeight = 24.dp,
+                thickness = InspectorDimens.scrollbarThumb,
+                shape = InspectorPillShape,
+                hoverDurationMillis = 150,
+                unhoverColor = MaterialTheme.colorScheme.outlineVariant,
+                hoverColor = InspectorTheme.colors.strongOutline,
+            )
+            CompositionLocalProvider(LocalScrollbarStyle provides scrollbars, content = content)
+        }
     }
 }
 

@@ -13,6 +13,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollbarAdapter
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -37,6 +39,7 @@ import org.kodein.arch.vie.timemachine.protocol.VIEObjectKind
 import org.kodein.arch.vie.timemachine.protocol.VIEObservation
 import org.kodein.arch.vie.timemachine.server.ui.common.DiffText
 import org.kodein.arch.vie.timemachine.server.ui.common.KindBadge
+import org.kodein.arch.vie.timemachine.server.ui.common.ScrollbarBox
 import org.kodein.arch.vie.timemachine.server.ui.common.TreeRawSwitch
 import org.kodein.arch.vie.timemachine.server.ui.common.action
 import org.kodein.arch.vie.timemachine.server.ui.common.formatTime
@@ -97,27 +100,31 @@ private fun DetailContent(model: DetailVIE.Model, observation: VIEObservation, s
     val textLines = rememberJsonLines(if (raw) projection.rawText.orEmpty() else "")
     // One lazy list for the whole tab: its sections are an item each, and the JSON an item per line, so
     // that a large document only composes the lines in view.
-    LazyColumn(
-        Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(start = InspectorDimens.paneHorizontalPadding, end = InspectorDimens.paneHorizontalPadding, top = 12.dp, bottom = 16.dp),
-    ) {
-        item(key = "header", contentType = "header") { DetailHeader(observation, sequence, projection, post) }
-        projection.diff?.let { diff -> item(key = "changes", contentType = "changes") { DetailChanges(diff, label, Modifier.padding(top = SectionGap)) } }
-        item(key = "toString", contentType = "toString") {
-            Column(Modifier.padding(top = SectionGap), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text("TOSTRING", style = label, color = scheme.outline)
-                Text(observation.asString, style = InspectorTheme.text.codeRow.copy(lineHeight = 17.sp), color = scheme.onSurface)
-            }
-        }
-        if (json != null) {
-            item(key = "json-title", contentType = "json-title") {
-                Row(Modifier.padding(top = SectionGap, bottom = 6.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text(if (kind == VIEObjectKind.Model) "FULL MODEL" else "JSON", style = label, color = scheme.outline, modifier = Modifier.weight(1f))
-                    TreeRawSwitch(raw) { post(DetailVIE.Intent.SetRaw(it)) }
+    val list = rememberLazyListState()
+    ScrollbarBox(rememberScrollbarAdapter(list), Modifier.fillMaxSize()) {
+        LazyColumn(
+            Modifier.fillMaxSize(),
+            state = list,
+            contentPadding = PaddingValues(start = InspectorDimens.paneHorizontalPadding, end = InspectorDimens.paneHorizontalPadding, top = 12.dp, bottom = 16.dp),
+        ) {
+            item(key = "header", contentType = "header") { DetailHeader(observation, sequence, projection, post) }
+            projection.diff?.let { diff -> item(key = "changes", contentType = "changes") { DetailChanges(diff, label, Modifier.padding(top = SectionGap)) } }
+            item(key = "toString", contentType = "toString") {
+                Column(Modifier.padding(top = SectionGap), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text("TOSTRING", style = label, color = scheme.outline)
+                    Text(observation.asString, style = InspectorTheme.text.codeRow.copy(lineHeight = 17.sp), color = scheme.onSurface)
                 }
             }
-            if (raw) rawJson(textLines, framed = true)
-            else jsonTree(treeLines, framed = true) { post(DetailVIE.Intent.ToggleNode(it)) }
+            if (json != null) {
+                item(key = "json-title", contentType = "json-title") {
+                    Row(Modifier.padding(top = SectionGap, bottom = 6.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                        Text(if (kind == VIEObjectKind.Model) "FULL MODEL" else "JSON", style = label, color = scheme.outline, modifier = Modifier.weight(1f))
+                        TreeRawSwitch(raw) { post(DetailVIE.Intent.SetRaw(it)) }
+                    }
+                }
+                if (raw) rawJson(textLines, framed = true)
+                else jsonTree(treeLines, framed = true) { post(DetailVIE.Intent.ToggleNode(it)) }
+            }
         }
     }
 }
