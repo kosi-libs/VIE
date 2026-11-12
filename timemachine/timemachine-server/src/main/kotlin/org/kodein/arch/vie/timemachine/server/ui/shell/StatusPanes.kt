@@ -10,6 +10,7 @@ import org.kodein.arch.vie.timemachine.server.ui.core.Inspector
 import org.kodein.arch.vie.timemachine.server.ui.core.InspectorScope
 import org.kodein.arch.vie.timemachine.server.ui.core.Pane
 import org.kodein.arch.vie.timemachine.server.ui.core.PaneViewModel
+import org.kodein.arch.vie.timemachine.server.ui.core.current
 import org.kodein.arch.vie.timemachine.server.ui.core.whileShown
 import kotlin.time.Instant
 import kotlin.uuid.Uuid
@@ -40,7 +41,7 @@ private fun statusBarModel(state: TimeMachineState) = StatusBarVIE.Model(
 )
 
 internal class StatusBarVM(inspector: Inspector) :
-    StatusBarVIE, PaneViewModel<StatusBarVIE.Model, VIE.NoIntent, VIE.NoSignal>(StatusBarVIE.Model()) {
+    StatusBarVIE, PaneViewModel<StatusBarVIE.Model, VIE.NoIntent, VIE.NoSignal>(statusBarModel(inspector.store.state.value)) {
 
     init {
         project(inspector.whileShown(Key, inspector.store.state) { { state -> statusBarModel(state) } }) { it }
@@ -109,8 +110,15 @@ private fun noticesModel(state: TimeMachineState, scope: InspectorScope?) = Noti
     },
 )
 
+/**
+ * Its model says which screen the window shows, so it starts on the store's own: started on a
+ * placeholder, the window would compose the panes of a store that has no session, and create their
+ * ViewModels, before the empty screen replaced them.
+ */
 internal class NoticesVM(private val inspector: Inspector) :
-    NoticesVIE, PaneViewModel<NoticesVIE.Model, NoticesVIE.Intent, VIE.NoSignal>(NoticesVIE.Model()) {
+    NoticesVIE, PaneViewModel<NoticesVIE.Model, NoticesVIE.Intent, VIE.NoSignal>(
+        inspector.current().let { (state, selection) -> noticesModel(state, selection.scope) },
+    ) {
 
     init {
         val inputs = combine(inspector.store.state, inspector.selection.state) { state, selection -> state to selection.resolvedIn(state).scope }

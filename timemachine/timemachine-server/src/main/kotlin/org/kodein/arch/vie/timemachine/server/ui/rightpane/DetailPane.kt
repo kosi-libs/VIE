@@ -18,6 +18,7 @@ import org.kodein.arch.vie.timemachine.server.ui.core.Pane
 import org.kodein.arch.vie.timemachine.server.ui.core.PaneViewModel
 import org.kodein.arch.vie.timemachine.server.ui.core.RightTab
 import org.kodein.arch.vie.timemachine.server.ui.core.Selection
+import org.kodein.arch.vie.timemachine.server.ui.core.current
 import org.kodein.arch.vie.timemachine.server.ui.core.whileShown
 import org.kodein.arch.vie.timemachine.server.ui.timeline.ModelDiff
 import kotlin.uuid.Uuid
@@ -88,7 +89,9 @@ private fun detailProjection(state: TimeMachineState, selection: Selection, raw:
 
 internal class DetailVM(
     private val inspector: Inspector,
-) : DetailVIE, PaneViewModel<DetailVIE.Model, DetailVIE.Intent, VIE.NoSignal>(DetailVIE.Model()) {
+) : DetailVIE, PaneViewModel<DetailVIE.Model, DetailVIE.Intent, VIE.NoSignal>(
+    inspector.current().let { (state, selection) -> DetailVIE.Model(projection = detailProjection(state, selection, raw = false)) },
+) {
 
     init {
         val inputs = combine(

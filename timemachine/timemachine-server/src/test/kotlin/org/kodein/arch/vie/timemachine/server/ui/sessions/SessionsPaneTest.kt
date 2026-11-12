@@ -164,4 +164,14 @@ class SessionsPaneTest {
         assertEquals(TimeMachineSequence(0), TimeMachineSequence.First)
         assertEquals(null, inspector.selection.state.value.row)
     }
+
+    @Test
+    fun `its first model is what the store holds, before the pane is shown`() = runVMTest(
+        newVM = { SessionsVM(inspector("main").also { it.selection.selectScope(taskListScope) }) },
+        block = {
+            assertEquals(2, model.sessions.size)
+            assertEquals(10, model.sessions.first { it.connected }.sparkline.size)
+            assertEquals(taskListScope, model.selected)
+        },
+    )
 }
