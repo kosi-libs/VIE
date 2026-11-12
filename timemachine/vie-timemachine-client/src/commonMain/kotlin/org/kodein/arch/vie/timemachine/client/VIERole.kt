@@ -60,6 +60,9 @@ private class SerialNameCapture(private val sealedDescriptor: SerialDescriptor) 
  * its type name, and — for a sealed [T] — the names of its registered subtypes. Built once per role
  * via [of] and reused for every observation and intervention of that role.
  *
+ * Everything a role knows about [T] is read by [of], when it is built: from then on, only [encode],
+ * [decodeForIntervention] and [typeNameOf] run the app's serializers.
+ *
  * Every name is a *serial name*: the fully qualified name unless `@SerialName` overrides it, so a
  * name can be a bare `circle` with no package at all. Only a type that is not `@Serializable` is
  * named by its class instead: fully qualified, except on web (js and wasmJs), where
@@ -70,36 +73,24 @@ private class SerialNameCapture(private val sealedDescriptor: SerialDescriptor) 
  * An open polymorphic type — a plain interface that is not `@Serializable`, or a `@Polymorphic` or
  * abstract one — counts as not `@Serializable`: its serializer needs a `SerializersModule` to
  * resolve subtypes, and the probe has none. A sealed type is unaffected: it lists its own subtypes.
+ * A type whose serializer cannot be introspected counts as not `@Serializable` too (see [of]).
+ *
+ * @property sealedSubTypes `null` when [T] is not a sealed hierarchy; otherwise the serial names of
+ *   its registered subtypes, recursively flattened to concrete leaves (an intermediate sealed subtype
+ *   never appears itself — see `SealedClassSerializer`'s own contract).
+ * @property classDiscriminator The key under which [T]'s JSON carries its concrete type: [T]'s own
+ *   `@JsonClassDiscriminator` when it has one, [TimeMachineJson]'s otherwise — the same lookup
+ *   kotlinx-serialization does when it encodes and decodes [T].
  */
-internal class VIERole<T>(
+internal class VIERole<T> private constructor(
     val typeName: String,
     val serializer: KSerializer<T>?,
+    val sealedSubTypes: List<String>?,
+    private val classDiscriminator: String,
 ) {
 
     /** Whether [T] is `@Serializable` and not open polymorphic, i.e. whether [serializer] is non-null. */
     val isSerializable: Boolean get() = serializer != null
-
-    /** `null` when [T] is not a sealed hierarchy; otherwise the serial names of its registered subtypes,
-     *  recursively flattened to concrete leaves (an intermediate sealed subtype never appears
-     *  itself — see `SealedClassSerializer`'s own contract). */
-    val sealedSubTypes: List<String>? by lazy {
-        serializer?.descriptor
-            ?.takeIf { it.kind == PolymorphicKind.SEALED }
-            ?.getElementDescriptor(1)
-            ?.elementNames
-            ?.toList()
-    }
-
-    /** The key under which [T]'s JSON carries its concrete type: [T]'s own `@JsonClassDiscriminator`
-     *  when it has one, [TimeMachineJson]'s otherwise — the same lookup kotlinx-serialization does
-     *  when it encodes and decodes [T]. */
-    private val classDiscriminator: String by lazy {
-        serializer?.descriptor?.annotations
-            ?.filterIsInstance<JsonClassDiscriminator>()
-            ?.firstOrNull()
-            ?.discriminator
-            ?: TimeMachineJson.configuration.classDiscriminator
-    }
 
     /** Snapshots this role's introspected info as the wire-transmissible [VIETypeInfo]. */
     fun toVIETypeInfo(): VIETypeInfo =
@@ -195,13 +186,45 @@ internal class VIERole<T>(
          * An open polymorphic serializer counts as none: kotlinx-serialization hands one out for any
          * interface, `@Serializable` or not, and it can only resolve subtypes registered in a
          * `SerializersModule` — which [TimeMachineJson] has none of, so it could never encode a value.
+         *
+         * Never throws. Introspecting [type] runs the app's own code — a custom serializer's
+         * `descriptor`, and for a sealed type the descriptor of every subtype — on the thread that
+         * builds the ViewModel, inside its constructor. Whatever that throws, an `Error` included, is
+         * printed, and [type] then counts as not `@Serializable`: its objects are still observed, only
+         * without JSON. So does a type kotlinx-serialization refuses to look up, such as one with a
+         * star projection.
          */
+        fun <T> of(type: KType): VIERole<T> =
+            describing({ "introspect $type, reported without JSON" }) { introspect<T>(type) } ?: notSerializable(type)
+
+        /** The role of [type], or `null` if it has no serializer the probe can use. Runs app code, and
+         *  throws whatever it throws. */
         @Suppress("UNCHECKED_CAST")
-        fun <T> of(type: KType): VIERole<T> {
-            val serializer = (serializerOrNull(type) as KSerializer<T>?)
-                ?.takeUnless { it.descriptor.kind == PolymorphicKind.OPEN }
-            val typeName = serializer?.descriptor?.serialName ?: type.toString()
-            return VIERole(typeName, serializer)
+        private fun <T> introspect(type: KType): VIERole<T>? {
+            val serializer = (serializerOrNull(type) as KSerializer<T>?) ?: return null
+            val descriptor = serializer.descriptor
+            if (descriptor.kind == PolymorphicKind.OPEN) return null
+            return VIERole(
+                typeName = descriptor.serialName,
+                serializer = serializer,
+                sealedSubTypes = descriptor
+                    .takeIf { it.kind == PolymorphicKind.SEALED }
+                    ?.getElementDescriptor(1)
+                    ?.elementNames
+                    ?.toList(),
+                classDiscriminator = descriptor.annotations
+                    .filterIsInstance<JsonClassDiscriminator>()
+                    .firstOrNull()
+                    ?.discriminator
+                    ?: TimeMachineJson.configuration.classDiscriminator,
+            )
         }
+
+        private fun <T> notSerializable(type: KType): VIERole<T> = VIERole(
+            typeName = type.toString(),
+            serializer = null,
+            sealedSubTypes = null,
+            classDiscriminator = TimeMachineJson.configuration.classDiscriminator,
+        )
     }
 }

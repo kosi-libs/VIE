@@ -109,9 +109,10 @@ private fun deliveryOf(kind: VIEObjectKind, value: Any): VIESignalDelivery? =
         else -> null
     }
 
-/** Runs [block], app code describing an object, printing and swallowing anything it throws:
- *  unlike [guarded], errors and cancellation too, since they cannot come from the probe itself. */
-private inline fun <R> describing(what: () -> String, block: () -> R): R? =
+/** Runs [block], app code describing an object or one of its types, printing and swallowing anything
+ *  it throws: unlike [guarded], errors and cancellation too, since they cannot come from the probe
+ *  itself. */
+internal inline fun <R> describing(what: () -> String, block: () -> R): R? =
     try {
         block()
     } catch (e: Throwable) {

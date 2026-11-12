@@ -99,6 +99,9 @@ public object TimeMachine {
      *
      * Build the list once per ViewModel, and never share it (e.g. as a DI singleton): while the probe
      * runs, each call returns a new middleware, and an instance serves exactly one ViewModel.
+     *
+     * Never throws, since it runs inside the ViewModel's constructor: a model, intent or signal type
+     * whose serializer cannot be introspected is printed, and its objects are reported without JSON.
      */
     public inline fun <reified Model : VIE.Model, reified Intent : VIE.Intent, reified Signal : VIE.Signal> middleware(): VIEMiddleware<Model, Intent, Signal> {
         // Checked first: a probe that does not run must not even introspect the roles.
@@ -113,5 +116,7 @@ public object TimeMachine {
         signal: KType,
     ): VIEMiddleware<Model, Intent, Signal> =
         // Stopped since isStarted was checked: the no-op, as if it had been checked a moment later.
-        running.load()?.middleware(model, intent, signal) ?: NoOpMiddleware.typed()
+        // So is a middleware that fails to build: this runs inside a ViewModel's constructor.
+        guarded({ "provide a middleware" }) { running.load()?.middleware<Model, Intent, Signal>(model, intent, signal) }
+            ?: NoOpMiddleware.typed()
 }
