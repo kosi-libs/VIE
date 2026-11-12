@@ -1,6 +1,7 @@
 package org.kodein.arch.vie.timemachine.server.ui.sessions
 
 import org.kodein.arch.vie.timemachine.server.ui.common.splitSerialName
+import org.kodein.arch.vie.timemachine.server.ui.common.viewModelName
 import org.kodein.arch.vie.timemachine.server.ui.core.InspectorScope
 import org.kodein.arch.vie.timemachine.server.ui.core.ViewModelStatus
 
@@ -45,7 +46,8 @@ internal fun railItems(model: SessionsVIE.Model): List<RailItem> {
             )
             if (session.id == expanded) for (vm in session.viewModels) {
                 val vmScope = InspectorScope.ViewModel(session.id, vm.id)
-                val name = vm.typeName?.let { splitSerialName(it).last } ?: "Unknown ViewModel"
+                // In words, where the name alone would be four digits: the tile itself only shows `?`.
+                val name = vm.typeName?.let { viewModelName(it, vm.id) } ?: "Unknown ViewModel"
                 val closed = vm.status == ViewModelStatus.Closed
                 add(
                     RailItem(

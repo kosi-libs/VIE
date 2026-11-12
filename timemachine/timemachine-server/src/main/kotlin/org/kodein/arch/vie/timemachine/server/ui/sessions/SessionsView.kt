@@ -29,8 +29,7 @@ import org.kodein.arch.vie.timemachine.server.ui.common.LiveDot
 import org.kodein.arch.vie.timemachine.server.ui.common.TextAction
 import org.kodein.arch.vie.timemachine.server.ui.common.clock
 import org.kodein.arch.vie.timemachine.server.ui.common.monoStyle
-import org.kodein.arch.vie.timemachine.server.ui.common.shortSessionId
-import org.kodein.arch.vie.timemachine.server.ui.common.splitSerialName
+import org.kodein.arch.vie.timemachine.server.ui.common.viewModelName
 import org.kodein.arch.vie.timemachine.server.ui.core.InspectorPane
 import org.kodein.arch.vie.timemachine.server.ui.core.InspectorScope
 import org.kodein.arch.vie.timemachine.server.ui.core.LocalInspector
@@ -159,7 +158,7 @@ private fun ViewModelRow(vm: ViewModelItem, session: SessionItem, selected: Bool
     val scheme = MaterialTheme.colorScheme
     val closed = vm.status == ViewModelStatus.Closed
     val dead = closed || !session.connected
-    val name = vm.typeName?.let { splitSerialName(it).last } ?: shortSessionId(vm.id)
+    val name = viewModelName(vm.typeName, vm.id)
     Row(
         Modifier
             .fillMaxWidth().height(InspectorDimens.viewModelItem)

@@ -82,6 +82,22 @@ class ComposerPaneTest {
         }
 
     @Test
+    fun `a ViewModel nobody described is named by its short identifier`() =
+        composer(scenario = "unknownVM", viewModelId = Demo.unknown) {
+            assertEquals("d4c8", model.projection.name)
+            val text = assertNotNull(model.projection.blockText)
+            assertTrue(text.startsWith("d4c8 isn’t identified yet"), text)
+        }
+
+    @Test
+    fun `a ViewModel that closed unknown is named by its short identifier`() =
+        composer(scenario = "unknownClosed", viewModelId = Demo.unknown) {
+            assertEquals("d4c8", model.projection.name)
+            val text = assertNotNull(model.projection.blockText)
+            assertTrue(text.startsWith("d4c8 closed before"), text)
+        }
+
+    @Test
     fun `a disconnected session says so`() = composer(scenario = "disconnected") {
         val text = assertNotNull(model.projection.blockText)
         assertTrue("disconnected" in text && "nothing can reach the app" in text, text)

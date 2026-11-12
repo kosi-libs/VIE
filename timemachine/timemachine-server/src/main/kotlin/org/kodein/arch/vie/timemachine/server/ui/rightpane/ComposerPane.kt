@@ -20,8 +20,9 @@ import org.kodein.arch.vie.timemachine.server.store.ViewModelRecord
 import org.kodein.arch.vie.timemachine.server.ui.common.clock
 import org.kodein.arch.vie.timemachine.server.ui.common.pretty
 import org.kodein.arch.vie.timemachine.server.ui.common.role
-import org.kodein.arch.vie.timemachine.server.ui.common.shortSessionId
 import org.kodein.arch.vie.timemachine.server.ui.common.shortViewModelId
+import org.kodein.arch.vie.timemachine.server.ui.common.viewModelLabel
+import org.kodein.arch.vie.timemachine.server.ui.common.viewModelName
 import org.kodein.arch.vie.timemachine.server.ui.core.ComposerRequest
 import org.kodein.arch.vie.timemachine.server.ui.core.Inspector
 import org.kodein.arch.vie.timemachine.server.ui.core.Pane
@@ -154,7 +155,7 @@ private fun composerProjection(
     )
     return ComposerProjection(
         sessionName = session?.session?.name.orEmpty(),
-        name = vm?.info?.typeName?.substringAfterLast('.') ?: vm?.let { shortSessionId(it.id) }.orEmpty(),
+        name = vm?.let { viewModelName(it.info?.typeName, it.id) }.orEmpty(),
         shortId = if (vm?.info == null) "unknown" else shortViewModelId(vm.id),
         blockText = blockText(session, vm, target.block),
         unserializable = vm?.info?.let { info -> VIEObjectKind.entries.firstOrNull { !info.role(it).isSerializable }?.let { it to info.role(it).typeName } },
@@ -169,14 +170,15 @@ private fun composerProjection(
 private fun blockText(session: SessionRecord?, vm: ViewModelRecord?, block: ComposerBlock?): String? {
     if (block == null || session == null || vm == null) return null
     val app = session.session.name
+    val name = viewModelLabel(vm.info?.typeName, vm.id)
     return when (block) {
         ComposerBlock.UnknownViewModel ->
-            if (vm.closed) "${shortSessionId(vm.id)} closed before $app could identify it — it can’t receive interventions."
-            else "${shortSessionId(vm.id)} isn’t identified yet — $app is being asked for its type. Interventions open once it is."
+            if (vm.closed) "$name closed before $app could identify it — it can’t receive interventions."
+            else "$name isn’t identified yet — $app is being asked for its type. Interventions open once it is."
         ComposerBlock.SessionDisconnected ->
             "$app disconnected${session.disconnectedAt?.let { " at ${clock(it)}" }.orEmpty()} — nothing can reach the app until it reconnects."
         ComposerBlock.ViewModelClosed ->
-            "${vm.info?.typeName?.substringAfterLast('.')} · ${shortViewModelId(vm.id)} closed${vm.closedAt?.let { " at ${clock(it)}" }.orEmpty()} — it can’t receive interventions."
+            "$name closed${vm.closedAt?.let { " at ${clock(it)}" }.orEmpty()} — it can’t receive interventions."
     }
 }
 

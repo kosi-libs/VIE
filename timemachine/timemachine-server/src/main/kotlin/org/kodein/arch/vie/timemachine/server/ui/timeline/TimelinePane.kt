@@ -23,6 +23,7 @@ import org.kodein.arch.vie.timemachine.server.ui.common.interventionNumber
 import org.kodein.arch.vie.timemachine.server.ui.common.pretty
 import org.kodein.arch.vie.timemachine.server.ui.common.shortSessionId
 import org.kodein.arch.vie.timemachine.server.ui.common.shortViewModelId
+import org.kodein.arch.vie.timemachine.server.ui.common.viewModelLabel
 import org.kodein.arch.vie.timemachine.server.ui.core.Inspector
 import org.kodein.arch.vie.timemachine.server.ui.core.InspectorScope
 import org.kodein.arch.vie.timemachine.server.ui.core.Pane
@@ -261,8 +262,7 @@ internal class TimelineProjector(private val scope: InspectorScope) {
         return session.isConnected && !vm.closed && role.isSerializable && observation.asJson != null
     }
 
-    private fun ViewModelRecord.label(): String =
-        info?.let { "${it.typeName.substringAfterLast('.')} · ${shortViewModelId(id)}" } ?: shortViewModelId(id)
+    private fun ViewModelRecord.label(): String = viewModelLabel(info?.typeName, id)
 
     private fun json(row: Row): String? {
         val sequence = row.sequence

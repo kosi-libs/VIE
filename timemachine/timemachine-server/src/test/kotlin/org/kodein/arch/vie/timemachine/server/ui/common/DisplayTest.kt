@@ -25,6 +25,20 @@ class DisplayTest {
     }
 
     @Test
+    fun aKnownViewModelIsNamedByTheLastSegmentOfItsType() {
+        val id = Uuid.parse("3f2a1111-2222-3333-4444-5555aaaac91e")
+        assertEquals("TaskListVM", viewModelName("org.app.TaskListVM", id))
+        assertEquals("TaskListVM · 3f2a", viewModelLabel("org.app.TaskListVM", id))
+    }
+
+    @Test
+    fun anUnknownViewModelIsNamedByItsShortIdentifier() {
+        val id = Uuid.parse("3f2a1111-2222-3333-4444-5555aaaac91e")
+        assertEquals("3f2a", viewModelName(null, id))
+        assertEquals("3f2a", viewModelLabel(null, id))
+    }
+
+    @Test
     fun aDottedSerialNameIsSplitAfterItsLastDot() {
         assertEquals(SerialNameParts("org.app.TaskListVIE.Intent.", "DeleteTask"), splitSerialName("org.app.TaskListVIE.Intent.DeleteTask"))
     }
