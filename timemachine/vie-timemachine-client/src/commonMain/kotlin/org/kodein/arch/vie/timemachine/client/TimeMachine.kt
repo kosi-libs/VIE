@@ -36,7 +36,9 @@ import org.kodein.arch.vie.VIEMiddleware
  * ```
  *
  * The probe has one session per process, and one WebSocket to the inspector, which it keeps
- * reconnecting for as long as it runs: the app and the inspector can start in either order.
+ * reconnecting for as long as it runs: the app and the inspector can start in either order. It
+ * retries within seconds at first, then every half minute once no inspector has been there for a
+ * minute: an inspector opened that late may wait that long for the app to show up.
  * Everything is streamed in cleartext, and the inspector can make any ViewModel emit or receive any
  * object: never leave the probe enabled in a release build.
  */
