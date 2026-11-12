@@ -22,6 +22,7 @@ import org.kodein.arch.vie.timemachine.server.ui.common.HorizontalRule
 import org.kodein.arch.vie.timemachine.server.ui.common.TextAction
 import org.kodein.arch.vie.timemachine.server.ui.common.clock
 import org.kodein.arch.vie.timemachine.server.ui.common.shortSessionId
+import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorDimens
 import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorTheme
 import org.kodein.arch.vie.timemachine.server.ui.theme.Symbol
 
@@ -81,7 +82,7 @@ internal fun DisconnectedBanner(notice: DisconnectedNotice, modifier: Modifier =
     val scheme = MaterialTheme.colorScheme
     Column(modifier.fillMaxWidth()) {
         Row(
-            Modifier.fillMaxWidth().background(scheme.surfaceContainerHigh).padding(horizontal = 14.dp, vertical = 7.dp),
+            Modifier.fillMaxWidth().background(scheme.surfaceContainerHigh).padding(horizontal = InspectorDimens.paneHorizontalPadding, vertical = 7.dp),
             horizontalArrangement = Arrangement.spacedBy(10.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {

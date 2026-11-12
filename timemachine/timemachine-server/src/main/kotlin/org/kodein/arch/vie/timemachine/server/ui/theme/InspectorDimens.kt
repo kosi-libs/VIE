@@ -10,8 +10,6 @@ import androidx.compose.ui.unit.dp
 /** Spacing and sizes from the design's token table (§07) and component inventory (§06). */
 @Immutable
 object InspectorDimens {
-    val unit: Dp = 4.dp
-
     val timelineRow: Dp = 28.dp
     /** A tree node and an editor line. */
     val codeLine: Dp = 19.dp
@@ -24,10 +22,9 @@ object InspectorDimens {
     val filterChip: Dp = 26.dp
     val searchField: Dp = 28.dp
 
+    /** What a pane keeps between its edges and its headers, bars and tab contents. */
     val paneHorizontalPadding: Dp = 14.dp
-    val paneVerticalPadding: Dp = 11.dp
 
-    val titleBar: Dp = 30.dp
     val statusBar: Dp = 26.dp
     val paneHeader: Dp = 40.dp
     val sessionItem: Dp = 42.dp

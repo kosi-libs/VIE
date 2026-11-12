@@ -98,7 +98,7 @@ private fun ComposerContent(model: ComposerVIE.Model, editorHeight: Dp, post: (C
     val target = projection.target
     val blocked = projection.blockText != null
     Column(
-        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(start = 14.dp, end = 14.dp, top = 12.dp, bottom = 16.dp),
+        Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(start = InspectorDimens.paneHorizontalPadding, end = InspectorDimens.paneHorizontalPadding, top = 12.dp, bottom = 16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         projection.blockText?.let { text ->

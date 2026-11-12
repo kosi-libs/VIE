@@ -215,7 +215,7 @@ private fun ViewModelHeader(header: TimelineHeader.ViewModel) {
     var typeInfo by remember { mutableStateOf<VIEObjectKind?>(null) }
     val gone = header.status == ViewModelStatus.Closed || !header.sessionConnected
     Row(
-        Modifier.fillMaxWidth().padding(start = 14.dp, end = 14.dp, top = 10.dp, bottom = 9.dp),
+        Modifier.fillMaxWidth().padding(start = InspectorDimens.paneHorizontalPadding, end = InspectorDimens.paneHorizontalPadding, top = 10.dp, bottom = 9.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.Top,
     ) {
@@ -355,7 +355,7 @@ private fun SessionHeader(header: TimelineHeader.Session) {
     val scheme = MaterialTheme.colorScheme
     val colors = InspectorTheme.colors
     Row(
-        Modifier.fillMaxWidth().padding(start = 14.dp, end = 14.dp, top = 10.dp, bottom = 9.dp),
+        Modifier.fillMaxWidth().padding(start = InspectorDimens.paneHorizontalPadding, end = InspectorDimens.paneHorizontalPadding, top = 10.dp, bottom = 9.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -382,7 +382,7 @@ private fun FilterBar(
 ) {
     val filter = controls.filter
     Column {
-        Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.Top) {
+        Row(Modifier.fillMaxWidth().padding(horizontal = InspectorDimens.paneHorizontalPadding, vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.Top) {
             FlowRow(
                 Modifier.weight(1f),
                 horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp),
