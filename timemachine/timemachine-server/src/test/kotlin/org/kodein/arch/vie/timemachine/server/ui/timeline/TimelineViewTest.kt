@@ -269,4 +269,33 @@ class TimelineViewTest {
             assertFalse(shown("Type info"), "the type info of the first ViewModel is still open")
         }
     }
+
+    /** What the row of a missing range says of whose entries they may be, which depends on the scope. */
+    private val lostInViewModel = "entries were lost in this session here; some may belong to this ViewModel"
+    private val lostInSession = "entries were lost in this session here; they may belong to any of its ViewModels"
+
+    /** Hides every observation of [scope]: its markers always pass, and a tall scene then composes them all. */
+    private fun DesktopComposeUiTest.showOnlyMarkers(inspector: Inspector, scope: InspectorScope) {
+        inspector.viewModel(inspector.timelinePane(scope)).post(TimelineVIE.Intent.SetQuery("no row has this"))
+        until { inspector.timeline(scope).projection.let { it.filterActive && it.items.none { item -> item.observation != null } } }
+        waitForIdle()
+    }
+
+    @Test
+    fun `a missing range names this ViewModel in a ViewModel's timeline, and the session's ViewModels in a session's`() {
+        paneTest(height = 1200, content = { TimelineView(taskList) }) { inspector ->
+            until { shown(taskListTitle) }
+            showOnlyMarkers(inspector, taskList)
+
+            until { shown(lostInViewModel) }
+        }
+        paneTest(height = 1200, content = { TimelineView(session) }) { inspector ->
+            until { shown(sessionTitle) }
+            showOnlyMarkers(inspector, session)
+
+            until { shown("Possibly incomplete") }
+            assertFalse(shown(lostInViewModel), "a session's timeline has no \"this ViewModel\"")
+            assertTrue(shown(lostInSession))
+        }
+    }
 }
