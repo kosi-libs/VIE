@@ -210,9 +210,9 @@ private fun ViewModelHeader(header: TimelineHeader.ViewModel) {
     val scheme = MaterialTheme.colorScheme
     val colors = InspectorTheme.colors
     val info = header.info
-    // The chip that opened the type info, `null` while it is closed. It is this header's own: the one
-    // of another ViewModel starts closed.
-    var typeInfo by remember { mutableStateOf<VIEObjectKind?>(null) }
+    // Whether the type info is open: one panel for the three roles, whichever chip opened it. It is this
+    // header's own: the one of another ViewModel starts closed.
+    var typeInfoOpen by remember { mutableStateOf(false) }
     val gone = header.status == ViewModelStatus.Closed || !header.sessionConnected
     Row(
         Modifier.fillMaxWidth().padding(start = InspectorDimens.paneHorizontalPadding, end = InspectorDimens.paneHorizontalPadding, top = 10.dp, bottom = 9.dp),
@@ -252,20 +252,20 @@ private fun ViewModelHeader(header: TimelineHeader.ViewModel) {
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     for (kind in VIEObjectKind.entries) {
                         val role = info.role(kind)
-                        TypeChip(kind, role, open = typeInfo != null) { typeInfo = if (typeInfo == null) kind else null }
+                        TypeChip(kind, role, open = typeInfoOpen) { typeInfoOpen = !typeInfoOpen }
                     }
                 }
-                if (typeInfo != null) {
+                if (typeInfoOpen) {
                     // Under the chips, its end on theirs, over whatever is below: it takes no room in the header.
                     // It has the keyboard while it is open: Escape closes it, as a click outside does.
                     Popup(
                         alignment = Alignment.TopEnd,
                         offset = with(LocalDensity.current) { IntOffset(0, (InspectorDimens.chip + TypeInfoGap).roundToPx()) },
-                        onDismissRequest = { typeInfo = null },
+                        onDismissRequest = { typeInfoOpen = false },
                         properties = PopupProperties(focusable = true),
                         onKeyEvent = { event ->
                             val escape = event.type == KeyEventType.KeyDown && event.key == Key.Escape
-                            if (escape) typeInfo = null
+                            if (escape) typeInfoOpen = false
                             escape
                         },
                     ) { TypeInfoPopover(info) }
