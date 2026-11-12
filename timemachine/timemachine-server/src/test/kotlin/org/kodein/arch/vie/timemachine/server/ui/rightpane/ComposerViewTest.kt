@@ -23,6 +23,7 @@ import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.text.AnnotatedString
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.uuid.Uuid
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.TestCoroutineScheduler
@@ -131,6 +132,25 @@ class ComposerViewTest {
 
         assertEquals(0, onAllNodes(hasText("150")).fetchSemanticsNodes().size, "a line's number is a node of its own")
         assertEquals(1, onAllNodes(hasText("149\n150\n151", substring = true)).fetchSemanticsNodes().size)
+    }
+
+    @Test
+    fun `the recent interventions end with how many older ones there are`() = composer { inspector ->
+        projected { editorShown() }
+        assertEquals(0, onAllNodes(hasText("older", substring = true)).fetchSemanticsNodes().size)
+
+        Demo.Builder(Demo.connection).apply {
+            repeat(25) {
+                intervene(Demo.taskList, Uuid.fromLongs(7L, it.toLong()), VIEObjectKind.Intent, Demo.DeleteTask, Demo.deleteTask(Demo.Milk), Demo.at(29_000L + it))
+            }
+        }.events.forEach(inspector.store::post)
+        projected { onAllNodes(hasText("#29")).fetchSemanticsNodes().isNotEmpty() }
+        waitForIdle()
+
+        // 4 in the scenario and 25 more: #29 down to #10 are listed.
+        assertEquals(1, onAllNodes(hasText("#10")).fetchSemanticsNodes().size)
+        assertEquals(0, onAllNodes(hasText("#9")).fetchSemanticsNodes().size, "the 21st intervention is listed")
+        assertEquals(1, onAllNodes(hasText("9 older")).fetchSemanticsNodes().size)
     }
 
     @Test

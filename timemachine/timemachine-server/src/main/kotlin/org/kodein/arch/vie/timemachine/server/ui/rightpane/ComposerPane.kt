@@ -95,7 +95,8 @@ internal interface ComposerVIE : VIE<ComposerVIE.Model, ComposerVIE.Intent, VIE.
  * @property parse What the parser says of the text the editor had when this was projected.
  * @property canSend Whether Send is enabled.
  * @property current The intervention sent from here last.
- * @property history Every intervention asked of the ViewModel, newest first.
+ * @property history The [MaxRecentInterventions] latest interventions asked of the ViewModel, newest first.
+ * @property olderInterventions How many interventions it was asked before those of [history].
  * @property sessionName The app the ViewModel runs in, as the result card names it.
  * @property name The ViewModel as the Target line names it: its simple type name, else its short identifier.
  * @property shortId Its short identifier, `unknown` while no info describes it.
@@ -114,8 +115,12 @@ internal data class ComposerProjection(
     val canSend: Boolean = false,
     val current: InterventionView? = null,
     val history: List<InterventionView> = emptyList(),
+    val olderInterventions: Int = 0,
     val timeout: Duration = Duration.ZERO,
 )
+
+/** How many interventions the composer lists as recent. */
+internal const val MaxRecentInterventions = 20
 
 /**
  * An intervention as the result card shows it.
@@ -152,16 +157,20 @@ private fun composerProjection(
     val target = composerTarget(session, vm, controls.kind, controls.chosenType, selection.selectedType(vm))
     val parse = parseJson(controls.draft ?: target.prefill?.json.orEmpty())
     val interventions = vm?.interventions?.values.orEmpty().toList()
-    fun Intervention.view() = InterventionView(
-        number = interventions.indexOf(this) + 1,
-        requestId = requestId,
-        kind = kind,
-        typeName = typeName,
-        asJson = asJson,
-        requestedAt = requestedAt,
-        status = status,
-        rowRetained = (status as? InterventionStatus.Succeeded)?.let { vm?.holds(it.sequence) } ?: false,
-    )
+    // An intervention's number is its place among those of its ViewModel, from 1.
+    fun view(index: Int): InterventionView = with(interventions[index]) {
+        InterventionView(
+            number = index + 1,
+            requestId = requestId,
+            kind = kind,
+            typeName = typeName,
+            asJson = asJson,
+            requestedAt = requestedAt,
+            status = status,
+            rowRetained = (status as? InterventionStatus.Succeeded)?.let { vm?.holds(it.sequence) } ?: false,
+        )
+    }
+    val older = (interventions.size - MaxRecentInterventions).coerceAtLeast(0)
     return ComposerProjection(
         sessionName = session?.session?.name.orEmpty(),
         name = vm?.let { viewModelName(it.info?.typeName, it.id) }.orEmpty(),
@@ -171,8 +180,9 @@ private fun composerProjection(
         target = target,
         parse = parse,
         canSend = target.canSend(parse),
-        current = controls.requestId?.let { id -> interventions.firstOrNull { it.requestId == id } }?.view(),
-        history = interventions.asReversed().map { it.view() },
+        current = controls.requestId?.let { id -> interventions.indexOfFirst { it.requestId == id } }?.takeIf { it >= 0 }?.let(::view),
+        history = (interventions.lastIndex downTo older).map(::view),
+        olderInterventions = older,
         timeout = timeout,
     )
 }
