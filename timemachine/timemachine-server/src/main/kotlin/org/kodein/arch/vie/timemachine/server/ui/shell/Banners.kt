@@ -70,7 +70,7 @@ internal fun RejectionBanner(notice: RejectionNotice, onDismiss: () -> Unit) {
                     style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.5.sp), color = scheme.onSurfaceVariant,
                 )
             }
-            TextAction("Dismiss", color = colors.error, height = 28, onClick = onDismiss)
+            TextAction("Dismiss", color = colors.error, height = 28.dp, onClick = onDismiss)
         }
         HorizontalRule()
     }

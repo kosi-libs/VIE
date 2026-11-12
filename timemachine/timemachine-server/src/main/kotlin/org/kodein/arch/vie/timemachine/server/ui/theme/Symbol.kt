@@ -22,10 +22,10 @@ import androidx.compose.ui.unit.dp
 @Composable
 fun Symbol(
     name: String,
+    modifier: Modifier = Modifier,
     size: Dp = 16.dp,
     tint: Color = LocalContentColor.current,
     mirrored: Boolean = false,
-    modifier: Modifier = Modifier,
 ) {
     val fontSize = with(LocalDensity.current) { size.toSp() }
     Text(

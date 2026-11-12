@@ -30,7 +30,7 @@ internal val LocalCompact = compositionLocalOf { false }
  * [LocalCompact]. The window's layout is given the window's width.
  */
 @Composable
-internal fun ProvideCompact(modifier: Modifier = Modifier.fillMaxSize(), content: @Composable BoxWithConstraintsScope.(compact: Boolean) -> Unit) {
+internal fun ProvideCompact(modifier: Modifier = Modifier, content: @Composable BoxWithConstraintsScope.(compact: Boolean) -> Unit) {
     BoxWithConstraints(modifier) {
         val compact = isCompact(maxWidth)
         CompositionLocalProvider(LocalCompact provides compact) { content(compact) }

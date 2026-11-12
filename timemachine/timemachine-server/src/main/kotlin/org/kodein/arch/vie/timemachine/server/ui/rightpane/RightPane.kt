@@ -100,41 +100,43 @@ private fun rightEmptyText(scope: InspectorScope?): String =
 @Composable
 private fun RightTabs(tab: RightTab, interventions: Int, onSelect: (RightTab) -> Unit) {
     val scheme = MaterialTheme.colorScheme
-    Row(
-        Modifier.fillMaxWidth().height(InspectorDimens.tabRow).padding(horizontal = 6.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        for (entry in RightTab.entries) {
-            val on = tab == entry
-            val badge = if (entry == RightTab.Composer) interventions.takeIf { it > 0 }?.toString() else null
-            Box(
-                Modifier.fillMaxHeight().action(role = Role.Tab, selected = on) { onSelect(entry) }
-                    .drawBehind {
-                        if (on) drawRoundRect(
-                            scheme.primary,
-                            topLeft = Offset(10.dp.toPx(), size.height - 3.dp.toPx()),
-                            size = Size(size.width - 20.dp.toPx(), 3.dp.toPx()),
-                            cornerRadius = CornerRadius(3.dp.toPx()),
-                        )
-                    }
-                    .padding(horizontal = 12.dp),
-                contentAlignment = Alignment.Center,
-            ) {
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        if (entry == RightTab.Detail) "Detail" else "Intervene",
-                        style = MaterialTheme.typography.labelMedium,
-                        color = if (on) scheme.primary else scheme.onSurfaceVariant,
-                    )
-                    badge?.let {
+    Column {
+        Row(
+            Modifier.fillMaxWidth().height(InspectorDimens.tabRow).padding(horizontal = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            for (entry in RightTab.entries) {
+                val on = tab == entry
+                val badge = if (entry == RightTab.Composer) interventions.takeIf { it > 0 }?.toString() else null
+                Box(
+                    Modifier.fillMaxHeight().action(role = Role.Tab, selected = on) { onSelect(entry) }
+                        .drawBehind {
+                            if (on) drawRoundRect(
+                                scheme.primary,
+                                topLeft = Offset(10.dp.toPx(), size.height - 3.dp.toPx()),
+                                size = Size(size.width - 20.dp.toPx(), 3.dp.toPx()),
+                                cornerRadius = CornerRadius(3.dp.toPx()),
+                            )
+                        }
+                        .padding(horizontal = 12.dp),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
                         Text(
-                            it, style = monoStyle(10f, scheme.onSurfaceVariant),
-                            modifier = Modifier.background(scheme.surfaceContainerHigh, RoundedCornerShape(8.dp)).padding(horizontal = 5.dp),
+                            if (entry == RightTab.Detail) "Detail" else "Intervene",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = if (on) scheme.primary else scheme.onSurfaceVariant,
                         )
+                        badge?.let {
+                            Text(
+                                it, style = monoStyle(10f, scheme.onSurfaceVariant),
+                                modifier = Modifier.background(scheme.surfaceContainerHigh, RoundedCornerShape(8.dp)).padding(horizontal = 5.dp),
+                            )
+                        }
                     }
                 }
             }
         }
+        HorizontalRule()
     }
-    HorizontalRule()
 }

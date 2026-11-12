@@ -45,7 +45,7 @@ internal enum class SessionsPresentation { Pane, Rail, Drawer }
 
 /** The sessions, in [presentation]: [SessionsContent] or [SessionsRail], over what the store holds. */
 @Composable
-internal fun SessionsView(presentation: SessionsPresentation = SessionsPresentation.Pane, modifier: Modifier = Modifier) {
+internal fun SessionsView(modifier: Modifier = Modifier, presentation: SessionsPresentation = SessionsPresentation.Pane) {
     val pane = LocalInspector.current.sessionsPane()
     InspectorPane(pane) { model -> SessionsSlot(model, presentation, modifier) { post(it) } }
 }
@@ -82,7 +82,6 @@ private fun SessionsContent(model: SessionsVIE.Model, modifier: Modifier = Modif
             Box(Modifier.weight(1f))
             TextAction(
                 "Clear disconnected", glyph = "delete_sweep", enabled = model.disconnectedSessions > 0,
-                color = if (model.disconnectedSessions > 0) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
             ) { post(SessionsVIE.Intent.ClearDisconnected) }
         }
         LazyColumn(
@@ -143,9 +142,8 @@ private fun SessionBlock(session: SessionItem, selected: InspectorScope?, post: 
             session.clearLabel,
             modifier = Modifier.padding(start = 16.dp).align(Alignment.Start),
             glyph = if (session.connected) "clear_all" else "delete_sweep",
-            color = if (session.clearEnabled) scheme.primary else scheme.outline,
             enabled = session.clearEnabled,
-            height = 24,
+            height = 24.dp,
         ) { post(SessionsVIE.Intent.ClearSession(session.id)) }
     }
 }
