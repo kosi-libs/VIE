@@ -1,5 +1,6 @@
 package org.kodein.arch.vie.timemachine.client
 
+import kotlin.concurrent.atomics.AtomicInt
 import kotlin.concurrent.atomics.AtomicReference
 import kotlin.concurrent.atomics.update
 import kotlin.coroutines.cancellation.CancellationException
@@ -32,6 +33,12 @@ import org.kodein.arch.vie.timemachine.protocol.VIEViewModelInfo
  * down the ViewModel's own dispatcher. The object therefore stays reachable until its entry is
  * described, just before it is sent, or dropped.
  *
+ * The registry never keeps a ViewModel reachable: it knows each one through its
+ * [TimeMachineIntervener], which holds it weakly. A ViewModel that is garbage-collected without ever
+ * having been cleared — built by hand, or dropped by a scope that does not clear it — is reported
+ * closed, and forgotten, the next time the registry is looked up, and at the latest once as many
+ * ViewModels have started as it held.
+ *
  * Once [close]d, when its probe stops, the sink reports nothing and knows no ViewModel: a middleware
  * that outlives its probe then costs its ViewModel one check per object.
  *
@@ -53,7 +60,7 @@ internal class TimeMachineSink(private val outlet: (Entry) -> Unit) {
         fun describe(sequence: TimeMachineSequence): TimeMachineTimelineMessage = build(sequence)
     }
 
-    /** A ViewModel started and not closed yet. */
+    /** A ViewModel started and not closed yet. Does not keep it reachable: see [TimeMachineIntervener]. */
     class LiveViewModel(val info: VIEViewModelInfo, val intervener: TimeMachineIntervener)
 
     // `null` once closed: a ViewModel that starts while the sink closes is then never registered.
@@ -62,8 +69,19 @@ internal class TimeMachineSink(private val outlet: (Entry) -> Unit) {
     /** Whether [close] was called. */
     val isClosed: Boolean get() = live.load() == null
 
-    /** The ViewModels started and not closed yet, by identifier; none once the sink is closed. */
-    val liveViewModels: Map<Uuid, LiveViewModel> get() = live.load().orEmpty()
+    // The registry size from which [started] prunes it: twice what the last pruning left, so that
+    // pruning costs each start a constant on average. Only a hint: a race on it prunes once more or less.
+    private val pruneFrom = AtomicInt(minPruneFrom)
+
+    /**
+     * The ViewModels started and not closed yet, by identifier; none once the sink is closed. Looking
+     * them up first reports closed those that were garbage-collected without having been cleared.
+     */
+    val liveViewModels: Map<Uuid, LiveViewModel>
+        get() {
+            prune()
+            return live.load().orEmpty()
+        }
 
     /** Stops reporting, for good, and lets go of the live ViewModels. */
     fun close() {
@@ -76,6 +94,9 @@ internal class TimeMachineSink(private val outlet: (Entry) -> Unit) {
         live.update { it?.plus(info.id to LiveViewModel(info, intervener)) }
         val at = Clock.System.now()
         outlet(Entry(info.id) { TimeMachineClientMessage.ViewModelStarted(info = info, at = at, sequence = it) })
+        // Without this, an app that never clears its ViewModels would grow the registry for as long
+        // as no inspector looks it up.
+        if ((live.load()?.size ?: 0) >= pruneFrom.load()) pruneFrom.store(maxOf(minPruneFrom, 2 * prune()))
     }
 
     /**
@@ -107,12 +128,39 @@ internal class TimeMachineSink(private val outlet: (Entry) -> Unit) {
         })
     }
 
-    /** Reports that the ViewModel [viewModelId] was closed. */
+    /** Reports that the ViewModel [viewModelId] was closed, unless it is not alive: never started,
+     *  or already reported closed. */
     fun closed(viewModelId: Uuid) {
-        if (isClosed) return
-        live.update { it?.minus(viewModelId) }
+        if (!forget(viewModelId)) return
         val at = Clock.System.now()
         outlet(Entry(viewModelId) { TimeMachineClientMessage.ViewModelClosed(viewModelId = viewModelId, at = at, sequence = it) })
+    }
+
+    /** Removes [viewModelId] from the registry: `true` for the one call that does, which is the one
+     *  that reports the close, however many threads find out at once that the ViewModel is gone. */
+    private fun forget(viewModelId: Uuid): Boolean {
+        while (true) {
+            val current = live.load() ?: return false
+            if (viewModelId !in current) return false
+            if (live.compareAndSet(current, current - viewModelId)) return true
+        }
+    }
+
+    /** Reports closed the ViewModels that were garbage-collected without having been cleared, and
+     *  returns how many are left. */
+    private fun prune(): Int {
+        val current = live.load() ?: return 0
+        var left = current.size
+        for ((viewModelId, viewModel) in current) {
+            if (!viewModel.intervener.isViewModelCollected) continue
+            closed(viewModelId)
+            left--
+        }
+        return left
+    }
+
+    private companion object {
+        const val minPruneFrom = 16
     }
 }
 
@@ -136,10 +184,19 @@ internal inline fun <R> describing(what: () -> String, block: () -> R): R? =
         null
     }
 
-/** Makes one live ViewModel emit or receive the object an intervention request describes. */
+/**
+ * Makes one live ViewModel emit or receive the object an intervention request describes.
+ *
+ * The sink's registry holds it for as long as its ViewModel is not cleared, so it must not keep that
+ * ViewModel reachable: one that is never cleared would otherwise never be garbage-collected.
+ */
 internal fun interface TimeMachineIntervener {
     /** Places [request]'s object, or says why it cannot. Never throws nor suspends. */
     fun intervene(request: TimeMachineServerMessage.Intervene): VIEInterventionResult
+
+    /** Whether the ViewModel was garbage-collected without ever being cleared: it then reports nothing
+     *  more, its close included, and nothing can be placed in it. */
+    val isViewModelCollected: Boolean get() = false
 }
 
 /** Runs [block], printing and swallowing any failure but cancellation: nothing the probe does may

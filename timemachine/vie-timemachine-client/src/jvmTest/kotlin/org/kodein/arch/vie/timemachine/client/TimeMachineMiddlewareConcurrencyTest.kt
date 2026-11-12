@@ -2,10 +2,16 @@ package org.kodein.arch.vie.timemachine.client
 
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineSequence
 import androidx.lifecycle.ViewModelStore
+import java.lang.ref.WeakReference
 import java.util.concurrent.ConcurrentLinkedQueue
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertIs
+import kotlin.test.assertNotNull
+import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.seconds
+import kotlin.time.TimeSource
 import kotlin.uuid.Uuid
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -22,6 +28,7 @@ import org.kodein.arch.vie.VIEMiddleware
 import org.kodein.arch.vie.VIEViewModel
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineClientMessage
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineServerMessage
+import org.kodein.arch.vie.timemachine.protocol.TimeMachineTimelineMessage
 import org.kodein.arch.vie.timemachine.protocol.VIEInterventionResult
 import org.kodein.arch.vie.timemachine.protocol.VIEObjectKind
 import org.kodein.arch.vie.timemachine.protocol.VIEObservation
@@ -55,6 +62,40 @@ internal class StressVM(
  */
 @OptIn(ExperimentalCoroutinesApi::class)
 class TimeMachineMiddlewareConcurrencyTest {
+
+    /** What is left of a ViewModel that was built, observed, then dropped without being cleared. */
+    private class Dropped(val viewModel: WeakReference<StressVM>, val intervener: TimeMachineIntervener)
+
+    // In a function of its own: no local of the test may keep the ViewModel reachable.
+    private fun buildThenDrop(probe: TimeMachineMiddleware<StressModel, StressIntent, StressSignal>, sink: TimeMachineSink): Dropped {
+        val vm = StressVM(listOf(probe))
+        val live = assertNotNull(sink.liveViewModels[probe.viewModelId], "The ViewModel must be registered while it lives")
+        assertFalse(live.intervener.isViewModelCollected)
+        return Dropped(WeakReference(vm), live.intervener)
+    }
+
+    @Test
+    fun aViewModelThatIsNeverClearedIsNotKeptReachableAndIsReportedClosedOnceCollected() {
+        val messages = ConcurrentLinkedQueue<TimeMachineTimelineMessage>()
+        val sink = TimeMachineSink { messages += it.describe(TimeMachineSequence.First) }
+        val probe = TimeMachineMiddleware(role<StressModel>(), role<StressIntent>(), role<StressSignal>(), sink)
+
+        val dropped = buildThenDrop(probe, sink)
+        val deadline = TimeSource.Monotonic.markNow() + 10.seconds
+        while (dropped.viewModel.get() != null) {
+            assertTrue(deadline.hasNotPassedNow(), "The ViewModel is still reachable: the probe keeps it from being garbage-collected")
+            System.gc()
+            Thread.sleep(50)
+        }
+
+        assertTrue(dropped.intervener.isViewModelCollected)
+        val request = TimeMachineServerMessage.Intervene(Uuid.random(), probe.viewModelId, VIEObjectKind.Intent, role<StressIntent>().typeNameOf(StressIntent.Ping), requireNotNull(role<StressIntent>().encode(StressIntent.Ping)))
+        val failure = assertIs<VIEInterventionResult.Failure>(dropped.intervener.intervene(request))
+        assertEquals(VIEInterventionResult.Reason.ClosedViewModel, failure.reason)
+
+        assertFalse(probe.viewModelId in sink.liveViewModels, "A collected ViewModel must leave the registry")
+        assertEquals(1, messages.count { it is TimeMachineClientMessage.ViewModelClosed && it.viewModelId == probe.viewModelId })
+    }
 
     @Test
     fun concurrentInjectionsAreEachTaggedOnAMultiThreadedViewModelScope() = runBlocking {

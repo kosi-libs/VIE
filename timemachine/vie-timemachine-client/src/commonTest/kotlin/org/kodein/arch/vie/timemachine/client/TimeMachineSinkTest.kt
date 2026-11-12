@@ -133,6 +133,49 @@ class TimeMachineSinkTest {
     }
 
     @Test
+    fun aViewModelCollectedWithoutBeingClearedIsReportedClosedOnceAndForgotten() {
+        val entries = mutableListOf<TimeMachineSink.Entry>()
+        val sink = TimeMachineSink { entries += it }
+        var collected = false
+        sink.started(info(vmA), collectedOnce { collected })
+        sink.started(info(vmB), noIntervention)
+        assertEquals(setOf(vmA, vmB), sink.liveViewModels.keys)
+        entries.clear()
+
+        collected = true
+        assertEquals(setOf(vmB), sink.liveViewModels.keys)
+        assertEquals(setOf(vmB), sink.liveViewModels.keys)
+
+        val closed = assertIs<TimeMachineClientMessage.ViewModelClosed>(entries.single().describe(TimeMachineSequence(0)))
+        assertEquals(vmA, closed.viewModelId)
+    }
+
+    @Test
+    fun startingViewModelsForgetsTheCollectedOnesEvenWhenNothingLooksTheRegistryUp() {
+        val entries = mutableListOf<TimeMachineSink.Entry>()
+        val sink = TimeMachineSink { entries += it }
+
+        // As an app that never clears its ViewModels does, with no inspector connected.
+        repeat(1000) { sink.started(info(Uuid.random()), collectedOnce { true }) }
+
+        val closed = entries.count { it.describe(TimeMachineSequence(0)) is TimeMachineClientMessage.ViewModelClosed }
+        assertTrue(closed >= 900, "Only $closed of the 1000 collected ViewModels were forgotten")
+    }
+
+    @Test
+    fun aViewModelIsReportedClosedOnlyOnce() {
+        val entries = mutableListOf<TimeMachineSink.Entry>()
+        val sink = TimeMachineSink { entries += it }
+        sink.started(info(vmA), noIntervention)
+        entries.clear()
+
+        sink.closed(vmA)
+        sink.closed(vmA)
+
+        assertIs<TimeMachineClientMessage.ViewModelClosed>(entries.single().describe(TimeMachineSequence(0)))
+    }
+
+    @Test
     fun aClosedSinkForgetsItsViewModelsAndReportsNothingMore() {
         val entries = mutableListOf<TimeMachineSink.Entry>()
         val sink = TimeMachineSink { entries += it }

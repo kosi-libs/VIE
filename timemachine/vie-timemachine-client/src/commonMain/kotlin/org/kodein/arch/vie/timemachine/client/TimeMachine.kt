@@ -121,6 +121,10 @@ public object TimeMachine {
      * Build the list once per ViewModel, and never share it (e.g. as a DI singleton): while the probe
      * runs, each call returns a new middleware, and an instance serves exactly one ViewModel.
      *
+     * The probe does not keep an observed ViewModel alive: one that is never cleared — built by hand,
+     * or dropped by a scope that does not clear it — is still garbage-collected, and the inspector
+     * then shows it closed, some time later.
+     *
      * Never throws, since it runs inside the ViewModel's constructor: a model, intent or signal type
      * whose serializer cannot be introspected is printed, and its objects are reported without JSON.
      */
