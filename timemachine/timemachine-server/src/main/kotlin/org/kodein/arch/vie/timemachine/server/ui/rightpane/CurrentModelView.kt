@@ -142,7 +142,7 @@ private fun CurrentModelContent(model: CurrentModelVIE.Model, post: (CurrentMode
                     model.controls.raw -> RawJson(projection.rawText.orEmpty())
                     else -> JsonTree(
                         projection.json, model.controls.expanded,
-                        changed = projection.changedPaths, highlight = fade.value,
+                        changed = projection.changedPaths, highlight = { fade.value },
                     ) { post(CurrentModelVIE.Intent.ToggleNode(it)) }
                 }
             }
