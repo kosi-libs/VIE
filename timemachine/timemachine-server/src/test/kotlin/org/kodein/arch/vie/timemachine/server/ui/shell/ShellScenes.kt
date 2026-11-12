@@ -9,6 +9,7 @@ import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.hasContentDescription
 import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.performClick
 import org.jetbrains.skia.EncodedImageFormat
 import org.jetbrains.skia.Image
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineSequence
@@ -24,6 +25,8 @@ import org.kodein.arch.vie.timemachine.server.ui.core.InspectorSelection
 import org.kodein.arch.vie.timemachine.server.ui.core.InspectorViewState
 import org.kodein.arch.vie.timemachine.server.ui.core.RightTab
 import org.kodein.arch.vie.timemachine.server.ui.rightpane.HideRightPaneDescription
+import org.kodein.arch.vie.timemachine.server.ui.sessions.CollapseSessionDescription
+import org.kodein.arch.vie.timemachine.server.ui.sessions.ExpandSessionDescription
 import org.kodein.arch.vie.timemachine.server.ui.sessions.RailMenuDescription
 
 
@@ -34,6 +37,7 @@ import org.kodein.arch.vie.timemachine.server.ui.sessions.RailMenuDescription
  * @property name The name of its renders: `<name>-<theme>.png`.
  * @property view What the developer set in the window.
  * @property select What the developer selected.
+ * @property act What the developer did in the window once it was composed, when the screen takes it.
  * @property landmarks What only this screen shows once the store's events and the panes' projections are
  *   all in: what the test asserts, and what a render waits for.
  */
@@ -44,6 +48,7 @@ internal class ShellScene(
     val height: Int = 900,
     val view: InspectorViewState.() -> Unit = {},
     val select: InspectorSelection.() -> Unit = {},
+    val act: suspend DesktopComposeUiTest.() -> Unit = {},
     val landmarks: List<SemanticsMatcher>,
 )
 
@@ -84,6 +89,15 @@ internal val ShellViewModelScenes = listOf(
         "composer", ScenarioData.of("main"), select = { aModel(); selectTab(RightTab.Composer) },
         landmarks = listOf(text("Clear disconnected"), text("TaskListVM"), text("Current model"), text("Replace model"), text("RECENT INTERVENTIONS")),
     ),
+    // The connected session, the second of the two, folded from its chevron: its selected ViewModel is out of sight.
+    ShellScene(
+        "folded", ScenarioData.of("main"), select = aModel,
+        act = {
+            until { onAllNodes(hasContentDescription(CollapseSessionDescription)).fetchSemanticsNodes().size == 2 }
+            onAllNodes(hasContentDescription(CollapseSessionDescription))[1].performClick()
+        },
+        landmarks = listOf(hasContentDescription(ExpandSessionDescription), textWith("· 4 ViewModels"), text("Clear session"), textWith("#208 · ")),
+    ),
 )
 
 /** The compact layout: its rail, its drawer, its folded right pane, and its empty screen. */
@@ -121,6 +135,7 @@ internal fun shellSceneTest(scene: ShellScene, dark: Boolean, block: suspend Des
         val viewState = InspectorViewState().also { it.dark = dark; scene.view(it) }
         scene.select(inspector.selection)
         setContent { InspectorWindow(inspector, viewState) }
+        scene.act(this)
         try {
             until { missing(scene).isEmpty() }
         } catch (_: ComposeTimeoutException) {
