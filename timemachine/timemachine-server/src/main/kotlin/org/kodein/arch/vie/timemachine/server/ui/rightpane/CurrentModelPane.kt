@@ -18,6 +18,7 @@ import org.kodein.arch.vie.timemachine.server.ui.core.InspectorScope
 import org.kodein.arch.vie.timemachine.server.ui.core.Pane
 import org.kodein.arch.vie.timemachine.server.ui.core.PaneViewModel
 import org.kodein.arch.vie.timemachine.server.ui.core.whileShown
+import kotlin.time.Instant
 import kotlin.uuid.Uuid
 
 
@@ -56,7 +57,7 @@ internal interface CurrentModelVIE : VIE<CurrentModelVIE.Model, CurrentModelVIE.
 internal data class CurrentModelProjection(
     val typeName: String? = null,
     val sequence: TimeMachineSequence? = null,
-    val at: kotlin.time.Instant? = null,
+    val at: Instant? = null,
     val asString: String? = null,
     val json: JsonElement? = null,
     val rawText: String? = null,

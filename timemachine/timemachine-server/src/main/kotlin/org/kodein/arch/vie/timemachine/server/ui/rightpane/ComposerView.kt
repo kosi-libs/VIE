@@ -34,6 +34,7 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.SolidColor
@@ -42,6 +43,7 @@ import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
@@ -297,7 +299,7 @@ private fun prefillNote(type: String, kind: VIEObjectKind, source: PrefillSource
 }
 
 private class JsonColoring(private val colors: InspectorColors) : VisualTransformation {
-    override fun filter(text: androidx.compose.ui.text.AnnotatedString) =
+    override fun filter(text: AnnotatedString) =
         TransformedText(colorJsonLine(text.text, colors), OffsetMapping.Identity)
 }
 
@@ -321,7 +323,7 @@ private fun JsonEditor(text: String, errorLine: Int?, enabled: Boolean, modifier
             if (errorLine != null) {
                 val top = (errorLine - 1) * InspectorDimens.codeLine.toPx()
                 val bottom = top + InspectorDimens.codeLine.toPx()
-                drawRect(colors.errorContainer, Offset(0f, top), androidx.compose.ui.geometry.Size(size.width, bottom - top))
+                drawRect(colors.errorContainer, Offset(0f, top), Size(size.width, bottom - top))
                 val y = bottom - 3.dp.toPx()
                 val step = 3.dp.toPx()
                 val wave = Path().apply {

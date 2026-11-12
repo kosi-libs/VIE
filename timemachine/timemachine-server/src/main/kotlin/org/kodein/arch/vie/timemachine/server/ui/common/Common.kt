@@ -14,22 +14,27 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.pointer.PointerIcon
 import androidx.compose.ui.input.pointer.pointerHoverIcon
+import androidx.compose.ui.platform.ClipEntry
+import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.launch
 import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorPillShape
 import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorTheme
 import org.kodein.arch.vie.timemachine.server.ui.theme.Symbol
-import java.awt.Toolkit
 import java.awt.datatransfer.StringSelection
 import kotlin.time.Instant
 
@@ -37,8 +42,18 @@ import kotlin.time.Instant
 /** `HH:mm:ss`: the design prints seconds in the shell, milliseconds only in the timeline. */
 internal fun clock(at: Instant): String = formatTime(at).take(8)
 
-internal fun copyToClipboard(text: String) {
-    Toolkit.getDefaultToolkit().systemClipboard.setContents(StringSelection(text), null)
+/**
+ * What copies a text to the clipboard: the window's own, which Compose provides, so that a view that
+ * copies can be composed where there is no desktop, and given another clipboard.
+ */
+@OptIn(ExperimentalComposeUiApi::class)
+@Composable
+internal fun rememberCopy(): (String) -> Unit {
+    val clipboard = LocalClipboard.current
+    val scope = rememberCoroutineScope()
+    return remember(clipboard, scope) {
+        { text: String -> scope.launch { clipboard.setClipEntry(ClipEntry(StringSelection(text))) } }
+    }
 }
 
 /**

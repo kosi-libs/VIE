@@ -39,8 +39,10 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.focus.onFocusChanged
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
@@ -67,6 +69,7 @@ import org.kodein.arch.vie.timemachine.protocol.TimeMachineSequence
 import org.kodein.arch.vie.timemachine.protocol.VIEObjectKind
 import org.kodein.arch.vie.timemachine.protocol.VIEObservation
 import org.kodein.arch.vie.timemachine.protocol.VIETypeInfo
+import org.kodein.arch.vie.timemachine.protocol.VIEViewModelInfo
 import org.kodein.arch.vie.timemachine.server.store.SessionTimelineEntry
 import org.kodein.arch.vie.timemachine.server.store.TimelineEntry
 import org.kodein.arch.vie.timemachine.server.ui.common.DiffText
@@ -76,11 +79,11 @@ import org.kodein.arch.vie.timemachine.server.ui.common.LocalCompact
 import org.kodein.arch.vie.timemachine.server.ui.common.TextAction
 import org.kodein.arch.vie.timemachine.server.ui.common.action
 import org.kodein.arch.vie.timemachine.server.ui.common.clock
-import org.kodein.arch.vie.timemachine.server.ui.common.copyToClipboard
 import org.kodein.arch.vie.timemachine.server.ui.common.formatTime
 import org.kodein.arch.vie.timemachine.server.ui.common.kind
 import org.kodein.arch.vie.timemachine.server.ui.common.kindContainer
 import org.kodein.arch.vie.timemachine.server.ui.common.pretty
+import org.kodein.arch.vie.timemachine.server.ui.common.rememberCopy
 import org.kodein.arch.vie.timemachine.server.ui.common.rememberJsonLines
 import org.kodein.arch.vie.timemachine.server.ui.common.role
 import org.kodein.arch.vie.timemachine.server.ui.common.splitSerialName
@@ -93,6 +96,7 @@ import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorDimens
 import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorPillShape
 import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorTheme
 import org.kodein.arch.vie.timemachine.server.ui.theme.Symbol
+import kotlin.time.Instant
 
 
 /** What the glyphs of the timeline say they are. */
@@ -303,7 +307,7 @@ private fun TypeChip(kind: VIEObjectKind, role: VIETypeInfo, open: Boolean, onCl
 private val TypeInfoGap = 16.dp
 
 @Composable
-private fun TypeInfoPopover(info: org.kodein.arch.vie.timemachine.protocol.VIEViewModelInfo) {
+private fun TypeInfoPopover(info: VIEViewModelInfo) {
     val scheme = MaterialTheme.colorScheme
     val colors = InspectorTheme.colors
     Column(
@@ -379,19 +383,19 @@ private fun FilterBar(
     val filter = controls.filter
     Column {
         Row(Modifier.fillMaxWidth().padding(horizontal = 14.dp, vertical = 6.dp), horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.Top) {
-        FlowRow(
-            Modifier.weight(1f),
-            horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp),
-            itemVerticalAlignment = Alignment.CenterVertically,
-        ) {
-            for (kind in VIEObjectKind.entries) {
-                KindFilterChip(kind, on = kind in filter.kinds, count = projection.kindCounts[kind] ?: 0) { post(TimelineVIE.Intent.ToggleKind(kind)) }
+            FlowRow(
+                Modifier.weight(1f),
+                horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(6.dp),
+                itemVerticalAlignment = Alignment.CenterVertically,
+            ) {
+                for (kind in VIEObjectKind.entries) {
+                    KindFilterChip(kind, on = kind in filter.kinds, count = projection.kindCounts[kind] ?: 0) { post(TimelineVIE.Intent.ToggleKind(kind)) }
+                }
+                IntervenedFilterChip(on = filter.intervenedOnly, count = projection.intervenedCount) { post(TimelineVIE.Intent.SetIntervenedOnly(!filter.intervenedOnly)) }
+                SearchField(filter.query, onSearchFocus) { post(TimelineVIE.Intent.SetQuery(it)) }
+                if (projection.filterActive) FilterSummary(projection.hidden) { post(TimelineVIE.Intent.ClearFilters) }
             }
-            IntervenedFilterChip(on = filter.intervenedOnly, count = projection.intervenedCount) { post(TimelineVIE.Intent.SetIntervenedOnly(!filter.intervenedOnly)) }
-            SearchField(filter.query, onSearchFocus) { post(TimelineVIE.Intent.SetQuery(it)) }
-            if (projection.filterActive) FilterSummary(projection.hidden) { post(TimelineVIE.Intent.ClearFilters) }
-        }
-        FollowToggle(controls.follow, projection.newCount) { post(if (controls.follow is FollowState.Following) TimelineVIE.Intent.ScrolledAway else TimelineVIE.Intent.Resume) }
+            FollowToggle(controls.follow, projection.newCount) { post(if (controls.follow is FollowState.Following) TimelineVIE.Intent.ScrolledAway else TimelineVIE.Intent.Resume) }
         }
         HorizontalRule()
     }
@@ -787,6 +791,7 @@ private fun InterventionChip(number: Int) {
 @Composable
 private fun RowActions(observation: VIEObservation, onEdit: () -> Unit) {
     val scheme = MaterialTheme.colorScheme
+    val copy = rememberCopy()
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
         Row(
             Modifier.height(22.dp).background(scheme.primary, InspectorPillShape)
@@ -797,7 +802,7 @@ private fun RowActions(observation: VIEObservation, onEdit: () -> Unit) {
             Text("Edit & intervene", style = InspectorTheme.text.actionSmall, color = scheme.onPrimary, maxLines = 1)
         }
         observation.asJson?.let { json ->
-            Symbol("content_copy", size = 16.dp, tint = scheme.onSurfaceVariant, modifier = Modifier.action(description = CopyRowDescription) { copyToClipboard(json.pretty()) })
+            Symbol("content_copy", size = 16.dp, tint = scheme.onSurfaceVariant, modifier = Modifier.action(description = CopyRowDescription) { copy(json.pretty()) })
         }
     }
 }
@@ -847,7 +852,7 @@ private fun MarkerRow(item: TimelineItem) {
 }
 
 @Composable
-private fun Bookend(sequence: TimeMachineSequence, at: kotlin.time.Instant, started: Boolean, label: String?) {
+private fun Bookend(sequence: TimeMachineSequence, at: Instant, started: Boolean, label: String?) {
     val scheme = MaterialTheme.colorScheme
     val colors = InspectorTheme.colors
     Column {
@@ -900,7 +905,7 @@ private fun GapRow(count: Int, sequence: TimeMachineSequence, label: String?) {
             drawRect(colors.gapContainer)
             var x = -size.height
             while (x < size.width) {
-                drawLine(colors.gapStripe, androidx.compose.ui.geometry.Offset(x, size.height), androidx.compose.ui.geometry.Offset(x + size.height, 0f), strokeWidth = stripe)
+                drawLine(colors.gapStripe, Offset(x, size.height), Offset(x + size.height, 0f), strokeWidth = stripe)
                 x += stripe * 2
             }
         },
@@ -930,12 +935,12 @@ private fun GapRow(count: Int, sequence: TimeMachineSequence, label: String?) {
 @Composable
 private fun PossiblyIncompleteRow(range: ClosedRange<TimeMachineSequence>, shared: Boolean) {
     val colors = InspectorTheme.colors
-    val dash = androidx.compose.ui.graphics.PathEffect.dashPathEffect(floatArrayOf(6f, 4f))
+    val dash = PathEffect.dashPathEffect(floatArrayOf(6f, 4f))
     Row(
         Modifier.fillMaxWidth().height(InspectorDimens.softMarker)
             .drawBehind {
-                drawLine(colors.possiblyIncomplete, androidx.compose.ui.geometry.Offset(0f, 0f), androidx.compose.ui.geometry.Offset(size.width, 0f), strokeWidth = 1.dp.toPx(), pathEffect = dash)
-                drawLine(colors.possiblyIncomplete, androidx.compose.ui.geometry.Offset(0f, size.height), androidx.compose.ui.geometry.Offset(size.width, size.height), strokeWidth = 1.dp.toPx(), pathEffect = dash)
+                drawLine(colors.possiblyIncomplete, Offset(0f, 0f), Offset(size.width, 0f), strokeWidth = 1.dp.toPx(), pathEffect = dash)
+                drawLine(colors.possiblyIncomplete, Offset(0f, size.height), Offset(size.width, size.height), strokeWidth = 1.dp.toPx(), pathEffect = dash)
             }
             .padding(start = 28.dp, end = 12.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically,
