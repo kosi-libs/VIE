@@ -11,6 +11,16 @@ kotlin {
     jvmToolchain(findProperty("jvm.toolchain")!!.toString().toInt())
 }
 
+// Opt-in: `-Pvie.composeReports=true` writes the Compose compiler's reports and metrics to
+// build/compose-reports/, to read which composables skip and which of their parameters are unstable.
+// A report is only written for what is compiled: add `--rerun-tasks` when the sources did not change.
+if (providers.gradleProperty("vie.composeReports").orNull == "true") {
+    composeCompiler {
+        reportsDestination = layout.buildDirectory.dir("compose-reports")
+        metricsDestination = layout.buildDirectory.dir("compose-reports")
+    }
+}
+
 dependencies {
     implementation(projects.timemachine.vieTimemachineShared)
     implementation(projects.vieMvi)
