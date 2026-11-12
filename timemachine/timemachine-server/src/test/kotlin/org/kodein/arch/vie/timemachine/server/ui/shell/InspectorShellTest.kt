@@ -37,7 +37,7 @@ class InspectorShellTest {
         paneTest(width = 1440, height = 900, content = { InspectorShell() }) { inspector ->
             val closed = SampleWorld.editTaskClosedScope
             inspector.selection.selectScope(closed)
-            // The store applies the scenario off the UI thread, and a scope it does not hold has no ViewModel to keep.
+            // The store applies the scenario as the scene's clock advances, and a scope it does not hold has no ViewModel to keep.
             until { inspector.store.state.value.holds(closed) }
             val timeline = inspector.viewModel(inspector.timelinePane(closed))
             val sessions = inspector.viewModel(inspector.sessionsPane())

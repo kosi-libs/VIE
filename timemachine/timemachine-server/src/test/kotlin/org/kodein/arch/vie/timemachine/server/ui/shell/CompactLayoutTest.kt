@@ -2,19 +2,11 @@
 
 package org.kodein.arch.vie.timemachine.server.ui.shell
 
-import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.fillMaxHeight
-import androidx.compose.foundation.layout.width
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.setValue
-import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.test.DesktopComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.click
-import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
@@ -23,7 +15,6 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performKeyInput
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.pressKey
-import androidx.compose.ui.test.runDesktopComposeUiTest
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import java.util.Collections
@@ -35,8 +26,6 @@ import kotlin.test.assertSame
 import kotlin.test.assertTrue
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
@@ -44,8 +33,10 @@ import org.kodein.arch.vie.timemachine.protocol.TimeMachineSequence
 import org.kodein.arch.vie.timemachine.protocol.VIEObjectKind
 import org.kodein.arch.vie.timemachine.server.InspectorWindow
 import org.kodein.arch.vie.timemachine.server.fixtures.Demo
-import org.kodein.arch.vie.timemachine.server.fixtures.ScenarioData
-import org.kodein.arch.vie.timemachine.server.fixtures.newInspector
+import org.kodein.arch.vie.timemachine.server.fixtures.described
+import org.kodein.arch.vie.timemachine.server.fixtures.shown
+import org.kodein.arch.vie.timemachine.server.fixtures.until
+import org.kodein.arch.vie.timemachine.server.fixtures.windowTest
 import org.kodein.arch.vie.timemachine.server.ui.common.clock
 import org.kodein.arch.vie.timemachine.server.ui.core.Inspector
 import org.kodein.arch.vie.timemachine.server.ui.core.InspectorScope
@@ -66,30 +57,11 @@ class CompactLayoutTest {
     private val taskList = InspectorScope.ViewModel(Demo.session.id, Demo.taskList)
     private val settings = InspectorScope.ViewModel(Demo.session.id, Demo.settings)
 
-    /** The window, [width] wide, which [block] can change, over the main scenario's inspector. */
+    /** The window over the main scenario's inspector, compact unless a test says how wide. */
     private fun window(
         width: Dp = 1000.dp,
         block: suspend DesktopComposeUiTest.(inspector: Inspector, viewState: InspectorViewState, resize: (Dp) -> Unit) -> Unit,
-    ) = runDesktopComposeUiTest(1440, 900) {
-        val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
-        val inspector = ScenarioData.of("main").newInspector(scope, Dispatchers.Default)
-        val viewState = InspectorViewState()
-        var current by mutableStateOf(width)
-        try {
-            setContent { Box(Modifier.width(current).fillMaxHeight()) { InspectorWindow(inspector, viewState) } }
-            block(inspector, viewState) { current = it }
-        } finally {
-            inspector.close()
-            scope.cancel()
-        }
-    }
-
-    /** Waits for [condition], while the Compose clock runs, and the panes' projections land off the UI thread. */
-    private fun DesktopComposeUiTest.until(condition: () -> Boolean) = waitUntil(timeoutMillis = 10_000, condition = condition)
-
-    private fun DesktopComposeUiTest.shown(text: String) = onAllNodesWithText(text).fetchSemanticsNodes().isNotEmpty()
-
-    private fun DesktopComposeUiTest.described(description: String) = onAllNodesWithContentDescription(description).fetchSemanticsNodes().isNotEmpty()
+    ) = windowTest(width = width, block = block)
 
     @Test
     fun `under 1200 dp the sessions are a rail, and from 1200 dp a pane`() {
@@ -228,7 +200,8 @@ class CompactLayoutTest {
 
             // From here, the timeline's pane must never be hidden: that is what a recomposed pane would do.
             val seen = Collections.synchronizedList(mutableListOf<Boolean>())
-            val watcher = CoroutineScope(Dispatchers.Default).launch { inspector.visibility.shown(key).collect { seen += it } }
+            // Unconfined: it is told of each change where the change is made, and misses none.
+            val watcher = CoroutineScope(Dispatchers.Unconfined).launch { inspector.visibility.shown(key).collect { seen += it } }
             until { seen.isNotEmpty() }
 
             viewState.drawerOpen = true
