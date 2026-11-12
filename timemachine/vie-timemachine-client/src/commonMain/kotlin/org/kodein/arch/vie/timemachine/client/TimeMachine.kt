@@ -52,10 +52,10 @@ public object TimeMachine {
      * Starts the probe, unless [config] is not [TimeMachineConfig.enabled] or the probe already runs:
      * a running probe must be [stop]ped before it can start with another configuration.
      *
-     * Never throws: a probe that fails to build or start is printed, and does not run. Neither does
-     * a probe keep running once its connection to the inspector fails beyond recovery, on an `Error`
-     * such as running out of memory while encoding a model: it is printed and stopped, as by [stop],
-     * and can be started again.
+     * Never throws: an invalid [config] is printed, and so is a probe that fails to build or start;
+     * neither runs. Nor does a probe keep running once its connection to the inspector fails beyond
+     * recovery, on an `Error` such as running out of memory while encoding a model: it is printed
+     * and stopped, as by [stop], and can be started again.
      */
     public fun start(config: TimeMachineConfig) {
         start(config) { onRetired -> TimeMachineClient(config, onRetired = onRetired) }
@@ -64,6 +64,8 @@ public object TimeMachine {
     /** [start], with the probe built by [newClient], which hands it what to call once retired. */
     internal fun start(config: TimeMachineConfig, newClient: (onRetired: (TimeMachineClient) -> Unit) -> TimeMachineClient) {
         if (!config.enabled) return
+        // Only once enabled: a disabled probe must not even print about a configuration it never uses.
+        config.problem?.let { return println("TimeMachine: the probe does not start: $it.") }
         // Checked before building a probe, which opens an HTTP client; compareAndSet still settles a race.
         if (running.load() != null) return printAlreadyRunning()
         var client: TimeMachineClient? = null

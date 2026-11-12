@@ -8,12 +8,16 @@ import org.kodein.arch.vie.timemachine.protocol.TimeMachineConnection
  *
  * The WebSocket path is not configurable: it is part of the protocol ([TimeMachineConnection.path]).
  *
+ * Building a configuration never throws, whatever its values: a release build builds one too, for
+ * a probe that is switched off. [TimeMachine.start] checks an [enabled] configuration, prints what
+ * is wrong with an invalid one, and then does not start the probe.
+ *
  * @property appName Names this application's session in the inspector. Several running instances
  *   may share it.
  * @property host The inspector's host. The `localhost` default reaches an inspector on the same
  *   machine, which covers desktop apps, the Android emulator (through `adb reverse`) and the iOS
  *   simulator; a physical device on wifi needs the inspector machine's address.
- * @property port The inspector's port. Must be in 1..65535.
+ * @property port The inspector's port. Invalid outside 1..65535.
  * @property enabled When `false`, [TimeMachine.start] does nothing: no socket, no allocation, and
  *   [TimeMachine.middleware] returns a middleware that does nothing. Wire it to a debug flag.
  * @property bufferSize How many messages wait for the inspector, e.g. while it is not connected, before
@@ -21,7 +25,7 @@ import org.kodein.arch.vie.timemachine.protocol.TimeMachineConnection
  *   holds the observed object itself, not a description of it: while no inspector is connected, up to
  *   this many past models, intents and signals stay reachable. Successive models built with `copy()`
  *   share most of their content, so that usually costs little; lower it when models hold heavy objects
- *   that each model replaces, such as decoded images.
+ *   that each model replaces, such as decoded images. Invalid unless positive.
  */
 public class TimeMachineConfig(
     public val appName: String,
@@ -30,8 +34,12 @@ public class TimeMachineConfig(
     public val enabled: Boolean = true,
     public val bufferSize: Int = 1024,
 ) {
-    init {
-        require(port in 1..65535) { "port must be in 1..65535, was $port" }
-        require(bufferSize > 0) { "bufferSize must be positive, was $bufferSize" }
-    }
+    /** What makes this configuration invalid, i.e. what keeps a probe from starting with it, or
+     *  `null` when nothing does. */
+    internal val problem: String?
+        get() = when {
+            port !in 1..65535 -> "port must be in 1..65535, was $port"
+            bufferSize <= 0 -> "bufferSize must be positive, was $bufferSize"
+            else -> null
+        }
 }
