@@ -808,6 +808,9 @@ private fun RowActions(observation: VIEObservation, onEdit: () -> Unit) {
     }
 }
 
+/** How many lines of its JSON an expanded row shows. */
+private const val MaxExpandedLines = 40
+
 @Composable
 private fun ExpandedRow(observation: VIEObservation) {
     val scheme = MaterialTheme.colorScheme
@@ -821,11 +824,22 @@ private fun ExpandedRow(observation: VIEObservation) {
         Text(observation.asString, style = InspectorTheme.text.codeRow, color = scheme.onSurface)
         observation.asJson?.let { json ->
             Text("JSON", style = label, color = scheme.outline, modifier = Modifier.padding(top = 4.dp))
-            rememberJsonLines(remember(json) { json.pretty() }).forEachIndexed { index, line ->
+            // The row is one item of the list, composed whole: a long document is cut, and Detail has it all.
+            val (shown, more) = remember(json) {
+                val lines = json.pretty().lines()
+                lines.take(MaxExpandedLines).joinToString("\n") to (lines.size - MaxExpandedLines).coerceAtLeast(0)
+            }
+            rememberJsonLines(shown).forEachIndexed { index, line ->
                 Row(Modifier.height(18.dp)) {
                     Text((index + 1).toString(), style = InspectorTheme.text.codeRow, color = scheme.outline, textAlign = TextAlign.End, modifier = Modifier.width(32.dp).padding(end = 10.dp), maxLines = 1)
                     Text(line, style = InspectorTheme.text.codeRow, color = colors.jsonKey, softWrap = false, maxLines = 1)
                 }
+            }
+            if (more > 0) {
+                Text(
+                    "… $more more ${if (more == 1) "line" else "lines"} — see Detail",
+                    style = InspectorTheme.text.codeRow, color = scheme.outline, maxLines = 1, modifier = Modifier.padding(start = 32.dp),
+                )
             }
         }
     }

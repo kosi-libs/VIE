@@ -24,10 +24,13 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import kotlin.test.fail
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonObject
 import org.kodein.arch.vie.VIE.NoSignal
 import org.kodein.arch.vie.test.MockVIE
 import org.kodein.arch.vie.test.pendingIntents
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineSequence
+import org.kodein.arch.vie.timemachine.protocol.VIEObjectKind
 import org.kodein.arch.vie.timemachine.server.fixtures.Demo
 import org.kodein.arch.vie.timemachine.server.fixtures.Rendered
 import org.kodein.arch.vie.timemachine.server.fixtures.SampleWorld
@@ -135,6 +138,48 @@ class TimelineContentTest {
             onNode(hasSetTextAction()).performTextInput("x")
 
             assertEquals(listOf<TimelineVIE.Intent>(TimelineVIE.Intent.SetQuery("x")), vie.pendingIntents(), "Enter or F was taken from the search field")
+        }
+    }
+
+    /** A session whose TaskListVM has one row, #0: a Model of [keys] keys, so its JSON is [keys] + 2 lines of text. */
+    private fun aModelOf(keys: Int) = ScenarioData(
+        "large",
+        Demo.Builder(Demo.connection).apply {
+            hello(Demo.session, Demo.at(0))
+            observed(Demo.taskList, 0, Demo.at(100), VIEObjectKind.Model, Demo.TaskListModel, buildJsonObject { repeat(keys) { put("key$it", JsonPrimitive(it)) } })
+        }.events,
+    )
+
+    /** The lines of JSON text that are composed and have a key: `"key0": 0`, which the row's `toString` writes without a space. */
+    private fun DesktopComposeUiTest.jsonKeyLines(): Int = onAllNodes(hasText("\": ", substring = true)).fetchSemanticsNodes().size
+
+    private fun DesktopComposeUiTest.moreLines(): List<String> =
+        onAllNodes(hasText("more line", substring = true)).fetchSemanticsNodes().map { it.config[SemanticsProperties.Text].first().text }
+
+    private fun expandedModelOf(keys: Int) =
+        mock(timeline(taskList, aModelOf(keys), TimelineVIE.Controls(expanded = setOf(TimeMachineSequence(0)))))
+
+    @Test
+    fun `an expanded row shows the first 40 lines of its JSON, and says how many more Detail has`() {
+        val long = expandedModelOf(keys = 200)
+        contentTest(height = 1200, content = { long.Rendered { TimelineContent(taskList, it, selectedRow = { null }) } }) {
+            // The opening bracket, then 39 keys.
+            assertEquals(39, jsonKeyLines())
+            assertEquals(listOf("… 162 more lines — see Detail"), moreLines())
+        }
+        val oneMore = expandedModelOf(keys = 39)
+        contentTest(height = 1200, content = { oneMore.Rendered { TimelineContent(taskList, it, selectedRow = { null }) } }) {
+            assertEquals(39, jsonKeyLines())
+            assertEquals(listOf("… 1 more line — see Detail"), moreLines())
+        }
+    }
+
+    @Test
+    fun `an expanded row whose JSON has 40 lines shows them all`() {
+        val whole = expandedModelOf(keys = 38)
+        contentTest(height = 1200, content = { whole.Rendered { TimelineContent(taskList, it, selectedRow = { null }) } }) {
+            assertEquals(38, jsonKeyLines())
+            assertEquals(emptyList(), moreLines())
         }
     }
 
