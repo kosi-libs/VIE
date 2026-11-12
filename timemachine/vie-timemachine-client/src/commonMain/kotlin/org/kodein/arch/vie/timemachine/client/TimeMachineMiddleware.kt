@@ -29,7 +29,9 @@ import org.kodein.arch.vie.timemachine.protocol.VIEViewModelInfo
  *   registered on it, not the intent flow's completion, which also happens when `process()` throws
  *   or a middleware ends the flow while the ViewModel lives on. From then on, an object that reaches
  *   an intercept is no longer reported. On a multi-threaded dispatcher, though, an object whose report
- *   is already underway on another thread can still be reported after the close.
+ *   is already underway on another thread can still be reported after the close. A ViewModel that is
+ *   never cleared is not kept reachable by the probe: it is reported *closed* some time after it is
+ *   garbage-collected (see [TimeMachineSink]).
  * - Models, intents and signals are observed in their intercepts, so their order is exactly the
  *   order the ViewModel handles them. The signal flow itself is never collected: that would steal
  *   effects from the view.
@@ -113,10 +115,9 @@ internal class TimeMachineMiddleware<Model : VIE.Model, Intent : VIE.Intent, Sig
         }
         // The probe stopped since it provided this middleware: nothing to report, nor to hold on to.
         if (sink.isClosed) return
-        val injector = VIEViewModelInjector(vm)
         // Before any model is observed: the ViewModel starts its model flow only once every
         // middleware is attached.
-        guarded({ "report ViewModel start" }) { sink.started(infoOf(vm)) { intervene(injector, it) } }
+        guarded({ "report ViewModel start" }) { sink.started(infoOf(vm), intervenerOf(weakReference(vm))) }
         vm.addCloseable(AutoCloseable {
             closed.store(true)
             guarded({ "report ViewModel close" }) { sink.closed(viewModelId) }
@@ -130,6 +131,21 @@ internal class TimeMachineMiddleware<Model : VIE.Model, Intent : VIE.Intent, Sig
         intent = intentRole.toVIETypeInfo(),
         signal = signalRole.toVIETypeInfo(),
     )
+
+    /**
+     * Intervenes in the ViewModel [viewModel] gives back, for as long as it does. It only captures
+     * that weak reference, never the ViewModel: the sink's registry holds it until the ViewModel is
+     * cleared, and one that never is must still be garbage-collected.
+     */
+    private fun intervenerOf(viewModel: () -> VIEViewModel<Model, Intent, Signal>?) = object : TimeMachineIntervener {
+        override val isViewModelCollected: Boolean get() = viewModel() == null
+
+        override fun intervene(request: TimeMachineServerMessage.Intervene): VIEInterventionResult {
+            val vm = viewModel()
+                ?: return VIEInterventionResult.Failure(Reason.ClosedViewModel, "ViewModel $viewModelId was garbage-collected without having been cleared")
+            return intervene(VIEViewModelInjector(vm), request)
+        }
+    }
 
     private fun intervene(injector: VIEViewModelInjector<Model, Intent, Signal>, request: TimeMachineServerMessage.Intervene): VIEInterventionResult {
         if (closed.load()) return closedFailure()
