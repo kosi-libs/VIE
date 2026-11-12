@@ -14,6 +14,19 @@ fun shortSessionId(id: Uuid): String = id.toHexString().let { "${it.take(4)}…$
 fun shortViewModelId(id: Uuid): String = id.toHexString().take(4)
 
 /**
+ * A ViewModel's name, as every pane shows it: the last segment of its [typeName], and its short
+ * identifier while nothing describes it.
+ */
+fun viewModelName(typeName: String?, id: Uuid): String = typeName?.let { splitSerialName(it).last } ?: shortViewModelId(id)
+
+/**
+ * A ViewModel named in one line, where its name and its identifier have no slot of their own:
+ * `TaskListVM · 3f2a`, and its short identifier alone while nothing describes it.
+ */
+fun viewModelLabel(typeName: String?, id: Uuid): String =
+    typeName?.let { "${viewModelName(it, id)} · ${shortViewModelId(id)}" } ?: shortViewModelId(id)
+
+/**
  * A serial name split for display: the muted [prefix], up to and including the last `.`, and the
  * emphasised [last] segment. A name with no `.` is all [last].
  */

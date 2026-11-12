@@ -87,6 +87,7 @@ import org.kodein.arch.vie.timemachine.server.ui.common.monoStyle
 import org.kodein.arch.vie.timemachine.server.ui.common.pretty
 import org.kodein.arch.vie.timemachine.server.ui.common.role
 import org.kodein.arch.vie.timemachine.server.ui.common.splitSerialName
+import org.kodein.arch.vie.timemachine.server.ui.common.viewModelName
 import org.kodein.arch.vie.timemachine.server.ui.core.InspectorPane
 import org.kodein.arch.vie.timemachine.server.ui.core.InspectorScope
 import org.kodein.arch.vie.timemachine.server.ui.core.LocalInspector
@@ -214,7 +215,7 @@ private fun ViewModelHeader(header: TimelineHeader.ViewModel) {
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(3.dp)) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                 Text(
-                    info?.let { splitSerialName(it.typeName).last } ?: header.shortId,
+                    viewModelName(info?.typeName, header.id),
                     style = MaterialTheme.typography.titleMedium, color = scheme.onSurface, maxLines = 1, overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f, fill = false),
                 )
