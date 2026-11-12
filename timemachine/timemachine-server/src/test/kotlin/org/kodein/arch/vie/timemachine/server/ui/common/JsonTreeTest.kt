@@ -1,5 +1,6 @@
 package org.kodein.arch.vie.timemachine.server.ui.common
 
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.ImageComposeScene
@@ -23,13 +24,8 @@ class JsonTreeTest {
     /** The open tree of `{"a": 1, "b": 2}`, 19 px a line at a density of 1, with `a` changed. */
     private fun scene(highlight: () -> Float) = ImageComposeScene(width, height, Density(1f)) {
         InspectorTheme(dark = false) {
-            JsonTree(
-                root = buildJsonObject { put("a", JsonPrimitive(1)); put("b", JsonPrimitive(2)) },
-                expanded = setOf(emptyList()),
-                changed = setOf(listOf("a")),
-                highlight = highlight,
-                onToggle = {},
-            )
+            val lines = treeLines(buildJsonObject { put("a", JsonPrimitive(1)); put("b", JsonPrimitive(2)) }, expanded = setOf(emptyList()))
+            LazyColumn { jsonTree(lines, changed = setOf(listOf("a")), highlight = highlight, onToggle = {}) }
         }
     }
 

@@ -7,15 +7,15 @@ import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -30,14 +30,16 @@ import kotlinx.coroutines.delay
 import org.kodein.arch.vie.VIE.NoSignal
 import org.kodein.arch.vie.VIEViewScope
 import org.kodein.arch.vie.timemachine.server.ui.common.HorizontalRule
-import org.kodein.arch.vie.timemachine.server.ui.common.JsonTree
 import org.kodein.arch.vie.timemachine.server.ui.common.LocalCompact
-import org.kodein.arch.vie.timemachine.server.ui.common.RawJson
 import org.kodein.arch.vie.timemachine.server.ui.common.TreeRawSwitch
 import org.kodein.arch.vie.timemachine.server.ui.common.action
 import org.kodein.arch.vie.timemachine.server.ui.common.formatTime
+import org.kodein.arch.vie.timemachine.server.ui.common.jsonTree
 import org.kodein.arch.vie.timemachine.server.ui.common.pretty
+import org.kodein.arch.vie.timemachine.server.ui.common.rawJson
 import org.kodein.arch.vie.timemachine.server.ui.common.rememberCopy
+import org.kodein.arch.vie.timemachine.server.ui.common.rememberJsonLines
+import org.kodein.arch.vie.timemachine.server.ui.common.treeLines
 import org.kodein.arch.vie.timemachine.server.ui.core.InspectorPane
 import org.kodein.arch.vie.timemachine.server.ui.core.LocalInspector
 import org.kodein.arch.vie.timemachine.server.ui.core.LocalInspectorViewState
@@ -124,21 +126,28 @@ internal fun VIEViewScope<CurrentModelVIE.Intent, NoSignal>.CurrentModelContent(
                 )
             }
         }
-        Box(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(start = 8.dp, end = 8.dp, bottom = 8.dp)) {
+        // The lines of the one that shows, the tree or the text: the other has none.
+        val json = projection.json
+        val raw = model.controls.raw
+        val expanded = model.controls.expanded
+        val treeLines = remember(json, expanded, raw) { if (json == null || raw) emptyList() else treeLines(json, expanded) }
+        val textLines = rememberJsonLines(if (raw) projection.rawText.orEmpty() else "")
+        LazyColumn(Modifier.weight(1f).fillMaxWidth(), contentPadding = PaddingValues(start = 8.dp, end = 8.dp, bottom = 8.dp)) {
             when {
-                projection.sequence == null -> Text("No model yet.", style = InspectorTheme.text.body, color = scheme.outline, modifier = Modifier.padding(horizontal = 6.dp, vertical = 16.dp))
-                projection.json == null -> Column(Modifier.padding(horizontal = 6.dp, vertical = 4.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(projection.asString.orEmpty(), style = InspectorTheme.text.code, color = scheme.onSurface)
-                    Text(
-                        "toString only — this model has no JSON, so it can't be shown as a tree or replaced.",
-                        style = InspectorTheme.text.note, color = scheme.outline,
-                    )
+                projection.sequence == null -> item {
+                    Text("No model yet.", style = InspectorTheme.text.body, color = scheme.outline, modifier = Modifier.padding(horizontal = 6.dp, vertical = 16.dp))
                 }
-                model.controls.raw -> RawJson(projection.rawText.orEmpty())
-                else -> JsonTree(
-                    projection.json, model.controls.expanded,
-                    changed = projection.changedPaths, highlight = { fade.value },
-                ) { post(CurrentModelVIE.Intent.ToggleNode(it)) }
+                json == null -> item {
+                    Column(Modifier.padding(horizontal = 6.dp, vertical = 4.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        Text(projection.asString.orEmpty(), style = InspectorTheme.text.code, color = scheme.onSurface)
+                        Text(
+                            "toString only — this model has no JSON, so it can't be shown as a tree or replaced.",
+                            style = InspectorTheme.text.note, color = scheme.outline,
+                        )
+                    }
+                }
+                raw -> rawJson(textLines)
+                else -> jsonTree(treeLines, changed = projection.changedPaths, highlight = { fade.value }) { post(CurrentModelVIE.Intent.ToggleNode(it)) }
             }
         }
         HorizontalRule(color = InspectorTheme.colors.strongOutline)
