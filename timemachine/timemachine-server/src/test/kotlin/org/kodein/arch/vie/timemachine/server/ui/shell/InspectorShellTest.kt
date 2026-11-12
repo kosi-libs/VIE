@@ -1,15 +1,20 @@
-@file:OptIn(ExperimentalTestApi::class)
+@file:OptIn(ExperimentalTestApi::class, ExperimentalCoroutinesApi::class)
 
 package org.kodein.arch.vie.timemachine.server.ui.shell
 
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.lifecycle.viewModelScope
 import kotlin.test.Test
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
+import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.isActive
+import kotlinx.coroutines.test.StandardTestDispatcher
+import kotlinx.coroutines.test.TestCoroutineScheduler
 import org.kodein.arch.vie.timemachine.server.fixtures.Demo
 import org.kodein.arch.vie.timemachine.server.fixtures.SampleWorld
 import org.kodein.arch.vie.timemachine.server.fixtures.paneTest
+import org.kodein.arch.vie.timemachine.server.fixtures.shown
 import org.kodein.arch.vie.timemachine.server.fixtures.until
 import org.kodein.arch.vie.timemachine.server.store.TimeMachineEvent
 import org.kodein.arch.vie.timemachine.server.ui.core.holds
@@ -38,5 +43,16 @@ class InspectorShellTest {
 
             until { !timeline.viewModelScope.isActive }
             assertTrue(sessions.viewModelScope.isActive)
+        }
+
+    @Test
+    fun `with no session, the window starts on the empty screen and never composes the panes`() =
+        // No projection ever lands: what is shown is what the panes start with.
+        paneTest(id = "empty", width = 1440, height = 900, compute = StandardTestDispatcher(TestCoroutineScheduler()), content = { InspectorShell() }) { inspector ->
+            until { shown("Waiting for an app to connect") }
+            waitForIdle()
+
+            // The sessions pane is in the full layout and behind "Select a ViewModel": composed once, it has a ViewModel.
+            assertFalse(inspector.sessionsPane().storeKey in inspector.viewModels.viewModelStore.keys())
         }
 }

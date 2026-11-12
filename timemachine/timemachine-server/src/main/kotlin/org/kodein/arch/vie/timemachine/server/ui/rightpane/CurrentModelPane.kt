@@ -114,7 +114,9 @@ internal class CurrentModelVM(
     private val inspector: Inspector,
     private val sessionId: Uuid,
     private val viewModelId: Uuid,
-) : CurrentModelVIE, PaneViewModel<CurrentModelVIE.Model, CurrentModelVIE.Intent, VIE.NoSignal>(CurrentModelVIE.Model()) {
+) : CurrentModelVIE, PaneViewModel<CurrentModelVIE.Model, CurrentModelVIE.Intent, VIE.NoSignal>(
+    CurrentModelVIE.Model(projection = currentModelProjection(inspector.store.state.value, sessionId, viewModelId, raw = false)),
+) {
 
     init {
         val inputs = combine(inspector.store.state, modelFlow.map { it.controls.raw }.distinctUntilChanged()) { state, raw -> state to raw }

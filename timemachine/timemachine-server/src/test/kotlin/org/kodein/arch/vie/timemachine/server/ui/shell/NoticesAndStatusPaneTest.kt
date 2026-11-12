@@ -107,4 +107,27 @@ class NoticesAndStatusPaneTest {
             assertEquals(1, model.connectedSessions)
         },
     )
+
+    @Test
+    fun `the notices' first model is what the store holds, before the pane is shown`() {
+        runVMTest(newVM = { NoticesVM(inspector("empty")) }) {
+            assertEquals(NoticesVIE.Screen.Empty, model.screen)
+        }
+        runVMTest(newVM = { NoticesVM(inspector("cannotListen")) }) {
+            assertEquals(NoticesVIE.Screen.CannotListen(ListenerState.Failed.Reason.PortInUse, "Address already in use"), model.screen)
+        }
+        runVMTest(newVM = { NoticesVM(inspector("disconnected").also { it.selection.selectScope(taskListScope) }) }) {
+            assertEquals("Demo", model.disconnected?.name)
+        }
+    }
+
+    @Test
+    fun `the status bar's first model is what the store holds, before the pane is shown`() = runVMTest(
+        newVM = { StatusBarVM(inspector("main")) },
+        block = {
+            assertEquals(ListenerState.Listening(13229), model.listener)
+            assertEquals("ws://localhost:13229/timemachine", model.address)
+            assertEquals(1, model.connectedSessions)
+        },
+    )
 }

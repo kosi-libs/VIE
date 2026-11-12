@@ -29,6 +29,7 @@ import org.kodein.arch.vie.timemachine.server.ui.core.InspectorScope
 import org.kodein.arch.vie.timemachine.server.ui.core.Pane
 import org.kodein.arch.vie.timemachine.server.ui.core.PaneViewModel
 import org.kodein.arch.vie.timemachine.server.ui.core.Selection
+import org.kodein.arch.vie.timemachine.server.ui.core.current
 import org.kodein.arch.vie.timemachine.server.ui.core.whileShown
 import kotlin.time.Duration
 import kotlin.time.Instant
@@ -195,7 +196,7 @@ internal class ComposerVM(
     private val inspector: Inspector,
     private val sessionId: Uuid,
     private val viewModelId: Uuid,
-) : ComposerVIE, PaneViewModel<ComposerVIE.Model, ComposerVIE.Intent, VIE.NoSignal>(ComposerVIE.Model()) {
+) : ComposerVIE, PaneViewModel<ComposerVIE.Model, ComposerVIE.Intent, VIE.NoSignal>(firstModel(inspector, sessionId, viewModelId)) {
 
     init {
         // Applied whether the pane is shown or not: a request made while it is hidden waits in the
@@ -243,8 +244,7 @@ internal class ComposerVM(
 
     private suspend fun controls(change: ComposerVIE.Controls.() -> ComposerVIE.Controls) = update { copy(controls = controls.change()) }
 
-    private suspend fun applyRequest(request: ComposerRequest) =
-        controls { copy(kind = request.kind, chosenType = request.type, draft = request.json) }
+    private suspend fun applyRequest(request: ComposerRequest) = controls { applying(request) }
 
     private suspend fun load(requestId: Uuid): Boolean {
         val intervention = inspector.store.state.value.sessions[sessionId]?.viewModels?.get(viewModelId)?.interventions?.get(requestId) ?: return false
@@ -273,8 +273,24 @@ internal class ComposerVM(
 
     companion object {
         fun key(viewModelId: Uuid): String = "composer:${viewModelId.toHexString()}"
+
+        /**
+         * What the composer shows of the store as it is created. A request the holder has for its ViewModel
+         * is in it, since a request is what opens a composer: `init` applies it again, which changes
+         * nothing, and consumes it.
+         */
+        private fun firstModel(inspector: Inspector, sessionId: Uuid, viewModelId: Uuid): ComposerVIE.Model {
+            val (state, selection) = inspector.current()
+            val request = selection.composerRequest?.takeIf { it.viewModelId == viewModelId }
+            val controls = ComposerVIE.Controls().let { if (request == null) it else it.applying(request) }
+            return ComposerVIE.Model(controls, composerProjection(state, selection, controls, sessionId, viewModelId, inspector.store.interventionTimeout))
+        }
     }
 }
+
+/** These controls once [request] is applied: its kind, its type, and its JSON as the draft. */
+private fun ComposerVIE.Controls.applying(request: ComposerRequest): ComposerVIE.Controls =
+    copy(kind = request.kind, chosenType = request.type, draft = request.json)
 
 /** The kind and type of the selected row, if it is an observation of [vm]. */
 private fun Selection.selectedType(vm: ViewModelRecord?): Pair<VIEObjectKind, String>? {

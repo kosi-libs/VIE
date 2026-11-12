@@ -77,4 +77,14 @@ class CurrentModelPaneTest {
         assertEquals(Demo.TaskListModel, request.type)
         assertEquals(RightTab.Composer, inspector.selection.state.value.tab)
     }
+
+    @Test
+    fun `its first model is the latest Model the store holds, before the pane is shown`() = runVMTest(
+        newVM = { CurrentModelVM(inspector("main"), Demo.session.id, Demo.taskList) },
+        block = {
+            assertEquals(TimeMachineSequence(270), model.projection.sequence)
+            assertEquals(TimeMachineSequence(238), model.projection.changedFrom)
+            assertTrue(model.projection.canReplace)
+        },
+    )
 }

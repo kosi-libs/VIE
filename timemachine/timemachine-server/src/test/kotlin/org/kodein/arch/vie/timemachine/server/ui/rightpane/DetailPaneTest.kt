@@ -87,4 +87,18 @@ class DetailPaneTest {
         runCurrent()
         assertNull(model.projection.row)
     }
+
+    @Test
+    fun `its first model is the row selected when it is created, before the pane is shown`() = runVMTest(
+        newVM = {
+            val inspector = inspector("main")
+            inspector.selection.selectScope(taskListScope)
+            inspector.selection.selectRow(TimeMachineSequence(208))
+            DetailVM(inspector)
+        },
+        block = {
+            assertEquals(TimeMachineSequence(208), model.projection.row?.sequence)
+            assertEquals(TimeMachineSequence(206), model.projection.diff?.previous)
+        },
+    )
 }

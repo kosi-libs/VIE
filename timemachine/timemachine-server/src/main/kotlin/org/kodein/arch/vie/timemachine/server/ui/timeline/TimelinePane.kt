@@ -288,6 +288,11 @@ internal class TimelineProjector(private val scope: InspectorScope) {
     }
 }
 
+/**
+ * The Timeline of one scope. Unlike the other panes, it starts without a projection: projecting a
+ * timeline diffs every Model row it retains, which is not the main thread's to do, so its view draws
+ * its bars over no row until the first projection lands.
+ */
 internal class TimelineVM(
     private val inspector: Inspector,
     private val scope: InspectorScope,

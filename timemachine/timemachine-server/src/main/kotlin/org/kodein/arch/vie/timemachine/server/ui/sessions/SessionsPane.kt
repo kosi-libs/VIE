@@ -18,6 +18,7 @@ import org.kodein.arch.vie.timemachine.server.ui.core.InspectorScope
 import org.kodein.arch.vie.timemachine.server.ui.core.Pane
 import org.kodein.arch.vie.timemachine.server.ui.core.PaneViewModel
 import org.kodein.arch.vie.timemachine.server.ui.core.ViewModelStatus
+import org.kodein.arch.vie.timemachine.server.ui.core.current
 import org.kodein.arch.vie.timemachine.server.ui.core.whileShown
 import kotlin.time.Instant
 import kotlin.uuid.Uuid
@@ -80,7 +81,9 @@ internal data class ViewModelItem(
 )
 
 internal class SessionsVM(private val inspector: Inspector) :
-    SessionsVIE, PaneViewModel<SessionsVIE.Model, SessionsVIE.Intent, VIE.NoSignal>(SessionsVIE.Model()) {
+    SessionsVIE, PaneViewModel<SessionsVIE.Model, SessionsVIE.Intent, VIE.NoSignal>(
+        inspector.current().let { (state, selection) -> sessionsModel(state, selection.scope, inspector.clock.now()) },
+    ) {
 
     init {
         // The sparkline is a window ending at now: a ticker re-reads it at each bucket boundary.

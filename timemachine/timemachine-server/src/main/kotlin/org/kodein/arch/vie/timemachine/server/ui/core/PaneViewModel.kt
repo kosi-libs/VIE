@@ -11,6 +11,10 @@ import org.kodein.arch.vie.VIEViewModel
  * A pane's ViewModel. Its model is its controls, which [process] sets on the main thread at once so a
  * text field never waits for a thread hop, plus a projection, a pure function of the store, the
  * selection and the controls, which [project] merges in as it lands.
+ *
+ * @param firstModel What the pane draws until its first projection lands: the projection of what
+ *   [Inspector.current] holds when the ViewModel is created, so that a view never draws a placeholder for
+ *   the store's state. Only a pane whose projection is too costly for the main thread starts without one.
  */
 internal abstract class PaneViewModel<Model : VIE.Model, Intent : VIE.Intent, Signal : VIE.Signal>(
     firstModel: Model,

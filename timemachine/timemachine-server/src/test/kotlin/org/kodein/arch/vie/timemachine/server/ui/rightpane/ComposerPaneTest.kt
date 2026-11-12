@@ -145,7 +145,7 @@ class ComposerPaneTest {
         composer(shown = false) { inspector ->
             inspector.selection.composeFrom(Demo.taskList, VIEObjectKind.Intent, Demo.DeleteTask, "{\"#type\": \"x\"}")
             runCurrent()
-            assertNull(model.projection.target, "nothing is projected while hidden")
+            assertEquals(VIEObjectKind.Model, model.projection.target?.kind, "nothing is projected while hidden")
 
             inspector.visibility.show(ComposerVM.key(Demo.taskList))
             runCurrent()
@@ -271,4 +271,27 @@ class ComposerPaneTest {
         assertEquals(5, model.projection.history.size)
         assertEquals(first.asJson, model.projection.history.first().asJson)
     }
+
+    @Test
+    fun `its first model is the target the store holds, before the pane is shown`() = composer(shown = false) {
+        val target = assertNotNull(model.projection.target)
+        assertEquals(VIEObjectKind.Model, target.kind)
+        assertEquals(Demo.TaskListModel, target.type)
+        assertEquals("TaskListVM", model.projection.name)
+        assertEquals(4, model.projection.history.size)
+    }
+
+    @Test
+    fun `a request the holder has when the composer is created is in its first model`() = runVMTest(
+        newVM = {
+            val inspector = inspector("main")
+            inspector.selection.composeFrom(Demo.taskList, VIEObjectKind.Intent, Demo.DeleteTask, "{\"#type\": \"x\"}")
+            ComposerVM(inspector, Demo.session.id, Demo.taskList)
+        },
+        block = {
+            // The first model a view gets: the one it was created with, before any of its coroutines ran.
+            assertEquals(VIEObjectKind.Intent, pendingModels().first().projection.target?.kind)
+            assertEquals("{\"#type\": \"x\"}", model.editorText)
+        },
+    )
 }

@@ -28,6 +28,7 @@ import org.kodein.arch.vie.VIE
 import org.kodein.arch.vie.VIEView
 import org.kodein.arch.vie.VIEViewModel
 import org.kodein.arch.vie.VIEViewScope
+import org.kodein.arch.vie.timemachine.server.store.TimeMachineState
 import org.kodein.arch.vie.timemachine.server.store.TimeMachineStore
 import kotlin.time.Clock
 
@@ -57,6 +58,15 @@ internal class Inspector(
     fun close() {
         viewModels.clear()
     }
+}
+
+/**
+ * What the store holds now, and the selection as it still holds it: what a pane's first model is
+ * projected from, before any of its projections runs.
+ */
+internal fun Inspector.current(): Pair<TimeMachineState, Selection> {
+    val state = store.state.value
+    return state to selection.state.value.resolvedIn(state)
 }
 
 internal val LocalInspector: ProvidableCompositionLocal<Inspector> =
