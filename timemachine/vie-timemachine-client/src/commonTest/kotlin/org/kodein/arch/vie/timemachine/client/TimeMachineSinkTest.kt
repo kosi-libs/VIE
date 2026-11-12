@@ -131,4 +131,22 @@ class TimeMachineSinkTest {
 
         assertEquals(mapOf(vmB to info(vmB)), sink.liveViewModels.mapValues { it.value.info })
     }
+
+    @Test
+    fun aClosedSinkForgetsItsViewModelsAndReportsNothingMore() {
+        val entries = mutableListOf<TimeMachineSink.Entry>()
+        val sink = TimeMachineSink { entries += it }
+        sink.started(info(vmA), noIntervention)
+        entries.clear()
+
+        sink.close()
+        assertTrue(sink.isClosed)
+        assertTrue(sink.liveViewModels.isEmpty(), "A closed sink must let go of the ViewModels it knew")
+
+        sink.started(info(vmB), noIntervention)
+        sink.observed(vmA, VIEObjectKind.Model, role<Counted>(), Counted(1))
+        sink.closed(vmA)
+        assertTrue(entries.isEmpty(), "A closed sink must report nothing")
+        assertTrue(sink.liveViewModels.isEmpty(), "A closed sink must register no ViewModel")
+    }
 }

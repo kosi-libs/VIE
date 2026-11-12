@@ -70,7 +70,13 @@ import org.kodein.arch.vie.timemachine.protocol.VIEInterventionResult
  * position ahead of what the queue still holds — a start reported during the outage included. Nor
  * on the first connection: everything since the start is still in the queue.
  *
- * Never throws into the host app: every failure is printed and swallowed.
+ * Never throws into the host app: every failure is printed and swallowed. An `Error` in the
+ * connection loop — running out of memory while encoding a model, an engine class that fails to
+ * link — is not retried: the outbound queue may have been left half-way through a message, and the
+ * same `Error` may well come back on every attempt. It retires the probe instead: the probe is
+ * [stop]ped, and `onRetired` is told, so that nothing keeps providing its middlewares.
+ *
+ * @param onRetired Called with this probe once an `Error` stopped it for good. Must not throw.
  */
 internal class TimeMachineClient(
     private val config: TimeMachineConfig,
@@ -81,6 +87,7 @@ internal class TimeMachineClient(
     private val handshakeTimeout: Duration = 10.seconds,
     window: Int = 256 * 1024,
     private val notice: (String) -> Unit = ::println,
+    private val onRetired: (TimeMachineClient) -> Unit = {},
 ) {
 
     val session: TimeMachineSession = TimeMachineSession(id = Uuid.random(), name = config.appName)
@@ -92,9 +99,7 @@ internal class TimeMachineClient(
     // The handler is the backstop behind "never throws into the host app": without it, a failure the
     // connection loop does not catch would reach the thread's uncaught-exception handler, which on
     // Android kills the app.
-    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default + CoroutineExceptionHandler { _, e ->
-        println("TimeMachine: the connection to the inspector stopped for good: $e")
-    })
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default + CoroutineExceptionHandler { _, e -> retire(e) })
 
     // Ktor closes the session when a pong takes longer than twice the interval.
     private val http = HttpClient(timeMachineEngine) { install(WebSockets) { pingInterval = this@TimeMachineClient.pingInterval } }
@@ -129,8 +134,28 @@ internal class TimeMachineClient(
 
     fun stop() {
         scope.cancel()
+        sink.close()
         outbox.close()
         http.close()
+    }
+
+    /** Stops this probe for good after [failure] ended its connection loop, rather than leave it
+     *  started, buffering for a connection that will never come back. */
+    private fun retire(failure: Throwable) {
+        // Each step runs whatever the one before it throws, and nothing leaves: this is the scope's
+        // exception handler, past which lies the thread's uncaught-exception handler.
+        try {
+            try {
+                println("TimeMachine: the connection to the inspector stopped for good, and the probe with it: $failure")
+            } finally {
+                try {
+                    stop()
+                } finally {
+                    onRetired(this)
+                }
+            }
+        } catch (_: Throwable) {
+        }
     }
 
     private suspend fun connectForever() {

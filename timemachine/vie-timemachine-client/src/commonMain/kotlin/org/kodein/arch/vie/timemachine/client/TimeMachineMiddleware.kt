@@ -61,6 +61,9 @@ import org.kodein.arch.vie.timemachine.protocol.VIEViewModelInfo
  *
  * Never throws into the host app: a failure to report an object is printed and swallowed. Nor does
  * it describe objects on the ViewModel's dispatcher: [sink] defers that (see [TimeMachineSink]).
+ *
+ * It outlives its probe, since it stays installed in its ViewModel: once the probe stops, [sink] is
+ * closed, and the middleware reports nothing more.
  */
 internal class TimeMachineMiddleware<Model : VIE.Model, Intent : VIE.Intent, Signal : VIE.Signal>(
     private val modelRole: VIERole<Model>,
@@ -108,6 +111,8 @@ internal class TimeMachineMiddleware<Model : VIE.Model, Intent : VIE.Intent, Sig
             println("TimeMachine: the middleware $viewModelId is already attached to a ViewModel, and cannot also report this ${vm.typeName}: its objects may even be reported as the other one's. Build one per ViewModel, and never share it (e.g. as a DI singleton).")
             return
         }
+        // The probe stopped since it provided this middleware: nothing to report, nor to hold on to.
+        if (sink.isClosed) return
         val injector = VIEViewModelInjector(vm)
         // Before any model is observed: the ViewModel starts its model flow only once every
         // middleware is attached.
