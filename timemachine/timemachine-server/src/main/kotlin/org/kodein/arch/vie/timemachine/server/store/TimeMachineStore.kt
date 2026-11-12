@@ -36,14 +36,14 @@ import kotlin.uuid.Uuid
  * probe is acknowledged any more, but nothing piles up either.
  *
  * @param limits How much timeline each ViewModel keeps.
- * @param interventionTimeout How long an intervention waits for its result or its tagged row before
+ * @property interventionTimeout How long an intervention waits for its result or its tagged row before
  *   its deadline passes.
  * @param reduce The core: [TimeMachineState.on]. Replaced only by tests.
  */
 class TimeMachineStore(
     private val scope: CoroutineScope,
     limits: Limits = Limits(),
-    private val interventionTimeout: Duration = 5.seconds,
+    val interventionTimeout: Duration = 5.seconds,
     private val reduce: TimeMachineState.(List<TimeMachineEvent>) -> Transition = { on(it) },
     private val execute: (TransportCommand) -> Unit,
 ) {

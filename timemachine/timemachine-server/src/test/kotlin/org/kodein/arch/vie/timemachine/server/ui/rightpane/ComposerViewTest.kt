@@ -6,7 +6,9 @@ import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.DesktopComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.hasSetTextAction
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performSemanticsAction
@@ -78,4 +80,16 @@ class ComposerViewTest {
 
         assertEquals("{\"#type\": \"x\"}", editorText())
     }
+
+    @Test
+    fun `a pending intervention says how long its store waits`() =
+        // The store of this scenario waits an hour, not the default five seconds.
+        paneTest(id = "compPending", compute = StandardTestDispatcher(scheduler), content = { ComposerView(Demo.session.id, Demo.taskList) }) {
+            projected { editorShown() }
+
+            onNodeWithText("Replace model").performClick()
+            projected { onAllNodes(hasText("times out after", substring = true)).fetchSemanticsNodes().isNotEmpty() }
+
+            onNode(hasText("times out after", substring = true)).assertTextContains("times out after 1 h", substring = true)
+        }
 }

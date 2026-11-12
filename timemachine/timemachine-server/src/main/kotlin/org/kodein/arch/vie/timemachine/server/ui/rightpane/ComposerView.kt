@@ -59,6 +59,7 @@ import org.kodein.arch.vie.timemachine.protocol.VIEObjectKind
 import org.kodein.arch.vie.timemachine.server.store.InterventionStatus
 import org.kodein.arch.vie.timemachine.server.ui.common.HorizontalRule
 import org.kodein.arch.vie.timemachine.server.ui.common.colorJsonLine
+import org.kodein.arch.vie.timemachine.server.ui.common.formatDelay
 import org.kodein.arch.vie.timemachine.server.ui.common.formatTime
 import org.kodein.arch.vie.timemachine.server.ui.common.monoStyle
 import org.kodein.arch.vie.timemachine.server.ui.common.splitSerialName
@@ -408,6 +409,7 @@ private fun ResultCard(view: InterventionView, projection: ComposerProjection, p
     val app = projection.sessionName
     val type = splitSerialName(view.typeName).last
     val status = view.status
+    val timeout = formatDelay(projection.timeout)
     val title: String
     val body: String
     var reasons: List<String> = emptyList()
@@ -416,7 +418,7 @@ private fun ResultCard(view: InterventionView, projection: ComposerProjection, p
     when (status) {
         InterventionStatus.Pending -> {
             title = "Sent — waiting for $app…"
-            body = "${verb(view.kind)} · $type · sent ${formatTime(view.requestedAt)} · times out after 5 s"
+            body = "${verb(view.kind)} · $type · sent ${formatTime(view.requestedAt)} · times out after $timeout"
         }
         is InterventionStatus.Succeeded -> {
             title = "Success · observed as #${status.sequence}"
@@ -424,7 +426,7 @@ private fun ResultCard(view: InterventionView, projection: ComposerProjection, p
         }
         InterventionStatus.AcceptedNotObserved -> {
             title = "Accepted, not observed"
-            body = "$app accepted it, but no intervened row arrived within 5 s. Possible reasons:"
+            body = "$app accepted it, but no intervened row arrived within $timeout. Possible reasons:"
             reasons = listOfNotNull(
                 if (view.kind == VIEObjectKind.Model) "The app’s next update superseded it, or it equalled the current model." else null,
                 "It is still waiting behind the ViewModel’s own work.",
@@ -445,7 +447,7 @@ private fun ResultCard(view: InterventionView, projection: ComposerProjection, p
             message = status.failure.message ?: view.typeName.takeIf { status.failure.reason == VIEInterventionResult.Reason.UnknownType }
         }
         InterventionStatus.TimedOut -> {
-            title = "Timed out · nothing after 5 s"
+            title = "Timed out · nothing after $timeout"
             body = "Neither an answer nor the row arrived. The outcome is unknown — $app may still apply it."
             foot = "A late answer turns this into failure or accepted; a late row, into success."
         }

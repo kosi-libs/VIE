@@ -19,6 +19,7 @@ import kotlin.test.assertIs
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.seconds
 
 
@@ -191,6 +192,11 @@ class ComposerPaneTest {
         runCurrent()
 
         assertEquals(InterventionStatus.TimedOut, model.projection.current?.status)
+    }
+
+    @Test
+    fun `the projection carries the timeout of the store it reads`() = composer("compPending") {
+        assertEquals(1.hours, model.projection.timeout)
     }
 
     @Test
