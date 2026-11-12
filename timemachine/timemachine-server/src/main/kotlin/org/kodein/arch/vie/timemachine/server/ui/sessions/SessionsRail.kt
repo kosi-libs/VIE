@@ -18,6 +18,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -44,6 +45,7 @@ internal const val RailMenuDescription = "Sessions"
 @Composable
 internal fun SessionsRail(model: SessionsVIE.Model, modifier: Modifier = Modifier, onMenu: () -> Unit, post: (SessionsVIE.Intent) -> Unit) {
     val scheme = MaterialTheme.colorScheme
+    val items = remember(model) { railItems(model) }
     Row(modifier.background(scheme.surfaceContainerLow)) {
         Column(
             Modifier.weight(1f).fillMaxHeight().verticalScroll(rememberScrollState()).padding(vertical = 8.dp),
@@ -58,7 +60,7 @@ internal fun SessionsRail(model: SessionsVIE.Model, modifier: Modifier = Modifie
             ) {
                 Symbol("menu", size = 20.dp, tint = scheme.onSurfaceVariant)
             }
-            for (item in railItems(model)) {
+            for (item in items) {
                 RailTile(item) { post(SessionsVIE.Intent.SelectScope(item.scope)) }
             }
         }

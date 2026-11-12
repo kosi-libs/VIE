@@ -156,12 +156,11 @@ internal fun JsonTree(
 @Composable
 internal fun RawJson(text: String, modifier: Modifier = Modifier) {
     val scheme = MaterialTheme.colorScheme
-    val colors = InspectorTheme.colors
     Column(modifier) {
-        text.lines().forEachIndexed { index, line ->
+        rememberJsonLines(text).forEachIndexed { index, line ->
             Row(Modifier.height(InspectorDimens.codeLine)) {
                 Text((index + 1).toString(), style = monoStyle(12f, scheme.outline), textAlign = TextAlign.End, maxLines = 1, modifier = Modifier.width(34.dp).padding(end = 10.dp))
-                Text(colorJsonLine(line, colors), style = monoStyle(12f, scheme.onSurfaceVariant), softWrap = false, maxLines = 1)
+                Text(line, style = monoStyle(12f, scheme.onSurfaceVariant), softWrap = false, maxLines = 1)
             }
         }
     }

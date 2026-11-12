@@ -78,13 +78,13 @@ import org.kodein.arch.vie.timemachine.server.ui.common.KindBadge
 import org.kodein.arch.vie.timemachine.server.ui.common.LocalCompact
 import org.kodein.arch.vie.timemachine.server.ui.common.TextAction
 import org.kodein.arch.vie.timemachine.server.ui.common.clock
-import org.kodein.arch.vie.timemachine.server.ui.common.colorJsonLine
 import org.kodein.arch.vie.timemachine.server.ui.common.copyToClipboard
 import org.kodein.arch.vie.timemachine.server.ui.common.formatTime
 import org.kodein.arch.vie.timemachine.server.ui.common.kind
 import org.kodein.arch.vie.timemachine.server.ui.common.kindContainer
 import org.kodein.arch.vie.timemachine.server.ui.common.monoStyle
 import org.kodein.arch.vie.timemachine.server.ui.common.pretty
+import org.kodein.arch.vie.timemachine.server.ui.common.rememberJsonLines
 import org.kodein.arch.vie.timemachine.server.ui.common.role
 import org.kodein.arch.vie.timemachine.server.ui.common.splitSerialName
 import org.kodein.arch.vie.timemachine.server.ui.common.viewModelName
@@ -815,10 +815,10 @@ private fun ExpandedRow(observation: VIEObservation) {
         Text(observation.asString, style = monoStyle(11.5f, scheme.onSurface))
         observation.asJson?.let { json ->
             Text("JSON", style = label, color = scheme.outline, modifier = Modifier.padding(top = 4.dp))
-            json.pretty().lines().forEachIndexed { index, line ->
+            rememberJsonLines(remember(json) { json.pretty() }).forEachIndexed { index, line ->
                 Row(Modifier.height(18.dp)) {
                     Text((index + 1).toString(), style = monoStyle(11.5f, scheme.outline), textAlign = TextAlign.End, modifier = Modifier.width(32.dp).padding(end = 10.dp), maxLines = 1)
-                    Text(colorJsonLine(line, colors), style = monoStyle(11.5f, colors.jsonKey), softWrap = false, maxLines = 1)
+                    Text(line, style = monoStyle(11.5f, colors.jsonKey), softWrap = false, maxLines = 1)
                 }
             }
         }
