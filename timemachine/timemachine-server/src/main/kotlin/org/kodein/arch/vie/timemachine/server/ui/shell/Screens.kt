@@ -2,7 +2,6 @@ package org.kodein.arch.vie.timemachine.server.ui.shell
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -23,8 +22,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.input.pointer.PointerIcon
-import androidx.compose.ui.input.pointer.pointerHoverIcon
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -37,6 +34,7 @@ import org.kodein.arch.vie.timemachine.server.store.ListenerState
 import org.kodein.arch.vie.timemachine.server.ui.common.HorizontalRule
 import org.kodein.arch.vie.timemachine.server.ui.common.LiveDot
 import org.kodein.arch.vie.timemachine.server.ui.common.TextAction
+import org.kodein.arch.vie.timemachine.server.ui.common.action
 import org.kodein.arch.vie.timemachine.server.ui.common.copyToClipboard
 import org.kodein.arch.vie.timemachine.server.ui.common.monoStyle
 import org.kodein.arch.vie.timemachine.server.ui.core.InspectorPane
@@ -89,7 +87,7 @@ private fun AddressLine(status: StatusBarVIE.Model) {
             LiveDot(true)
             Text("Listening on", style = body)
             Text(address, style = monoStyle(12.5f, scheme.onSurface), modifier = Modifier.background(scheme.surfaceContainerHigh, RoundedCornerShape(4.dp)).padding(horizontal = 8.dp, vertical = 2.dp))
-            CopyGlyph(address)
+            CopyGlyph(address, CopyAddressDescription)
             Text(
                 buildAnnotatedString {
                     append("· protocol ")
@@ -101,14 +99,18 @@ private fun AddressLine(status: StatusBarVIE.Model) {
     }
 }
 
-/** A copy glyph that turns into a check once it has copied [text]. */
+/** What the copy glyphs of the screens say they copy. */
+internal const val CopyAddressDescription = "Copy the address"
+internal const val CopyCommandDescription = "Copy the command"
+
+/** A copy glyph that turns into a check once it has copied [text]; [description] is what it says it copies. */
 @Composable
-private fun CopyGlyph(text: String) {
+private fun CopyGlyph(text: String, description: String) {
     var copied by remember { mutableStateOf(false) }
     Symbol(
         if (copied) "check" else "content_copy", size = 16.dp,
         tint = if (copied) InspectorTheme.colors.success else MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = Modifier.pointerHoverIcon(PointerIcon.Hand).clickable { copyToClipboard(text); copied = true },
+        modifier = Modifier.action(description = description) { copyToClipboard(text); copied = true },
     )
 }
 
@@ -201,7 +203,7 @@ internal fun CannotListenScreen(reason: ListenerState.Failed.Reason, message: St
                 Step(2) {
                     Text("Not sure what holds it? Run", style = body)
                     Text("lsof -i :$port", style = monoStyle(12f, scheme.onSurface), modifier = Modifier.background(scheme.surfaceContainerHigh, RoundedCornerShape(4.dp)).padding(horizontal = 8.dp, vertical = 2.dp))
-                    CopyGlyph("lsof -i :$port")
+                    CopyGlyph("lsof -i :$port", CopyCommandDescription)
                 }
                 Step(3) { Text("Retry.", style = body) }
             } else Text(
@@ -210,7 +212,7 @@ internal fun CannotListenScreen(reason: ListenerState.Failed.Reason, message: St
             )
             Row(
                 Modifier.height(34.dp).background(scheme.primary, InspectorPillShape)
-                    .pointerHoverIcon(PointerIcon.Hand).clickable(onClick = onRetry).padding(start = 14.dp, end = 18.dp),
+                    .action(onClick = onRetry).padding(start = 14.dp, end = 18.dp),
                 horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically,
             ) {
                 Symbol("refresh", size = 18.dp, tint = scheme.onPrimary)

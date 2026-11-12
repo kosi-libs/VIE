@@ -3,7 +3,6 @@ package org.kodein.arch.vie.timemachine.server.ui.timeline
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.gestures.animateScrollBy
 import androidx.compose.foundation.layout.Arrangement
@@ -48,8 +47,6 @@ import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
-import androidx.compose.ui.input.pointer.PointerIcon
-import androidx.compose.ui.input.pointer.pointerHoverIcon
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -77,6 +74,7 @@ import org.kodein.arch.vie.timemachine.server.ui.common.HorizontalRule
 import org.kodein.arch.vie.timemachine.server.ui.common.KindBadge
 import org.kodein.arch.vie.timemachine.server.ui.common.LocalCompact
 import org.kodein.arch.vie.timemachine.server.ui.common.TextAction
+import org.kodein.arch.vie.timemachine.server.ui.common.action
 import org.kodein.arch.vie.timemachine.server.ui.common.clock
 import org.kodein.arch.vie.timemachine.server.ui.common.copyToClipboard
 import org.kodein.arch.vie.timemachine.server.ui.common.formatTime
@@ -97,6 +95,12 @@ import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorPillShape
 import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorTheme
 import org.kodein.arch.vie.timemachine.server.ui.theme.Symbol
 
+
+/** What the glyphs of the timeline say they are. */
+internal const val ClearSearchDescription = "Clear the search"
+internal const val ExpandRowDescription = "Expand this entry"
+internal const val CollapseRowDescription = "Collapse this entry"
+internal const val CopyRowDescription = "Copy this entry's JSON"
 
 /** The widths of the design's column grid: 16 | 40 | 88 | 16 | 52 | [180] | flex. */
 private val SeqWidth = 40.dp
@@ -277,8 +281,7 @@ private fun TypeChip(kind: VIEObjectKind, role: VIETypeInfo, open: Boolean, onCl
             .height(InspectorDimens.chip)
             .background(scheme.surfaceContainerLow, RoundedCornerShape(6.dp))
             .border(1.dp, if (open) colors.strongOutline else scheme.outlineVariant, RoundedCornerShape(6.dp))
-            .pointerHoverIcon(PointerIcon.Hand)
-            .clickable(onClick = onClick)
+            .action(onClick = onClick)
             .padding(horizontal = 8.dp),
         horizontalArrangement = Arrangement.spacedBy(5.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -453,8 +456,7 @@ private fun FilterChip(
             .height(InspectorDimens.filterChip)
             .background(container, shape)
             .then(if (outlined) Modifier.border(1.dp, InspectorTheme.colors.strongOutline, shape) else Modifier)
-            .pointerHoverIcon(PointerIcon.Hand)
-            .clickable(onClick = onClick)
+            .action(onClick = onClick)
             .padding(start = if (glyph != null) 6.dp else 9.dp, end = 9.dp),
         horizontalArrangement = Arrangement.spacedBy(4.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -488,7 +490,7 @@ private fun SearchField(query: String, onFocus: (Boolean) -> Unit, onChange: (St
             )
         }
         if (query.isNotEmpty()) {
-            Symbol("close", size = 16.dp, tint = scheme.outline, modifier = Modifier.pointerHoverIcon(PointerIcon.Hand).clickable { onChange("") })
+            Symbol("close", size = 16.dp, tint = scheme.outline, modifier = Modifier.action(description = ClearSearchDescription) { onChange("") })
         }
     }
 }
@@ -501,8 +503,7 @@ private fun FollowToggle(follow: FollowState, newCount: Int, onClick: () -> Unit
         Modifier
             .height(InspectorDimens.filterChip)
             .then(if (following) Modifier.background(scheme.primaryContainer, InspectorPillShape) else Modifier.border(1.dp, InspectorTheme.colors.strongOutline, InspectorPillShape))
-            .pointerHoverIcon(PointerIcon.Hand)
-            .clickable(onClick = onClick)
+            .action(onClick = onClick)
             .padding(start = 7.dp, end = 10.dp),
         horizontalArrangement = Arrangement.spacedBy(4.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -617,8 +618,7 @@ private fun Rows(
             Row(
                 Modifier.align(Alignment.TopCenter).padding(top = 10.dp)
                     .background(scheme.surfaceContainerHighest, InspectorPillShape)
-                    .pointerHoverIcon(PointerIcon.Hand)
-                    .clickable { post(TimelineVIE.Intent.ShowSelectedRow) }
+                    .action { post(TimelineVIE.Intent.ShowSelectedRow) }
                     .padding(horizontal = 12.dp, vertical = 6.dp),
                 horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -631,8 +631,7 @@ private fun Rows(
             Row(
                 Modifier.align(Alignment.BottomCenter).padding(bottom = 14.dp)
                     .height(32.dp).background(scheme.primaryContainer, CircleShape)
-                    .pointerHoverIcon(PointerIcon.Hand)
-                    .clickable { post(TimelineVIE.Intent.Resume) }
+                    .action { post(TimelineVIE.Intent.Resume) }
                     .padding(start = 10.dp, end = 14.dp),
                 horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -653,7 +652,7 @@ private fun NoMatch(hidden: Int, onClear: () -> Unit) {
             Text("$hidden ${if (hidden == 1) "entry" else "entries"} hidden · ", style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp), color = scheme.outline)
             Text(
                 "Clear filters", style = MaterialTheme.typography.labelMedium.copy(fontSize = 12.sp), color = scheme.primary,
-                modifier = Modifier.pointerHoverIcon(PointerIcon.Hand).clickable(onClick = onClear),
+                modifier = Modifier.action(onClick = onClear),
             )
         }
     }
@@ -689,15 +688,14 @@ private fun ObservationRow(
                 .fillMaxWidth().height(InspectorDimens.timelineRow)
                 .background(if (selected) colors.selectedRow else if (intervened) colors.intervenedRow else Color.Transparent)
                 .then(if (selected) Modifier.border(BorderStroke(1.dp, scheme.primary)) else Modifier)
-                .pointerHoverIcon(PointerIcon.Hand)
-                .clickable { post(TimelineVIE.Intent.SelectRow(sequence)) }
+                .action { post(TimelineVIE.Intent.SelectRow(sequence)) }
                 .padding(start = 6.dp, end = 10.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Symbol(
                 if (expanded) "expand_more" else "chevron_right", size = 16.dp, tint = scheme.outline,
-                modifier = Modifier.pointerHoverIcon(PointerIcon.Hand).clickable { post(TimelineVIE.Intent.ToggleExpanded(sequence)) },
+                modifier = Modifier.action(description = if (expanded) CollapseRowDescription else ExpandRowDescription) { post(TimelineVIE.Intent.ToggleExpanded(sequence)) },
             )
             Text(
                 "#$sequence", textAlign = TextAlign.End, maxLines = 1, modifier = Modifier.width(SeqWidth),
@@ -714,8 +712,7 @@ private fun ObservationRow(
                         modifier = Modifier
                             .width(SourceWidth).height(18.dp)
                             .background(scheme.surfaceContainerHigh, RoundedCornerShape(4.dp))
-                            .pointerHoverIcon(PointerIcon.Hand)
-                            .clickable(enabled = viewModelId != null) { viewModelId?.let { post(TimelineVIE.Intent.OpenViewModel(it, sequence)) } }
+                            .action(enabled = viewModelId != null) { viewModelId?.let { post(TimelineVIE.Intent.OpenViewModel(it, sequence)) } }
                             .padding(horizontal = 6.dp),
                     )
                 } ?: Box(Modifier.width(SourceWidth))
@@ -791,14 +788,14 @@ private fun RowActions(observation: VIEObservation, onEdit: () -> Unit) {
     val scheme = MaterialTheme.colorScheme
     Row(
         Modifier.height(22.dp).background(scheme.primary, InspectorPillShape)
-            .pointerHoverIcon(PointerIcon.Hand).clickable(onClick = onEdit).padding(start = 6.dp, end = 8.dp),
+            .action(onClick = onEdit).padding(start = 6.dp, end = 8.dp),
         horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically,
     ) {
         Symbol("edit_note", size = 14.dp, tint = scheme.onPrimary)
         Text("Edit & intervene", style = MaterialTheme.typography.labelMedium.copy(fontSize = 11.sp), color = scheme.onPrimary, maxLines = 1)
     }
     observation.asJson?.let { json ->
-        Symbol("content_copy", size = 16.dp, tint = scheme.onSurfaceVariant, modifier = Modifier.pointerHoverIcon(PointerIcon.Hand).clickable { copyToClipboard(json.pretty()) })
+        Symbol("content_copy", size = 16.dp, tint = scheme.onSurfaceVariant, modifier = Modifier.action(description = CopyRowDescription) { copyToClipboard(json.pretty()) })
     }
 }
 

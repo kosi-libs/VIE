@@ -1,7 +1,6 @@
 package org.kodein.arch.vie.timemachine.server.ui.shell
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,8 +15,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.input.pointer.PointerIcon
-import androidx.compose.ui.input.pointer.pointerHoverIcon
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -25,6 +22,7 @@ import org.kodein.arch.vie.timemachine.protocol.TimeMachineConnection
 import org.kodein.arch.vie.timemachine.server.store.ListenerState
 import org.kodein.arch.vie.timemachine.server.ui.common.HorizontalRule
 import org.kodein.arch.vie.timemachine.server.ui.common.LocalCompact
+import org.kodein.arch.vie.timemachine.server.ui.common.action
 import org.kodein.arch.vie.timemachine.server.ui.common.monoStyle
 import org.kodein.arch.vie.timemachine.server.ui.core.InspectorPane
 import org.kodein.arch.vie.timemachine.server.ui.core.LocalInspector
@@ -42,6 +40,10 @@ internal fun StatusBar() {
         StatusBarContent(status, dark = viewState.dark, onToggleTheme = { viewState.dark = !viewState.dark })
     }
 }
+
+/** What the theme's glyph says a click on it does: it shows the theme the window is in. */
+internal const val LightThemeDescription = "Switch to the light theme"
+internal const val DarkThemeDescription = "Switch to the dark theme"
 
 /**
  * The bottom bar: where the inspector listens, the security reminder, the key hints, the sessions and the
@@ -73,7 +75,7 @@ private fun StatusBarContent(status: StatusBarVIE.Model, dark: Boolean, onToggle
             )
             Symbol(
                 if (dark) "dark_mode" else "light_mode", size = 15.dp, tint = scheme.outline,
-                modifier = Modifier.pointerHoverIcon(PointerIcon.Hand).clickable(onClick = onToggleTheme),
+                modifier = Modifier.action(description = if (dark) LightThemeDescription else DarkThemeDescription, onClick = onToggleTheme),
             )
         }
     }

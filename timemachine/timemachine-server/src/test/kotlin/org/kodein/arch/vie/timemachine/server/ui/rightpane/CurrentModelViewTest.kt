@@ -4,6 +4,8 @@ package org.kodein.arch.vie.timemachine.server.ui.rightpane
 
 import androidx.compose.ui.test.DesktopComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import kotlin.test.Test
@@ -40,6 +42,7 @@ class CurrentModelViewTest {
     @Test
     fun `Edit and replace opens the composer on a live ViewModel, and no longer once its session disconnected`() = currentModel { inspector ->
         until { scheduler.runCurrent(); shown("Edit & replace") }
+        onNodeWithText("Edit & replace").assertIsEnabled()
         onNodeWithText("Edit & replace").performClick()
         until { inspector.selection.state.value.composerRequest != null }
         assertNotNull(inspector.selection.takeRequest(Demo.taskList))
@@ -48,6 +51,7 @@ class CurrentModelViewTest {
         until { inspector.store.state.value.sessions[Demo.session.id]?.isConnected == false }
         project()
 
+        onNodeWithText("Edit & replace").assertIsNotEnabled()
         onNodeWithText("Edit & replace").performClick()
         project()
         assertNull(inspector.selection.state.value.composerRequest, "the button still opened the composer after the session disconnected")

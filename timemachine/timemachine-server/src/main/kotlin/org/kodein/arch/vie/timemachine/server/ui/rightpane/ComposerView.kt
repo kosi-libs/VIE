@@ -2,7 +2,6 @@ package org.kodein.arch.vie.timemachine.server.ui.rightpane
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -39,10 +38,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.drawscope.Stroke
-import androidx.compose.ui.input.pointer.PointerIcon
-import androidx.compose.ui.input.pointer.pointerHoverIcon
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
@@ -58,6 +56,7 @@ import org.kodein.arch.vie.timemachine.protocol.VIEInterventionResult
 import org.kodein.arch.vie.timemachine.protocol.VIEObjectKind
 import org.kodein.arch.vie.timemachine.server.store.InterventionStatus
 import org.kodein.arch.vie.timemachine.server.ui.common.HorizontalRule
+import org.kodein.arch.vie.timemachine.server.ui.common.action
 import org.kodein.arch.vie.timemachine.server.ui.common.colorJsonLine
 import org.kodein.arch.vie.timemachine.server.ui.common.formatDelay
 import org.kodein.arch.vie.timemachine.server.ui.common.formatTime
@@ -147,7 +146,7 @@ private fun KindSegments(kind: VIEObjectKind, enabled: Set<VIEObjectKind>, block
             Row(
                 Modifier.weight(1f).fillMaxHeight().background(if (on) scheme.primaryContainer else Color.Transparent)
                     .alpha(if (ok) 1f else 0.55f)
-                    .then(if (ok && !blocked) Modifier.pointerHoverIcon(PointerIcon.Hand).clickable { onSelect(entry) } else Modifier),
+                    .action(enabled = ok && !blocked, role = Role.RadioButton, selected = on) { onSelect(entry) },
                 horizontalArrangement = Arrangement.spacedBy(4.dp, Alignment.CenterHorizontally), verticalAlignment = Alignment.CenterVertically,
             ) {
                 if (on) Symbol("check", size = 15.dp, tint = foreground) else if (!ok) Symbol("block", size = 15.dp, tint = foreground)
@@ -187,7 +186,7 @@ private fun TypeField(type: String, types: List<String>, open: Boolean, blocked:
         Row(
             Modifier.fillMaxWidth().height(36.dp)
                 .border(if (open) 2.dp else 1.dp, if (open) scheme.primary else InspectorTheme.colors.strongOutline, MaterialTheme.shapes.small)
-                .then(if (choosable) Modifier.pointerHoverIcon(PointerIcon.Hand).clickable { post(ComposerVIE.Intent.SetTypeMenu(!open)) } else Modifier)
+                .action(enabled = choosable) { post(ComposerVIE.Intent.SetTypeMenu(!open)) }
                 .padding(start = 12.dp, end = 6.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -210,7 +209,7 @@ private fun TypeField(type: String, types: List<String>, open: Boolean, blocked:
                 val parts = splitSerialName(option)
                 Row(
                     Modifier.fillMaxWidth().height(32.dp).background(if (option == type) scheme.surfaceContainerHighest else Color.Transparent)
-                        .pointerHoverIcon(PointerIcon.Hand).clickable { post(ComposerVIE.Intent.SetType(option)) }.padding(horizontal = 12.dp),
+                        .action { post(ComposerVIE.Intent.SetType(option)) }.padding(horizontal = 12.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Symbol("check", size = 15.dp, tint = if (option == type) scheme.primary else Color.Transparent)
@@ -241,7 +240,7 @@ private fun JsonSection(model: ComposerVIE.Model, editorHeight: Dp, blocked: Boo
             for ((label, intent) in listOf("Format" to ComposerVIE.Intent.Format, "Reset" to ComposerVIE.Intent.Reset)) {
                 Text(
                     label, style = MaterialTheme.typography.labelMedium.copy(fontSize = 11.5.sp), color = scheme.primary,
-                    modifier = Modifier.then(if (blocked) Modifier else Modifier.pointerHoverIcon(PointerIcon.Hand).clickable { post(intent) }),
+                    modifier = Modifier.action(enabled = !blocked) { post(intent) },
                 )
             }
         }
@@ -366,7 +365,7 @@ private fun SendRow(kind: VIEObjectKind, enabled: Boolean, onSend: () -> Unit) {
         Row(
             Modifier.height(InspectorDimens.sendButton).background(if (enabled) scheme.primary else scheme.surfaceContainerHighest, InspectorPillShape)
                 .clip(InspectorPillShape)
-                .then(if (enabled) Modifier.pointerHoverIcon(PointerIcon.Hand).clickable(onClick = onSend) else Modifier)
+                .action(enabled = enabled, onClick = onSend)
                 .padding(start = 14.dp, end = 18.dp),
             horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -477,7 +476,7 @@ private fun ResultCard(view: InterventionView, projection: ComposerProjection, p
             foot?.let { Text(it, style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.5.sp), color = scheme.outline) }
             if (status is InterventionStatus.Succeeded) {
                 if (view.rowRetained) Row(
-                    Modifier.pointerHoverIcon(PointerIcon.Hand).clickable { post(ComposerVIE.Intent.SelectRow(status.sequence)) },
+                    Modifier.action { post(ComposerVIE.Intent.SelectRow(status.sequence)) },
                     horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text("Jump to #${status.sequence}", style = MaterialTheme.typography.labelMedium.copy(fontSize = 12.sp), color = scheme.primary)
@@ -492,7 +491,7 @@ private fun ResultCard(view: InterventionView, projection: ComposerProjection, p
             }
             if (status == InterventionStatus.TimedOut) Text(
                 "Resend", style = MaterialTheme.typography.labelMedium.copy(fontSize = 12.sp), color = scheme.primary,
-                modifier = Modifier.pointerHoverIcon(PointerIcon.Hand).clickable { post(ComposerVIE.Intent.Resend(view.requestId)) },
+                modifier = Modifier.action { post(ComposerVIE.Intent.Resend(view.requestId)) },
             )
         }
     }
@@ -512,7 +511,7 @@ private fun RecentInterventions(history: List<InterventionView>, post: (Composer
         history.forEach { view ->
             val tone = toneOf(view.status)
             Row(
-                Modifier.fillMaxWidth().height(34.dp).pointerHoverIcon(PointerIcon.Hand).clickable { post(ComposerVIE.Intent.ShowResult(view.requestId)) }
+                Modifier.fillMaxWidth().height(34.dp).action { post(ComposerVIE.Intent.ShowResult(view.requestId)) }
                     .padding(horizontal = 4.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically,
             ) {
@@ -535,7 +534,7 @@ private fun RecentInterventions(history: List<InterventionView>, post: (Composer
                 }
                 Symbol(
                     "edit_note", size = 17.dp, tint = scheme.onSurfaceVariant,
-                    modifier = Modifier.pointerHoverIcon(PointerIcon.Hand).clickable { post(ComposerVIE.Intent.LoadFromHistory(view.requestId)) },
+                    modifier = Modifier.action(description = "Put this intervention in the editor") { post(ComposerVIE.Intent.LoadFromHistory(view.requestId)) },
                 )
             }
             HorizontalRule(InspectorTheme.colors.rowLine)
