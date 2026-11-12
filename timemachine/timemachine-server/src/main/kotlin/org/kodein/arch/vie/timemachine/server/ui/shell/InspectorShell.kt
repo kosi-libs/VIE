@@ -46,6 +46,7 @@ import org.kodein.arch.vie.timemachine.server.ui.core.InspectorPane
 import org.kodein.arch.vie.timemachine.server.ui.core.InspectorScope
 import org.kodein.arch.vie.timemachine.server.ui.core.LocalInspector
 import org.kodein.arch.vie.timemachine.server.ui.core.LocalInspectorViewState
+import org.kodein.arch.vie.timemachine.server.ui.core.releaseDroppedScopes
 import org.kodein.arch.vie.timemachine.server.ui.rightpane.RightPane
 import org.kodein.arch.vie.timemachine.server.ui.sessions.SessionsPresentation
 import org.kodein.arch.vie.timemachine.server.ui.sessions.SessionsVIE
@@ -68,6 +69,8 @@ internal fun InspectorShell() {
     LaunchedEffect(inspector, viewState) {
         inspector.selection.state.map { it.composerRequest != null }.distinctUntilChanged().filter { it }.collect { viewState.rightCollapsed = false }
     }
+    // The panes of a scope are created here, in composition: they are released from here as well.
+    LaunchedEffect(inspector) { inspector.releaseDroppedScopes() }
     InspectorPane(inspector.noticesPane()) { notices ->
         InspectorLayout(
             notices = notices,

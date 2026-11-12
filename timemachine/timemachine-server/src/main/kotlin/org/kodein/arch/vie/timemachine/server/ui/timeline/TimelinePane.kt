@@ -374,4 +374,4 @@ internal class TimelineVM(
     }
 }
 
-internal fun Inspector.timelinePane(scope: InspectorScope) = Pane(TimelineVM.key(scope)) { TimelineVM(this, scope) }
+internal fun Inspector.timelinePane(scope: InspectorScope) = Pane(TimelineVM.key(scope), scope) { TimelineVM(this, scope) }

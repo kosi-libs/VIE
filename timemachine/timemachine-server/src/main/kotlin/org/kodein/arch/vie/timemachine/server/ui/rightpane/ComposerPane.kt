@@ -25,6 +25,7 @@ import org.kodein.arch.vie.timemachine.server.ui.common.viewModelLabel
 import org.kodein.arch.vie.timemachine.server.ui.common.viewModelName
 import org.kodein.arch.vie.timemachine.server.ui.core.ComposerRequest
 import org.kodein.arch.vie.timemachine.server.ui.core.Inspector
+import org.kodein.arch.vie.timemachine.server.ui.core.InspectorScope
 import org.kodein.arch.vie.timemachine.server.ui.core.Pane
 import org.kodein.arch.vie.timemachine.server.ui.core.PaneViewModel
 import org.kodein.arch.vie.timemachine.server.ui.core.Selection
@@ -282,4 +283,4 @@ private fun Selection.selectedType(vm: ViewModelRecord?): Pair<VIEObjectKind, St
 }
 
 internal fun Inspector.composerPane(sessionId: Uuid, viewModelId: Uuid) =
-    Pane(ComposerVM.key(viewModelId)) { ComposerVM(this, sessionId, viewModelId) }
+    Pane(ComposerVM.key(viewModelId), InspectorScope.ViewModel(sessionId, viewModelId)) { ComposerVM(this, sessionId, viewModelId) }
