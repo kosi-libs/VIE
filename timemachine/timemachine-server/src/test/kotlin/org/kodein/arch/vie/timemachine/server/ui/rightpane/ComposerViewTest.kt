@@ -121,6 +121,19 @@ class ComposerViewTest {
     }
 
     @Test
+    fun `the editor numbers its lines in one text, however many`() = composer { inspector ->
+        projected { editorShown() }
+        val draft = (1..300).joinToString("\n") { "\"line$it\"" }
+
+        inspector.selection.composeFrom(Demo.taskList, VIEObjectKind.Intent, Demo.DeleteTask, draft)
+        until { inspector.draft() == draft }
+        waitForIdle()
+
+        assertEquals(0, onAllNodes(hasText("150")).fetchSemanticsNodes().size, "a line's number is a node of its own")
+        assertEquals(1, onAllNodes(hasText("149\n150\n151", substring = true)).fetchSemanticsNodes().size)
+    }
+
+    @Test
     fun `a pending intervention says how long its store waits`() =
         // The store of this scenario waits an hour, not the default five seconds.
         paneTest(id = "compPending", compute = StandardTestDispatcher(scheduler), content = { ComposerView(Demo.session.id, Demo.taskList) }) {

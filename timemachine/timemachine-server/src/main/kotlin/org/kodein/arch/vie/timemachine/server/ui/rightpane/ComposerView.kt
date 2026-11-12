@@ -51,6 +51,7 @@ import androidx.compose.ui.text.input.OffsetMapping
 import androidx.compose.ui.text.input.TransformedText
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.constrainWidth
@@ -339,14 +340,20 @@ private fun JsonEditor(text: String, errorLine: Int?, enabled: Boolean, modifier
             }
         },
     ) {
-        Column(Modifier.width(34.dp).padding(end = 12.dp), horizontalAlignment = Alignment.End) {
-            for (line in 1..lines) {
-                Text(
-                    line.toString(), style = InspectorTheme.text.code.copy(lineHeight = lineHeight), color = if (line == errorLine) colors.error else scheme.outline,
-                    maxLines = 1, modifier = Modifier.height(InspectorDimens.codeLine),
-                )
+        // One text for all the numbers, a line each, as high as the editor's: a long draft adds no node.
+        val errorColor = colors.error
+        val numbers = remember(lines, errorLine, errorColor) {
+            buildAnnotatedString {
+                for (line in 1..lines) {
+                    if (line > 1) append('\n')
+                    if (line == errorLine) withStyle(SpanStyle(color = errorColor)) { append(line.toString()) } else append(line.toString())
+                }
             }
         }
+        Text(
+            numbers, style = InspectorTheme.text.code.copy(lineHeight = lineHeight), color = scheme.outline, textAlign = TextAlign.End,
+            softWrap = false, modifier = Modifier.width(34.dp).padding(end = 12.dp),
+        )
         BasicTextField(
             value = text,
             onValueChange = onText,
