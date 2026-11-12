@@ -11,15 +11,19 @@ import kotlin.test.assertSame
 import kotlin.test.assertTrue
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.TimeSource
 import kotlin.uuid.Uuid
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.cancelAndJoin
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.ReceiveChannel
 import kotlinx.coroutines.channels.SendChannel
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.withTimeoutOrNull
@@ -53,6 +57,9 @@ private fun withClient(
     bufferSize: Int = 1024,
     window: Int = 256 * 1024,
     maxRetryDelay: Duration = 100.milliseconds,
+    // Longer than any test: the probe does not retry less often unless the test asks for it.
+    quietAfter: Duration = 1.minutes,
+    quietRetryDelay: Duration = 1.seconds,
     // Longer than any test: no connection becomes stable unless the test asks for it.
     stableAfter: Duration = 10.seconds,
     notices: SendChannel<String>? = null,
@@ -65,6 +72,8 @@ private fun withClient(
         TimeMachineConfig(appName = "ClientTest", enabled = true, port = inspector.port, bufferSize = bufferSize),
         firstRetryDelay = 20.milliseconds,
         maxRetryDelay = maxRetryDelay,
+        quietAfter = quietAfter,
+        quietRetryDelay = quietRetryDelay,
         stableAfter = stableAfter,
         handshakeTimeout = 300.milliseconds,
         window = window,
@@ -368,6 +377,84 @@ class TimeMachineClientTest {
             inspector.hellos.receive()
             val gap = closedAt.elapsedNow()
             assertTrue(gap < 1.seconds, "Retried after $gap")
+        }
+    }
+
+    @Test
+    fun anInspectorNoConnectionHoldsWithIsRetriedLessOftenAfterAWhileAndPrintedOnce() {
+        val notices = Channel<String>(Channel.UNLIMITED)
+        val inspector = FakeInspector { TimeMachineServerMessage.Rejected(TimeMachineConnection.protocolVersion + 1) }
+        withClient(inspector, maxRetryDelay = 50.milliseconds, quietAfter = 300.milliseconds, quietRetryDelay = 1.seconds, notices = notices) { client ->
+            client.start()
+
+            // Retried after 20, 40, then 50 ms, the cap, until the outage has lasted 300 ms: after a
+            // second from then on. A gap counts as long well under that second, since it is measured
+            // between two receptions, each of which may be late.
+            val long = 700.milliseconds
+            inspector.hellos.receive()
+            var at = TimeSource.Monotonic.markNow()
+            var shortGaps = 0
+            while (true) {
+                inspector.hellos.receive()
+                val gap = at.elapsedNow()
+                at = TimeSource.Monotonic.markNow()
+                if (gap >= long) break
+                shortGaps++
+            }
+            assertTrue(shortGaps >= 3, "Retried less often after $shortGaps retries only")
+
+            // It stays there: the next retry waits as long.
+            inspector.hellos.receive()
+            val gap = at.elapsedNow()
+            assertTrue(gap >= long, "Retried after $gap")
+
+            val printed = generateSequence { notices.tryReceive().getOrNull() }.toList()
+            assertEquals(1, printed.count { "retrying every" in it }, printed.toString())
+        }
+    }
+
+    @Test
+    fun aConnectionThatHoldsEndsTheOutage() {
+        val notices = Channel<String>(Channel.UNLIMITED)
+        val inspector = FakeInspector()
+        withClient(
+            inspector,
+            maxRetryDelay = 50.milliseconds,
+            quietAfter = 500.milliseconds,
+            quietRetryDelay = 1.seconds,
+            stableAfter = 200.milliseconds,
+            notices = notices,
+        ) { client ->
+            client.start()
+
+            // Drops every connection as soon as welcomed, until the probe says it retries less often,
+            // and returns how many it dropped. The probe is then waiting for its next retry, with no
+            // connection open: none is taken from the inspector without being dropped.
+            suspend fun dropUntilRetriedLessOften(): Int = coroutineScope {
+                var dropped = 0
+                val dropping = launch {
+                    for (connection in inspector.welcomed) {
+                        connection.close()
+                        dropped++
+                    }
+                }
+                notices.awaitNotice("retrying every")
+                dropping.cancelAndJoin()
+                dropped
+            }
+
+            dropUntilRetriedLessOften()
+
+            val holding = inspector.welcomed.receive()
+            // After connections that dropped early, a connection is announced once it holds.
+            notices.awaitNotice("connected to the inspector")
+            holding.close()
+
+            // A new outage starts when that connection ends: the probe retries often again, and says
+            // again that it retries less often only once this outage has lasted in turn — not on its
+            // first failure, as it would had the first outage gone on.
+            val dropped = dropUntilRetriedLessOften()
+            assertTrue(dropped >= 3, "Retried less often after $dropped retries only")
         }
     }
 

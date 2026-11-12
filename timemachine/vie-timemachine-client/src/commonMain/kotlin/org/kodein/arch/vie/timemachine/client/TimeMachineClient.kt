@@ -13,7 +13,9 @@ import kotlin.coroutines.cancellation.CancellationException
 import kotlin.reflect.KType
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.minutes
 import kotlin.time.Duration.Companion.seconds
+import kotlin.time.TimeSource
 import kotlin.uuid.Uuid
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
@@ -52,6 +54,12 @@ import org.kodein.arch.vie.timemachine.protocol.VIEInterventionResult
  * often, and its drop is printed once: the connections that follow are announced only once one of
  * them holds.
  *
+ * Once no connection has held for `quietAfter` — since the probe started, or since the last one
+ * that held ended — the backoff is capped at `quietRetryDelay` instead: most debug sessions run with
+ * no inspector open, and an unattended app should not attempt a connection every few seconds for
+ * the life of its process. This is printed once per outage, and ends with the next connection that
+ * holds.
+ *
  * The connection is pinged every `pingInterval`, and closed when a pong is late, so that a
  * half-open connection — a phone whose wifi dropped — is not streamed into for minutes. Browsers
  * expose no WebSocket pings: on the web, the probe relies on the browser to notice.
@@ -82,6 +90,8 @@ internal class TimeMachineClient(
     private val config: TimeMachineConfig,
     private val firstRetryDelay: Duration = 500.milliseconds,
     private val maxRetryDelay: Duration = 5.seconds,
+    private val quietAfter: Duration = 1.minutes,
+    private val quietRetryDelay: Duration = 30.seconds,
     private val stableAfter: Duration = 5.seconds,
     private val pingInterval: Duration = 5.seconds,
     private val handshakeTimeout: Duration = 10.seconds,
@@ -164,6 +174,9 @@ internal class TimeMachineClient(
         var lastProblem: String? = null
         // Whether the last connection was welcomed, then dropped before it became stable.
         var droppedEarly = false
+        // Since when no connection has held, and whether that is long enough to retry less often.
+        var outage = TimeSource.Monotonic.markNow()
+        var quiet = false
         while (true) {
             var connected = false
             var stable = false
@@ -193,24 +206,31 @@ internal class TimeMachineClient(
                 if (connected) "lost the connection to the inspector at $address ($e)"
                 else "cannot reach the inspector at $address ($e)"
             }
-            // A welcome alone does not start the backoff over: an inspector that fails on what the probe
-            // sends first fails again on every connection, since the probe sends it first again.
+            // A welcome alone does not start the backoff over, nor end the outage: an inspector that fails
+            // on what the probe sends first fails again on every connection, since the probe sends it
+            // first again.
             if (stable) {
                 failures = 0
                 lastProblem = null
+                outage = TimeSource.Monotonic.markNow()
+                quiet = false
             }
             droppedEarly = connected && !stable
             if (problem != lastProblem) {
                 notice("TimeMachine: $problem; retrying.")
                 lastProblem = problem
             }
-            delay(retryDelay(failures++))
+            if (!quiet && outage.elapsedNow() >= quietAfter) {
+                quiet = true
+                notice("TimeMachine: no connection to the inspector at $address has held for $quietAfter; retrying every $quietRetryDelay from now on.")
+            }
+            delay(retryDelay(failures++, cap = if (quiet) quietRetryDelay else maxRetryDelay))
         }
     }
 
-    private fun retryDelay(failures: Int): Duration =
-        if (failures >= 30) maxRetryDelay
-        else (firstRetryDelay * (1 shl failures).toDouble()).coerceAtMost(maxRetryDelay)
+    private fun retryDelay(failures: Int, cap: Duration): Duration =
+        if (failures >= 30) cap
+        else (firstRetryDelay * (1 shl failures).toDouble()).coerceAtMost(cap)
 
     /** Sends [TimeMachineClientMessage.Hello] and waits for the answer: `null` when welcomed, the
      *  rejection to print otherwise. */
