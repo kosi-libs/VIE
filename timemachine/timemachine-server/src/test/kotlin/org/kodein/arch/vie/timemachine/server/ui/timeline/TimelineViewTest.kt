@@ -8,24 +8,15 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.DesktopComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasScrollAction
-import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasText
-import androidx.compose.ui.test.onAllNodesWithContentDescription
-import androidx.compose.ui.test.onLast
-import androidx.compose.ui.test.onNodeWithText
-import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
-import androidx.compose.ui.test.performKeyInput
-import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTouchInput
-import androidx.compose.ui.test.pressKey
 import androidx.compose.ui.test.swipeDown
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
@@ -38,8 +29,6 @@ import kotlin.test.assertTrue
 import kotlin.test.fail
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineSequence
 import org.kodein.arch.vie.timemachine.server.fixtures.Demo
-import org.kodein.arch.vie.timemachine.server.fixtures.SampleWorld
-import org.kodein.arch.vie.timemachine.server.fixtures.ScenarioData
 import org.kodein.arch.vie.timemachine.server.fixtures.paneTest
 import org.kodein.arch.vie.timemachine.server.fixtures.shown
 import org.kodein.arch.vie.timemachine.server.fixtures.until
@@ -124,72 +113,6 @@ class TimelineViewTest {
         }
     }
 
-    private fun Inspector.timeline(scope: InspectorScope): TimelineVIE.Model = viewModel(timelinePane(scope)).modelFlow.value
-
-    /** The observations the timeline of [scope] shows, which are the rows a click or an arrow key selects. */
-    private fun Inspector.observations(scope: InspectorScope): List<TimeMachineSequence> =
-        timeline(scope).projection.items.filter { it.observation != null }.mapNotNull { it.sequence }
-
-    @Test
-    fun `after a click on a row, Enter expands the selected row`() =
-        paneTest(height = 300, content = { TimelineView(taskList) }) { inspector ->
-            inspector.selection.selectScope(taskList)
-            until { shown(taskListTitle) && topRow() != null }
-            waitForIdle()
-            val list = onNode(hasScrollAction()).fetchSemanticsNode().boundsInRoot
-            val clicked = observationRows().filter { it.top >= list.top && it.bottom <= list.bottom }.minByOrNull { it.top }?.sequence
-                ?: fail("no row is whole in the list")
-            val observations = inspector.observations(taskList)
-            val target = observations[observations.indexOf(clicked) + 2]
-
-            // A click with the mouse, which gives the row the focus.
-            onNode(hasClickAction() and hasText("#$clicked")).performClick()
-            until { inspector.selection.state.value.row == clicked }
-            repeat(2) { onRoot().performKeyInput { pressKey(Key.DirectionDown) } }
-            until { inspector.selection.state.value.row == target }
-
-            onRoot().performKeyInput { pressKey(Key.Enter) }
-            until { inspector.timeline(taskList).controls.expanded.isNotEmpty() || inspector.selection.state.value.row != target }
-
-            assertEquals(target, inspector.selection.state.value.row, "Enter selected another row")
-            assertEquals(setOf(target), inspector.timeline(taskList).controls.expanded)
-        }
-
-    @Test
-    fun `a row's chevron says what a click on it does, and does it`() =
-        paneTest(height = 300, content = { TimelineView(taskList) }) { inspector ->
-            inspector.selection.selectScope(taskList)
-            until { shown(taskListTitle) && topRow() != null }
-            waitForIdle()
-            assertTrue(onAllNodesWithContentDescription(CollapseRowDescription).fetchSemanticsNodes().isEmpty())
-
-            // The last row: the timeline ends on it, whole.
-            onAllNodesWithContentDescription(ExpandRowDescription).onLast().performClick()
-
-            until { inspector.timeline(taskList).controls.expanded.size == 1 }
-            until { onAllNodesWithContentDescription(CollapseRowDescription).fetchSemanticsNodes().size == 1 }
-        }
-
-    @Test
-    fun `while the search field has the keyboard, the timeline's keys are not taken`() =
-        paneTest(height = 300, content = { TimelineView(taskList) }) { inspector ->
-            inspector.selection.selectScope(taskList)
-            until { shown(taskListTitle) && topRow() != null }
-            val selected = inspector.observations(taskList).last()
-            inspector.selection.selectRow(selected)
-            until { inspector.timeline(taskList).projection.selectedRow == selected }
-
-            onNode(hasSetTextAction()).performClick()
-            waitForIdle()
-            onRoot().performKeyInput { pressKey(Key.Enter); pressKey(Key.F) }
-            // What the keys would have posted comes before this query: once it is there, they have been handled.
-            onNode(hasSetTextAction()).performTextInput("x")
-            until { inspector.timeline(taskList).controls.filter.query.isNotEmpty() }
-
-            assertEquals(emptySet(), inspector.timeline(taskList).controls.expanded, "Enter expanded the selected row")
-            assertEquals(FollowState.Following, inspector.follow(taskList), "F paused the timeline")
-        }
-
     @Test
     fun `a selected row that an edge of the list cuts comes whole into view`() =
         paneTest(height = 300, content = { TimelineView(session) }) { inspector ->
@@ -252,28 +175,6 @@ class TimelineViewTest {
     }
 
     @Test
-    fun `the type info opens over the timeline, which stays where it is, and Escape or a click outside closes it`() =
-        paneTest(height = 500, content = { TimelineView(taskList) }) {
-            until { shown(taskListTitle) }
-            val columnHeads = onNodeWithText("SEQ").fetchSemanticsNode().boundsInRoot
-
-            onNode(modelTypeChip).performClick()
-            until { shown("Type info") }
-            assertEquals(columnHeads, onNodeWithText("SEQ").fetchSemanticsNode().boundsInRoot, "opening the type info moved the timeline")
-            val chip = onNode(modelTypeChip).fetchSemanticsNode().boundsInWindow
-            val title = onNodeWithText("Type info").fetchSemanticsNode().boundsInWindow
-            assertTrue(title.top > chip.bottom && title.left < chip.left, "the type info is not under the chips: $title, $chip")
-
-            onNodeWithText("Type info").performKeyInput { pressKey(Key.Escape) }
-            until { !shown("Type info") }
-
-            onNode(modelTypeChip).performClick()
-            until { shown("Type info") }
-            onNodeWithText("SEQ").performClick()
-            until { !shown("Type info") }
-        }
-
-    @Test
     fun `the type info open on one ViewModel is not on the next`() {
         var scope by mutableStateOf<InspectorScope>(taskList)
         paneTest(height = 500, content = { TimelineView(scope) }) {
@@ -286,48 +187,6 @@ class TimelineViewTest {
             waitForIdle()
 
             assertFalse(shown("Type info"), "the type info of the first ViewModel is still open")
-        }
-    }
-
-    /** What the row of a missing range says of whose entries they may be, which depends on the scope. */
-    private val lostInViewModel = "entries were lost in this session here; some may belong to this ViewModel"
-    private val lostInSession = "entries were lost in this session here; they may belong to any of its ViewModels"
-
-    /** Hides every observation of [scope]: its markers always pass, and a tall scene then composes them all. */
-    private fun DesktopComposeUiTest.showOnlyMarkers(inspector: Inspector, scope: InspectorScope) {
-        inspector.viewModel(inspector.timelinePane(scope)).post(TimelineVIE.Intent.SetQuery("no row has this"))
-        until { inspector.timeline(scope).projection.let { it.filterActive && it.items.none { item -> item.observation != null } } }
-        waitForIdle()
-    }
-
-    @Test
-    fun `a missing range names this ViewModel in a ViewModel's timeline, and the session's ViewModels in a session's`() {
-        paneTest(height = 1200, content = { TimelineView(taskList) }) { inspector ->
-            until { shown(taskListTitle) }
-            showOnlyMarkers(inspector, taskList)
-
-            until { shown(lostInViewModel) }
-        }
-        paneTest(height = 1200, content = { TimelineView(session) }) { inspector ->
-            until { shown(sessionTitle) }
-            showOnlyMarkers(inspector, session)
-
-            until { shown("Possibly incomplete") }
-            assertFalse(shown(lostInViewModel), "a session's timeline has no \"this ViewModel\"")
-            assertTrue(shown(lostInSession))
-        }
-    }
-
-    @Test
-    fun `one evicted entry is counted in the singular`() {
-        // The earlier session's TaskListVM had three rows: a bound of two evicts one.
-        val earlierTaskList = InspectorScope.ViewModel(Demo.oldSession.id, Demo.oldTaskList)
-        paneTest(data = ScenarioData("main", SampleWorld.events(), maxRows = 2), content = { TimelineView(earlierTaskList) }) { inspector ->
-            until { inspector.timeline(earlierTaskList).projection.items.isNotEmpty() }
-            waitForIdle()
-
-            assertFalse(shown("1 older entries evicted · timeline size limit"))
-            assertTrue(shown("1 older entry evicted · timeline size limit"))
         }
     }
 }

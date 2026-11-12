@@ -67,7 +67,7 @@ internal data class DetailProjection(
 )
 
 /** The selected row of [selection] in [state], with what Detail says of it; its JSON as text when [raw]. Nothing when none is selected or the store no longer retains it. */
-private fun detailProjection(state: TimeMachineState, selection: Selection, raw: Boolean): DetailProjection {
+internal fun detailProjection(state: TimeMachineState, selection: Selection, raw: Boolean): DetailProjection {
     val sequence = selection.row
     val session = selection.scope?.let { state.sessions[it.sessionId] }
     val vm = sequence?.let { s -> session?.viewModels?.values?.firstOrNull { it.holds(s) } } ?: return DetailProjection()

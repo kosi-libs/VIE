@@ -28,6 +28,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import org.kodein.arch.vie.VIE.NoSignal
+import org.kodein.arch.vie.VIEViewScope
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineClientMessage
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineSequence
 import org.kodein.arch.vie.timemachine.protocol.VIEObjectKind
@@ -56,16 +58,16 @@ import org.kodein.arch.vie.timemachine.server.ui.theme.Symbol
 internal fun DetailView() {
     val inspector = LocalInspector.current
     val pane = remember(inspector) { inspector.detailPane() }
-    InspectorPane(pane) { model -> DetailPaneContent(model) { post(it) } }
+    InspectorPane(pane) { model -> DetailPaneContent(model) }
 }
 
 /** The Detail tab, as [model] has it: the selected entry, or what to do to select one. */
 @Composable
-private fun DetailPaneContent(model: DetailVIE.Model, post: (DetailVIE.Intent) -> Unit) {
+internal fun VIEViewScope<DetailVIE.Intent, NoSignal>.DetailPaneContent(model: DetailVIE.Model) {
     val row = model.projection.row
     val observation = (row?.message as? TimeMachineClientMessage.Observed)?.observation
     if (row == null || observation == null) NoEntrySelected()
-    else DetailContent(model, observation, row.sequence, post)
+    else DetailContent(model, observation, row.sequence) { post(it) }
 }
 
 @Composable

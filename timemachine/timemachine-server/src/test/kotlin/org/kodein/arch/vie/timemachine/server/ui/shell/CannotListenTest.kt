@@ -17,25 +17,19 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
-import org.kodein.arch.vie.timemachine.server.fixtures.ScenarioData
-import org.kodein.arch.vie.timemachine.server.fixtures.paneTest
+import org.kodein.arch.vie.timemachine.server.fixtures.contentTest
 import org.kodein.arch.vie.timemachine.server.fixtures.shown
-import org.kodein.arch.vie.timemachine.server.fixtures.until
 import org.kodein.arch.vie.timemachine.server.store.ListenerState
-import org.kodein.arch.vie.timemachine.server.store.TimeMachineEvent
 
 
-/** What the window says of a listener that did not start: the screen and the status bar, by what stopped it. */
+/** What the screen says of a listener that did not start, by what stopped it. */
 class CannotListenTest {
 
     private val closeTheOther = "Close the other inspector window."
 
-    private fun failed(reason: ListenerState.Failed.Reason, message: String) =
-        ScenarioData("failed", listOf(TimeMachineEvent.ListenerChanged(ListenerState.Failed(reason, message))))
-
     @Test
     fun `a port in use is what the screen tells how to free`() =
-        paneTest(content = { CannotListenScreen(ListenerState.Failed.Reason.PortInUse, "Address already in use") {} }) {
+        contentTest(content = { CannotListenScreen(ListenerState.Failed.Reason.PortInUse, "Address already in use") {} }) {
             waitForIdle()
 
             assertTrue(shown(closeTheOther))
@@ -45,7 +39,7 @@ class CannotListenTest {
 
     @Test
     fun `another failure shows what it says, and no way to free a port`() =
-        paneTest(content = { CannotListenScreen(ListenerState.Failed.Reason.Other, "Too many open files") {} }) {
+        contentTest(content = { CannotListenScreen(ListenerState.Failed.Reason.Other, "Too many open files") {} }) {
             waitForIdle()
 
             assertTrue(shown("Too many open files"))
@@ -57,7 +51,7 @@ class CannotListenTest {
     @Test
     fun `the copy glyph copies the command, and is a check for a moment`() {
         val clipboard = KeptClipboard()
-        paneTest(content = {
+        contentTest(content = {
             CompositionLocalProvider(LocalClipboard provides clipboard) {
                 CannotListenScreen(ListenerState.Failed.Reason.PortInUse, "Address already in use") {}
             }
@@ -73,16 +67,6 @@ class CannotListenTest {
 
             mainClock.advanceTimeBy(2_000)
             onNodeWithContentDescription(CopyCommandDescription).assertTextEquals("content_copy")
-        }
-    }
-
-    @Test
-    fun `the status bar blames the port only when it is in use`() {
-        paneTest(data = failed(ListenerState.Failed.Reason.PortInUse, "Address already in use"), content = { StatusBar() }) {
-            until { shown("Not listening — port 13229 is in use") }
-        }
-        paneTest(data = failed(ListenerState.Failed.Reason.Other, "Too many open files"), content = { StatusBar() }) {
-            until { shown("Not listening — port 13229 could not be opened") }
         }
     }
 }

@@ -56,7 +56,7 @@ internal fun EmptyScreen() {
 
 /** No probe has connected yet: the address to connect to, and how to add the probe to an app. */
 @Composable
-private fun EmptyContent(status: StatusBarVIE.Model) {
+internal fun EmptyContent(status: StatusBarVIE.Model) {
     val scheme = MaterialTheme.colorScheme
     Box(Modifier.fillMaxSize().padding(40.dp), contentAlignment = Alignment.Center) {
         Column(Modifier.widthIn(max = 640.dp).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(22.dp)) {

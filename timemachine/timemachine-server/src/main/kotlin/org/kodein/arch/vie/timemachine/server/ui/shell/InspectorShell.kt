@@ -257,7 +257,7 @@ private fun NoViewModel(modifier: Modifier) {
 
 /** No ViewModel is selected: what to do, and how many the connected session has. */
 @Composable
-private fun NoViewModelContent(model: SessionsVIE.Model, modifier: Modifier) {
+internal fun NoViewModelContent(model: SessionsVIE.Model, modifier: Modifier) {
     val scheme = MaterialTheme.colorScheme
     val session = model.sessions.firstOrNull { it.connected } ?: model.sessions.firstOrNull()
     Column(modifier, horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterVertically)) {

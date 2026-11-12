@@ -48,7 +48,7 @@ internal const val DarkThemeDescription = "Switch to the dark theme"
  * theme. In the compact layout ([LocalCompact]) the reminder is shortened and the key hints are left out.
  */
 @Composable
-private fun StatusBarContent(status: StatusBarVIE.Model, dark: Boolean, onToggleTheme: () -> Unit, modifier: Modifier = Modifier) {
+internal fun StatusBarContent(status: StatusBarVIE.Model, dark: Boolean, onToggleTheme: () -> Unit, modifier: Modifier = Modifier) {
     val scheme = MaterialTheme.colorScheme
     val compact = LocalCompact.current
     Column(modifier.fillMaxWidth().background(scheme.surfaceDim)) {
