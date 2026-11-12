@@ -25,7 +25,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.delay
 import org.kodein.arch.vie.timemachine.server.ui.common.HorizontalRule
 import org.kodein.arch.vie.timemachine.server.ui.common.JsonTree
@@ -35,7 +34,6 @@ import org.kodein.arch.vie.timemachine.server.ui.common.TreeRawSwitch
 import org.kodein.arch.vie.timemachine.server.ui.common.action
 import org.kodein.arch.vie.timemachine.server.ui.common.copyToClipboard
 import org.kodein.arch.vie.timemachine.server.ui.common.formatTime
-import org.kodein.arch.vie.timemachine.server.ui.common.monoStyle
 import org.kodein.arch.vie.timemachine.server.ui.common.pretty
 import org.kodein.arch.vie.timemachine.server.ui.core.InspectorPane
 import org.kodein.arch.vie.timemachine.server.ui.core.LocalInspector
@@ -82,11 +80,11 @@ private fun CurrentModelContent(model: CurrentModelVIE.Model, post: (CurrentMode
                 horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically,
             ) {
                 Symbol("push_pin", size = 16.dp, tint = InspectorTheme.colors.model)
-                Text("Current model", style = MaterialTheme.typography.titleSmall.copy(fontSize = 12.sp), color = scheme.onSurface, maxLines = 1)
+                Text("Current model", style = MaterialTheme.typography.titleSmall, color = scheme.onSurface, maxLines = 1)
                 projection.sequence?.let {
                     Text(
                         "#$it${projection.at?.let { at -> " · " + formatTime(at) }.orEmpty()}",
-                        style = monoStyle(11f, scheme.outline), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false),
+                        style = InspectorTheme.text.monoSecondary, color = scheme.outline, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false),
                     )
                 }
                 Spacer(Modifier.weight(1f))
@@ -120,18 +118,18 @@ private fun CurrentModelContent(model: CurrentModelVIE.Model, post: (CurrentMode
                     Box(Modifier.size(8.dp).background(InspectorTheme.colors.modelContainer, RoundedCornerShape(2.dp)).border(1.dp, InspectorTheme.colors.model, RoundedCornerShape(2.dp)))
                     Text(
                         "highlighted: changed in #${projection.sequence} vs #${projection.changedFrom}",
-                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp), color = InspectorTheme.colors.model, maxLines = 1,
+                        style = MaterialTheme.typography.bodySmall, color = InspectorTheme.colors.model, maxLines = 1,
                     )
                 }
             }
             Box(Modifier.weight(1f).fillMaxWidth().verticalScroll(rememberScrollState()).padding(start = 8.dp, end = 8.dp, bottom = 8.dp)) {
                 when {
-                    projection.sequence == null -> Text("No model yet.", style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp), color = scheme.outline, modifier = Modifier.padding(horizontal = 6.dp, vertical = 16.dp))
+                    projection.sequence == null -> Text("No model yet.", style = InspectorTheme.text.body, color = scheme.outline, modifier = Modifier.padding(horizontal = 6.dp, vertical = 16.dp))
                     projection.json == null -> Column(Modifier.padding(horizontal = 6.dp, vertical = 4.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text(projection.asString.orEmpty(), style = monoStyle(12f, scheme.onSurface))
+                        Text(projection.asString.orEmpty(), style = InspectorTheme.text.code, color = scheme.onSurface)
                         Text(
                             "toString only — this model has no JSON, so it can't be shown as a tree or replaced.",
-                            style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.5.sp), color = scheme.outline,
+                            style = InspectorTheme.text.note, color = scheme.outline,
                         )
                     }
                     model.controls.raw -> RawJson(projection.rawText.orEmpty())
@@ -157,6 +155,6 @@ private fun EditButton(label: String, enabled: Boolean, onClick: () -> Unit) {
         horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically,
     ) {
         Symbol("edit", size = 14.dp, tint = foreground)
-        Text(label, style = MaterialTheme.typography.labelMedium.copy(fontSize = 11.5.sp), color = foreground, maxLines = 1)
+        Text(label, style = InspectorTheme.text.action, color = foreground, maxLines = 1)
     }
 }

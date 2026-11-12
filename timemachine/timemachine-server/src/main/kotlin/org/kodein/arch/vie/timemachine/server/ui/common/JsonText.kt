@@ -47,7 +47,7 @@ internal fun DiffText(op: DiffOp) {
                 withStyle(SpanStyle(color = scheme.onSurface)) { append(it.compact()) }
             }
         },
-        style = monoStyle(11.5f, scheme.onSurface), maxLines = 1,
+        style = InspectorTheme.text.codeRow, color = scheme.onSurface, maxLines = 1,
     )
 }
 

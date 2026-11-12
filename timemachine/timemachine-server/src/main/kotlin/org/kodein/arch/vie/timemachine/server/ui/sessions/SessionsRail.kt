@@ -22,9 +22,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import org.kodein.arch.vie.timemachine.server.ui.common.action
-import org.kodein.arch.vie.timemachine.server.ui.common.monoStyle
 import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorTheme
 import org.kodein.arch.vie.timemachine.server.ui.theme.Symbol
 
@@ -75,7 +75,7 @@ private fun RailTile(item: RailItem, onClick: () -> Unit) {
     ) {
         Text(
             item.label, maxLines = 1,
-            style = monoStyle(11.5f, if (item.selected) scheme.onPrimaryContainer else scheme.onSurfaceVariant, bold = true),
+            style = InspectorTheme.text.codeRow, color = if (item.selected) scheme.onPrimaryContainer else scheme.onSurfaceVariant, fontWeight = FontWeight.SemiBold,
         )
         when (item.dot) {
             RailDot.Filled -> Box(Modifier.align(Alignment.TopEnd).padding(top = 2.dp, end = 2.dp).size(7.dp).background(InspectorTheme.colors.success, CircleShape))

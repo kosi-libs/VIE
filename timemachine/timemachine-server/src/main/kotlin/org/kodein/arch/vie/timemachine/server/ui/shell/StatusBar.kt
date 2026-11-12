@@ -17,13 +17,11 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineConnection
 import org.kodein.arch.vie.timemachine.server.store.ListenerState
 import org.kodein.arch.vie.timemachine.server.ui.common.HorizontalRule
 import org.kodein.arch.vie.timemachine.server.ui.common.LocalCompact
 import org.kodein.arch.vie.timemachine.server.ui.common.action
-import org.kodein.arch.vie.timemachine.server.ui.common.monoStyle
 import org.kodein.arch.vie.timemachine.server.ui.core.InspectorPane
 import org.kodein.arch.vie.timemachine.server.ui.core.LocalInspector
 import org.kodein.arch.vie.timemachine.server.ui.core.LocalInspectorViewState
@@ -67,7 +65,7 @@ private fun StatusBarContent(status: StatusBarVIE.Model, dark: Boolean, onToggle
             }
             Box(Modifier.weight(1f))
             if (status.sessions > 0 && !compact) {
-                Text("↑↓ step · ⏎ expand · E edit & intervene · F follow", style = monoStyle(10.5f, scheme.outline), maxLines = 1)
+                Text("↑↓ step · ⏎ expand · E edit & intervene · F follow", style = InspectorTheme.text.monoMeta, color = scheme.outline, maxLines = 1)
             }
             Text(
                 if (status.sessions == 0) "No sessions" else "${status.connectedSessions} of ${status.sessions} sessions connected",
@@ -98,7 +96,7 @@ private fun Listening(status: StatusBarVIE.Model) {
             }
             is ListenerState.Listening -> {
                 Text("Listening on", style = StatusText, color = scheme.onSurfaceVariant, maxLines = 1)
-                Text(status.address.orEmpty(), style = monoStyle(11f, scheme.onSurface), maxLines = 1)
+                Text(status.address.orEmpty(), style = InspectorTheme.text.monoSecondary, color = scheme.onSurface, maxLines = 1)
                 Text("· protocol ${status.protocolVersion}", style = StatusText, color = scheme.outline, maxLines = 1)
             }
         }
@@ -110,4 +108,4 @@ internal const val SecurityReminder = "Unencrypted · unauthenticated · all net
 /** What the compact layout keeps of [SecurityReminder]. */
 internal const val CompactSecurityReminder = "Unencrypted"
 
-private val StatusText @Composable get() = MaterialTheme.typography.bodySmall.copy(fontSize = 11.5.sp)
+private val StatusText @Composable get() = InspectorTheme.text.note

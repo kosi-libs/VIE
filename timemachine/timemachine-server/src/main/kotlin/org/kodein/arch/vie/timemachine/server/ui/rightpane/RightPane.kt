@@ -23,15 +23,14 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import org.kodein.arch.vie.timemachine.server.ui.common.HorizontalRule
 import org.kodein.arch.vie.timemachine.server.ui.common.action
-import org.kodein.arch.vie.timemachine.server.ui.common.monoStyle
 import org.kodein.arch.vie.timemachine.server.ui.core.InspectorPane
 import org.kodein.arch.vie.timemachine.server.ui.core.InspectorScope
 import org.kodein.arch.vie.timemachine.server.ui.core.LocalInspector
 import org.kodein.arch.vie.timemachine.server.ui.core.RightTab
 import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorDimens
+import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorTheme
 import kotlin.uuid.Uuid
 
 /** What the button that folds the right pane away says it is; the shell has the one that unfolds it. */
@@ -77,7 +76,7 @@ private fun RightPaneLayout(
         if (target == null) {
             Text(
                 rightEmptyText(scope),
-                style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
+                style = InspectorTheme.text.body,
                 color = MaterialTheme.colorScheme.outline,
                 textAlign = TextAlign.Center,
                 modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp, vertical = 40.dp),
@@ -129,7 +128,7 @@ private fun RightTabs(tab: RightTab, interventions: Int, onSelect: (RightTab) ->
                         )
                         badge?.let {
                             Text(
-                                it, style = monoStyle(10f, scheme.onSurfaceVariant),
+                                it, style = InspectorTheme.text.monoBadge, color = scheme.onSurfaceVariant,
                                 modifier = Modifier.background(scheme.surfaceContainerHigh, RoundedCornerShape(8.dp)).padding(horizontal = 5.dp),
                             )
                         }

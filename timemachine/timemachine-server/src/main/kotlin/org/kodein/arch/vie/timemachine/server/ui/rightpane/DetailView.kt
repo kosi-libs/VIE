@@ -41,7 +41,6 @@ import org.kodein.arch.vie.timemachine.server.ui.common.action
 import org.kodein.arch.vie.timemachine.server.ui.common.copyToClipboard
 import org.kodein.arch.vie.timemachine.server.ui.common.formatTime
 import org.kodein.arch.vie.timemachine.server.ui.common.kind
-import org.kodein.arch.vie.timemachine.server.ui.common.monoStyle
 import org.kodein.arch.vie.timemachine.server.ui.common.pretty
 import org.kodein.arch.vie.timemachine.server.ui.common.splitSerialName
 import org.kodein.arch.vie.timemachine.server.ui.common.verb
@@ -72,8 +71,8 @@ private fun DetailPaneContent(model: DetailVIE.Model, post: (DetailVIE.Intent) -
 private fun NoEntrySelected() {
     val scheme = MaterialTheme.colorScheme
     Column(Modifier.fillMaxSize().padding(horizontal = 20.dp, vertical = 40.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text("No entry selected", style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.sp), color = scheme.onSurfaceVariant)
-        Text("Click a row, or use ↑ ↓ to step through the timeline.", style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp), color = scheme.outline, textAlign = TextAlign.Center)
+        Text("No entry selected", style = MaterialTheme.typography.bodyMedium, color = scheme.onSurfaceVariant)
+        Text("Click a row, or use ↑ ↓ to step through the timeline.", style = InspectorTheme.text.body, color = scheme.outline, textAlign = TextAlign.Center)
     }
 }
 
@@ -96,17 +95,17 @@ private fun DetailContent(model: DetailVIE.Model, observation: VIEObservation, s
                     Symbol(if (kind == VIEObjectKind.Intent) "login" else "logout", size = 16.dp, tint = colors.kind(kind), mirrored = kind != VIEObjectKind.Intent)
                     Text(
                         if (kind == VIEObjectKind.Intent) "into the ViewModel" else "out of the ViewModel",
-                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp), color = scheme.onSurfaceVariant,
+                        style = InspectorTheme.text.body, color = scheme.onSurfaceVariant,
                     )
                     Spacer(Modifier.weight(1f))
-                    Text("#$sequence · ${formatTime(observation.at)}", style = monoStyle(11.5f, scheme.onSurfaceVariant), maxLines = 1)
+                    Text("#$sequence · ${formatTime(observation.at)}", style = InspectorTheme.text.codeRow, color = scheme.onSurfaceVariant, maxLines = 1)
                 }
                 Text(
                     buildAnnotatedString {
                         withStyle(SpanStyle(color = scheme.outline)) { append(name.prefix) }
                         withStyle(SpanStyle(color = scheme.onSurface, fontWeight = FontWeight.SemiBold)) { append(name.last) }
                     },
-                    style = monoStyle(12f, scheme.onSurface),
+                    style = InspectorTheme.text.code, color = scheme.onSurface,
                 )
                 projection.interventionNumber?.let { number ->
                     Row(
@@ -120,10 +119,10 @@ private fun DetailContent(model: DetailVIE.Model, observation: VIEObservation, s
                                 withStyle(SpanStyle(fontWeight = FontWeight.SemiBold)) { append("intervention #$number") }
                                 projection.interventionKind?.let { append(" · ${verb(it)}") }
                             },
-                            style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp), color = scheme.onSurface, modifier = Modifier.weight(1f),
+                            style = InspectorTheme.text.body, color = scheme.onSurface, modifier = Modifier.weight(1f),
                         )
                         Text(
-                            "Show", style = MaterialTheme.typography.labelMedium.copy(fontSize = 12.sp), color = colors.intervened,
+                            "Show", style = InspectorTheme.text.label, color = colors.intervened,
                             modifier = Modifier.action { post(DetailVIE.Intent.ShowInterventions) },
                         )
                     }
@@ -142,14 +141,14 @@ private fun DetailContent(model: DetailVIE.Model, observation: VIEObservation, s
                         Modifier.fillMaxWidth().background(scheme.surfaceContainer, RoundedCornerShape(8.dp))
                             .border(1.dp, scheme.outlineVariant, RoundedCornerShape(8.dp)).padding(vertical = 6.dp),
                     ) {
-                        if (diff.ops.isEmpty()) Text("No differences.", style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp), color = scheme.outline, modifier = Modifier.padding(horizontal = 10.dp, vertical = 3.dp))
+                        if (diff.ops.isEmpty()) Text("No differences.", style = InspectorTheme.text.body, color = scheme.outline, modifier = Modifier.padding(horizontal = 10.dp, vertical = 3.dp))
                         diff.ops.forEach { Box(Modifier.padding(horizontal = 10.dp, vertical = 3.dp)) { DiffText(it) } }
                     }
                 }
             }
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                 Text("TOSTRING", style = label, color = scheme.outline)
-                Text(observation.asString, style = monoStyle(11.5f, scheme.onSurface).copy(lineHeight = 17.sp))
+                Text(observation.asString, style = InspectorTheme.text.codeRow.copy(lineHeight = 17.sp), color = scheme.onSurface)
             }
             observation.asJson?.let { json ->
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -181,6 +180,6 @@ private fun PillButton(label: String, glyph: String, filled: Boolean, onClick: (
         horizontalArrangement = Arrangement.spacedBy(5.dp), verticalAlignment = Alignment.CenterVertically,
     ) {
         Symbol(glyph, size = if (filled) 16.dp else 15.dp, tint = foreground)
-        Text(label, style = MaterialTheme.typography.labelMedium.copy(fontSize = 12.sp), color = foreground, maxLines = 1)
+        Text(label, style = InspectorTheme.text.label, color = foreground, maxLines = 1)
     }
 }
