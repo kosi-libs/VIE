@@ -14,10 +14,13 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawOutline
 import androidx.compose.ui.input.pointer.PointerIcon
 import androidx.compose.ui.input.pointer.pointerHoverIcon
 import androidx.compose.ui.text.font.FontStyle
@@ -103,7 +106,8 @@ private fun InspectorColors.value(kind: ValueKind, punctuation: Color): Color = 
 
 /**
  * A collapsible JSON tree. The nodes in [changed] sit on the model-container tint, which fades with
- * [highlight] (1 to 0): the highlight is an animation, the set is the model's.
+ * [highlight] (1 to 0): the highlight is an animation, the set is the model's. It is read when a line
+ * is drawn, so a fade redraws the changed lines and composes nothing.
  */
 @Composable
 internal fun JsonTree(
@@ -111,17 +115,23 @@ internal fun JsonTree(
     expanded: Set<JsonPath>,
     modifier: Modifier = Modifier,
     changed: Set<JsonPath> = emptySet(),
-    highlight: Float = 0f,
+    highlight: () -> Float = { 0f },
     onToggle: (JsonPath) -> Unit,
 ) {
     val scheme = MaterialTheme.colorScheme
     val colors = InspectorTheme.colors
+    val shape = MaterialTheme.shapes.extraSmall
+    val lines = remember(root, expanded) { treeLines(root, expanded) }
     Column(modifier) {
-        for (line in treeLines(root, expanded)) {
-            val tint = if (line.path in changed && !line.closer) colors.modelContainer.copy(alpha = highlight) else Color.Transparent
+        for (line in lines) {
+            val tinted = line.path in changed && !line.closer
             Row(
                 Modifier.fillMaxWidth().height(InspectorDimens.codeLine)
-                    .background(tint, MaterialTheme.shapes.extraSmall)
+                    .then(
+                        if (tinted) Modifier.drawBehind {
+                            drawOutline(shape.createOutline(size, layoutDirection, this), colors.modelContainer.copy(alpha = highlight()))
+                        } else Modifier,
+                    )
                     .then(if (line.openable) Modifier.pointerHoverIcon(PointerIcon.Hand).clickable { onToggle(line.path) } else Modifier)
                     .padding(horizontal = 6.dp),
                 verticalAlignment = Alignment.CenterVertically,
