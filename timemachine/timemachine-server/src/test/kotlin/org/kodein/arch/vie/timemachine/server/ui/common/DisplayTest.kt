@@ -3,7 +3,9 @@ package org.kodein.arch.vie.timemachine.server.ui.common
 import java.time.ZoneOffset
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.milliseconds
+import kotlin.time.Duration.Companion.seconds
 import kotlin.uuid.Uuid
 import kotlinx.serialization.json.JsonNull
 import org.kodein.arch.vie.timemachine.protocol.VIEObjectKind
@@ -51,6 +53,15 @@ class DisplayTest {
     @Test
     fun aTimeIsPrintedWithMilliseconds() {
         assertEquals("08:00:00.042", formatTime(t0 + 42.milliseconds, ZoneOffset.UTC))
+    }
+
+    @Test
+    fun aDelayIsPrintedWithASpaceBeforeEachUnit() {
+        assertEquals("5 s", formatDelay(5.seconds))
+        assertEquals("200 ms", formatDelay(200.milliseconds))
+        assertEquals("1 h", formatDelay(1.hours))
+        assertEquals("1 m 30 s", formatDelay(90.seconds))
+        assertEquals("1.5 s", formatDelay(1500.milliseconds))
     }
 
     @Test

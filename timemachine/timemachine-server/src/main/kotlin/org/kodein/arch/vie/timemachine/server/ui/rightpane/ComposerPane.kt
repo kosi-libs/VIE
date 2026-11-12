@@ -29,6 +29,7 @@ import org.kodein.arch.vie.timemachine.server.ui.core.Pane
 import org.kodein.arch.vie.timemachine.server.ui.core.PaneViewModel
 import org.kodein.arch.vie.timemachine.server.ui.core.Selection
 import org.kodein.arch.vie.timemachine.server.ui.core.whileShown
+import kotlin.time.Duration
 import kotlin.time.Instant
 import kotlin.uuid.Uuid
 
@@ -98,6 +99,7 @@ internal interface ComposerVIE : VIE<ComposerVIE.Model, ComposerVIE.Intent, VIE.
  * @property shortId Its short identifier, `unknown` while no info describes it.
  * @property blockText Why the composer is disabled, in plain words; `null` when it is not.
  * @property unserializable The first role that is not `@Serializable`, with its type name.
+ * @property timeout How long the store waits for an intervention's answer and row, as the result card says it.
  */
 internal data class ComposerProjection(
     val sessionName: String = "",
@@ -110,6 +112,7 @@ internal data class ComposerProjection(
     val canSend: Boolean = false,
     val current: InterventionView? = null,
     val history: List<InterventionView> = emptyList(),
+    val timeout: Duration = Duration.ZERO,
 )
 
 /**
@@ -130,13 +133,17 @@ internal data class InterventionView(
     val rowRetained: Boolean,
 )
 
-/** What the composer of ViewModel [viewModelId] of session [sessionId] shows, given what the store holds, what is selected and what the developer set. */
+/**
+ * What the composer of ViewModel [viewModelId] of session [sessionId] shows, given what the store holds, what is selected
+ * and what the developer set. [timeout] is the store's, which its state does not carry.
+ */
 private fun composerProjection(
     state: TimeMachineState,
     selection: Selection,
     controls: ComposerVIE.Controls,
     sessionId: Uuid,
     viewModelId: Uuid,
+    timeout: Duration,
 ): ComposerProjection {
     val session = state.sessions[sessionId]
     val vm = session?.viewModels?.get(viewModelId)
@@ -164,6 +171,7 @@ private fun composerProjection(
         canSend = target.canSend(parse),
         current = controls.requestId?.let { id -> interventions.firstOrNull { it.requestId == id } }?.view(),
         history = interventions.asReversed().map { it.view() },
+        timeout = timeout,
     )
 }
 
@@ -203,7 +211,7 @@ internal class ComposerVM(
             inspector.selection.state,
             modelFlow.map { it.controls }.distinctUntilChanged(),
         ) { state, selection, controls -> Triple(state, selection.resolvedIn(state), controls) }
-        project(inspector.whileShown(key(viewModelId), inputs) { { (state, selection, controls) -> composerProjection(state, selection, controls, sessionId, viewModelId) } }) {
+        project(inspector.whileShown(key(viewModelId), inputs) { { (state, selection, controls) -> composerProjection(state, selection, controls, sessionId, viewModelId, inspector.store.interventionTimeout) } }) {
             copy(projection = it)
         }
     }
