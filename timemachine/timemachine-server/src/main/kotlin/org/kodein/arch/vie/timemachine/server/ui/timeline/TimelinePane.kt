@@ -160,7 +160,7 @@ internal data class TimelineItem(
     val observation: VIEObservation? get() = (row?.message as? TimeMachineClientMessage.Observed)?.observation
 }
 
-private fun SessionTimelineEntry.key(index: Int): String = when (this) {
+private fun SessionTimelineEntry.key(): String = when (this) {
     is SessionTimelineEntry.Scoped -> when (val e = entry) {
         is TimelineEntry.Message -> "r${e.row.sequence}"
         TimelineEntry.HistoryUnavailable -> "history-unavailable:$viewModelId"
@@ -168,7 +168,7 @@ private fun SessionTimelineEntry.key(index: Int): String = when (this) {
         is TimelineEntry.PossiblyIncomplete -> "incomplete:${e.range.start}"
     }
     is SessionTimelineEntry.Shared -> "incomplete:${entry.range.start}"
-    is SessionTimelineEntry.Divider -> "divider:$index"
+    is SessionTimelineEntry.Divider -> "divider:$span:$kind"
 }
 
 /** Projects the Timeline of one scope. The caches belong to it, and live as long as the pane is shown. */
@@ -196,7 +196,7 @@ internal class TimelineProjector(private val scope: InspectorScope) {
 
         val filtered = controls.filter.apply(entries, { it.timelineEntry }, ::json)
         val query = controls.filter.query
-        val items = filtered.items.mapIndexed { index, entry -> item(session, entry, index, query) }
+        val items = filtered.items.map { item(session, it, query) }
         val selected = selection.row
         val observations = rows.mapNotNull { (it.message as? TimeMachineClientMessage.Observed)?.observation }
         return TimelineProjection(
@@ -234,15 +234,15 @@ internal class TimelineProjector(private val scope: InspectorScope) {
             sessionConnected = session.isConnected,
         )
 
-    private fun item(session: SessionRecord, entry: SessionTimelineEntry, index: Int, query: String): TimelineItem {
+    private fun item(session: SessionRecord, entry: SessionTimelineEntry, query: String): TimelineItem {
         val scoped = entry as? SessionTimelineEntry.Scoped
         val row = (scoped?.entry as? TimelineEntry.Message)?.row
         val observation = (row?.message as? TimeMachineClientMessage.Observed)?.observation
         val vm = scoped?.let { session.viewModels[it.viewModelId] }
         val source = if (scope is InspectorScope.Session && vm != null) vm.label() else null
-        if (scoped == null || row == null || observation == null) return TimelineItem(entry.key(index), entry, source = source)
+        if (scoped == null || row == null || observation == null) return TimelineItem(entry.key(), entry, source = source)
         return TimelineItem(
-            key = entry.key(index),
+            key = entry.key(),
             entry = entry,
             diff = if (vm != null && observation.kind == VIEObjectKind.Model) diff(vm, row, observation) else null,
             interventionNumber = observation.interventionId?.let { vm?.interventionNumber(it) },

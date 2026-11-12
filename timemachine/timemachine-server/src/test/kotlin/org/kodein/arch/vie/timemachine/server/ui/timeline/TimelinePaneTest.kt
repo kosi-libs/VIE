@@ -7,13 +7,18 @@ import kotlinx.coroutines.test.TestResult
 import org.kodein.arch.vie.VIE
 import org.kodein.arch.vie.test.VMTestScope
 import org.kodein.arch.vie.test.runVMTest
+import org.kodein.arch.vie.timemachine.protocol.TimeMachineClientMessage
+import org.kodein.arch.vie.timemachine.protocol.TimeMachineConnection
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineSequence
 import org.kodein.arch.vie.timemachine.protocol.VIEObjectKind
 import org.kodein.arch.vie.timemachine.server.fixtures.Demo
 import org.kodein.arch.vie.timemachine.server.fixtures.ScenarioData
+import org.kodein.arch.vie.timemachine.server.fixtures.demoSession
 import org.kodein.arch.vie.timemachine.server.fixtures.inspector
 import org.kodein.arch.vie.timemachine.server.fixtures.state
 import org.kodein.arch.vie.timemachine.server.fixtures.taskListScope
+import org.kodein.arch.vie.timemachine.server.store.ConnectionId
+import org.kodein.arch.vie.timemachine.server.store.SessionTimelineEntry
 import org.kodein.arch.vie.timemachine.server.store.TimeMachineEvent
 import org.kodein.arch.vie.timemachine.server.ui.common.DiffKind
 import org.kodein.arch.vie.timemachine.server.ui.core.Inspector
@@ -322,10 +327,36 @@ class TimelinePaneTest {
             assertIs<TimelineHeader.ViewModel>(model.projection.header)
         }
 
+    @Test
+    fun `a divider keeps its key when rows before it are hidden or evicted`() {
+        // The Demo session, gone and back: a disconnected and a reconnected divider after its rows.
+        val reconnection = ConnectionId(9)
+        val hello = TimeMachineClientMessage.Hello(Demo.session, TimeMachineConnection.protocolVersion)
+        val state = ScenarioData.of("disconnected").state().on(TimeMachineEvent.HelloReceived(reconnection, hello, Demo.at(30_000))).state
+        val projector = TimelineProjector(demoSession)
+        fun TimelineProjection.dividers() = items.filter { it.entry is SessionTimelineEntry.Divider }.map { it.key }
+        fun TimelineProjection.assertKeysAreDistinct() = assertEquals(items.size, items.map { it.key }.toSet().size, "two items share a key")
+
+        val whole = projector.project(state, Selection(), TimelineVIE.Controls())
+        assertEquals(3, whole.dividers().size, "connected, disconnected, reconnected")
+        whole.assertKeysAreDistinct()
+
+        val filtered = projector.project(state, Selection(), TimelineVIE.Controls(filter = TimelineFilter(query = "no row has this")))
+        assertTrue(filtered.items.size < whole.items.size)
+        assertEquals(whole.dividers(), filtered.dividers(), "a filter hid rows before them")
+        filtered.assertKeysAreDistinct()
+
+        // One more row of TaskListVM: the bounds evict its oldest, which is before the last two dividers.
+        val evicted = projector.project(state.on(rowOf(Demo.taskList, 272, reconnection)).state, Selection(), TimelineVIE.Controls())
+        assertTrue(evicted.items.any { it.sequence == seq(272) })
+        assertEquals(whole.dividers(), evicted.dividers(), "a row before them was evicted")
+        evicted.assertKeysAreDistinct()
+    }
+
     private fun rowOfTaskList(sequence: Long): TimeMachineEvent = rowOf(Demo.taskList, sequence)
 
-    private fun rowOf(viewModelId: kotlin.uuid.Uuid, sequence: Long): TimeMachineEvent = TimeMachineEvent.MessageReceived(
-        Demo.connection,
+    private fun rowOf(viewModelId: kotlin.uuid.Uuid, sequence: Long, connection: ConnectionId = Demo.connection): TimeMachineEvent = TimeMachineEvent.MessageReceived(
+        connection,
         org.kodein.arch.vie.timemachine.protocol.TimeMachineClientMessage.Observed(
             org.kodein.arch.vie.timemachine.protocol.VIEObservation(
                 viewModelId, Demo.now, VIEObjectKind.Model, Demo.TaskListModel, "Model(tasks=[], work=[])",

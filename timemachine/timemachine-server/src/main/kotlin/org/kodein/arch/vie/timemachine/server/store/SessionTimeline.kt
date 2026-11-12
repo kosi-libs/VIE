@@ -20,8 +20,11 @@ sealed interface SessionTimelineEntry {
      * [at] is read on the inspector's clock, when it accepted or lost the connection: the probe does
      * not report its connection changes. A row's display time is read on the device's clock, so the
      * two compare only as far as the clocks agree; [after], not [at], places the divider.
+     *
+     * @property span The index, in [SessionRecord.connections], of the connection it is an edge of. That
+     *   list only grows, so [span] and [kind] identify the divider for as long as its session is held.
      */
-    data class Divider(val kind: Kind, val at: Instant, val after: TimeMachineSequence?) : SessionTimelineEntry {
+    data class Divider(val kind: Kind, val at: Instant, val after: TimeMachineSequence?, val span: Int) : SessionTimelineEntry {
         enum class Kind { Connected, Reconnected, Disconnected }
     }
 }
@@ -77,7 +80,7 @@ fun TimeMachineState.sessionTimeline(sessionId: Uuid): List<SessionTimelineEntry
     session.connections.forEachIndexed { index, span ->
         val kind = if (index == 0) SessionTimelineEntry.Divider.Kind.Connected else SessionTimelineEntry.Divider.Kind.Reconnected
         for ((edgeKind, edge) in listOf(kind to span.connected, SessionTimelineEntry.Divider.Kind.Disconnected to span.disconnected)) {
-            if (edge != null) placed += Placed(edge.after?.value ?: Long.MIN_VALUE, 1, SessionTimelineEntry.Divider(edgeKind, edge.at, edge.after))
+            if (edge != null) placed += Placed(edge.after?.value ?: Long.MIN_VALUE, 1, SessionTimelineEntry.Divider(edgeKind, edge.at, edge.after, index))
         }
     }
     // Stable: dividers sharing a position keep their chronological order.
