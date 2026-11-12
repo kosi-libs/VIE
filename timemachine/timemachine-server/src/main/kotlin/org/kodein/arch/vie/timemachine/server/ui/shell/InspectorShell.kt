@@ -16,7 +16,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.movableContentOf
 import androidx.compose.runtime.mutableStateOf
@@ -223,14 +222,12 @@ private fun CollapsedRightPane(onOpen: () -> Unit) {
 private fun widest(max: Dp, min: Dp): Dp = if (max < min) min else max
 
 /**
- * The centre pane over what the store and the selection hold: the timeline of the selected scope, which
- * takes the keyboard when its scope is selected.
+ * The centre pane over what the [notices] project of the store and the selection: the timeline of the
+ * selected scope, which takes the keyboard when its scope is selected.
  */
 @Composable
 private fun CentrePane(notices: NoticesVIE.Model, modifier: Modifier) {
-    val selection by LocalInspector.current.selection.state.collectAsState()
-    val state by LocalInspector.current.store.state.collectAsState()
-    val scope = selection.resolvedIn(state).scope
+    val scope = notices.scope
     // The timeline's keys go to what has the focus within it, and a scope is picked with a click on the
     // sessions, which keeps the focus there. There is nothing to give it to when no timeline is shown.
     val focus = remember { FocusRequester() }
