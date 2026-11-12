@@ -25,7 +25,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -38,6 +38,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.semantics.Role
@@ -50,6 +51,7 @@ import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.constrainWidth
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.kodein.arch.vie.timemachine.protocol.VIEInterventionResult
@@ -180,7 +182,9 @@ private fun TypeField(type: String, types: List<String>, open: Boolean, blocked:
     val scheme = MaterialTheme.colorScheme
     val name = splitSerialName(type)
     val choosable = types.size > 1 && !blocked
-    var width by remember { mutableStateOf(0) }
+    // The field's width, for its menu: written when the field is laid out and read when the menu is
+    // measured, so a field that is resized, as a dragged splitter does at each frame, composes nothing.
+    var width by remember { mutableIntStateOf(0) }
     Box(Modifier.fillMaxWidth().padding(top = 4.dp).onSizeChanged { width = it.width }) {
         Row(
             Modifier.fillMaxWidth().height(36.dp)
@@ -202,7 +206,13 @@ private fun TypeField(type: String, types: List<String>, open: Boolean, blocked:
         DropdownMenu(
             expanded = open && choosable,
             onDismissRequest = { post(ComposerVIE.Intent.SetTypeMenu(false)) },
-            modifier = Modifier.width(with(LocalDensity.current) { width.toDp() }).background(scheme.surfaceContainerHighest),
+            modifier = Modifier
+                .layout { measurable, constraints ->
+                    val fixed = constraints.constrainWidth(width)
+                    val placeable = measurable.measure(constraints.copy(minWidth = fixed, maxWidth = fixed))
+                    layout(placeable.width, placeable.height) { placeable.place(0, 0) }
+                }
+                .background(scheme.surfaceContainerHighest),
         ) {
             for (option in types) {
                 val parts = splitSerialName(option)

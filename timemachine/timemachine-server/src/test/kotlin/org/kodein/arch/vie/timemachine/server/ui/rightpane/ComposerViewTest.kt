@@ -13,6 +13,7 @@ import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsNotSelected
 import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.assertTextContains
+import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.onNodeWithText
@@ -89,6 +90,23 @@ class ComposerViewTest {
         onNode(hasSetTextAction()).performTextInput("not JSON ")
 
         projected { runCatching { onNodeWithText("Replace model").assertIsNotEnabled() }.isSuccess }
+    }
+
+    @Test
+    fun `the type menu is as wide as its field`() = composer { _ ->
+        projected { editorShown() }
+        onNode(segment("Intent")).performClick()
+        projected { runCatching { onNode(segment("Intent")).assertIsSelected() }.isSuccess }
+        // The field ends with the arrow that opens its menu; an option of the menu starts with its check.
+        val field = hasClickAction() and hasText("arrow_drop_down")
+        val option = hasClickAction() and hasText("check") and SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Button)
+        projected { onAllNodes(field).fetchSemanticsNodes().size == 1 }
+        val width = onNode(field).fetchSemanticsNode().size.width
+
+        onNode(field).performClick()
+        projected { onAllNodes(option).fetchSemanticsNodes().size > 1 }
+
+        assertEquals(listOf(width), onAllNodes(option).fetchSemanticsNodes().map { it.size.width }.distinct())
     }
 
     @Test
