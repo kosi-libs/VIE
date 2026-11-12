@@ -116,7 +116,7 @@ private fun InspectorLayout(
             Column(Modifier.weight(1f).fillMaxSize()) {
                 when (val screen = notices.screen) {
                     NoticesVIE.Screen.Empty -> empty()
-                    is NoticesVIE.Screen.CannotListen -> CannotListenScreen(screen.message) { onIntent(NoticesVIE.Intent.Retry) }
+                    is NoticesVIE.Screen.CannotListen -> CannotListenScreen(screen.reason, screen.message) { onIntent(NoticesVIE.Intent.Retry) }
                     NoticesVIE.Screen.None ->
                         if (compact) CompactPanes(total, sessions, centrePane, rightPane)
                         else PanesLayout(total, sessions, centrePane, rightPane)

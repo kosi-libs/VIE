@@ -34,6 +34,7 @@ import org.kodein.arch.vie.timemachine.server.store.DefaultMaxChars
 import org.kodein.arch.vie.timemachine.server.store.ListenerState
 import org.kodein.arch.vie.timemachine.server.store.TimeMachineEvent
 import org.kodein.arch.vie.timemachine.server.store.TimeMachineStore
+import java.net.BindException
 import java.util.concurrent.atomic.AtomicLong
 import kotlin.time.Clock
 import kotlin.time.Duration
@@ -158,9 +159,8 @@ class TimeMachineServer(
             // A cancellation is reported only when it is not this coroutine's: CIO may throw the bind
             // failure wrapped in one.
             currentCoroutineContext().ensureActive()
-            val cause = generateSequence<Throwable>(e) { it.cause }.last()
             failed = true
-            store.post(TimeMachineEvent.ListenerChanged(ListenerState.Failed(cause.message ?: cause.toString())))
+            store.post(TimeMachineEvent.ListenerChanged(listenerFailure(e)))
             return
         }
         failed = false
@@ -262,3 +262,19 @@ internal fun sequenceIn(text: String): TimeMachineSequence? =
     } catch (_: Exception) {
         null
     }
+
+/**
+ * What the listener's state says of [thrown], which starting it ended with: the message of its root
+ * cause, and a port in use when that cause is a [BindException].
+ *
+ * The type tells, not the message, which the system words in its own language. A bind also fails on
+ * an address that is not the machine's and on a port the process may not take: listening on every
+ * interface, on an unprivileged port, leaves the port in use.
+ */
+internal fun listenerFailure(thrown: Throwable): ListenerState.Failed {
+    val cause = generateSequence(thrown) { it.cause }.last()
+    return ListenerState.Failed(
+        reason = if (cause is BindException) ListenerState.Failed.Reason.PortInUse else ListenerState.Failed.Reason.Other,
+        message = cause.message ?: cause.toString(),
+    )
+}

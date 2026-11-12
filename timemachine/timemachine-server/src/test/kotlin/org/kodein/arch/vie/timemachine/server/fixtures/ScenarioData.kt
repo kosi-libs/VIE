@@ -43,7 +43,7 @@ internal class ScenarioData(
 
         fun of(id: String): ScenarioData = when (id) {
             "empty" -> ScenarioData(id, listening())
-            "cannotListen" -> ScenarioData(id, listOf(TimeMachineEvent.ListenerChanged(ListenerState.Failed("Address already in use"))))
+            "cannotListen" -> ScenarioData(id, listOf(TimeMachineEvent.ListenerChanged(ListenerState.Failed(ListenerState.Failed.Reason.PortInUse, "Address already in use"))))
             "compPending" -> ScenarioData(id, base(), ProbeScript(intervene = { ProbeAnswer.Silent }), interventionTimeout = 1.hours)
             "compTimeout" -> ScenarioData(id, base(), ProbeScript(intervene = { ProbeAnswer.Silent }))
             "compSuccess" -> ScenarioData(id, base(), ProbeScript(intervene = { ProbeAnswer.Accepted }))

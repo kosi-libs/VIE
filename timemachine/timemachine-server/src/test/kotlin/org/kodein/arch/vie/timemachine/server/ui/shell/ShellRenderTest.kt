@@ -18,6 +18,8 @@ import org.kodein.arch.vie.timemachine.server.InspectorWindow
 import org.kodein.arch.vie.timemachine.server.fixtures.Demo
 import org.kodein.arch.vie.timemachine.server.fixtures.ScenarioData
 import org.kodein.arch.vie.timemachine.server.fixtures.newInspector
+import org.kodein.arch.vie.timemachine.server.store.ListenerState
+import org.kodein.arch.vie.timemachine.server.store.TimeMachineEvent
 import org.kodein.arch.vie.timemachine.server.ui.core.InspectorScope
 import org.kodein.arch.vie.timemachine.server.ui.core.InspectorSelection
 import org.kodein.arch.vie.timemachine.server.ui.core.InspectorViewState
@@ -32,13 +34,16 @@ class ShellRenderTest {
 
     private val taskList = InspectorScope.ViewModel(Demo.session.id, Demo.taskList)
 
+    /** A listener that failed for another reason than its port: the catalogue's scenario is a port in use. */
+    private val notAPortInUse = TimeMachineEvent.ListenerChanged(ListenerState.Failed(ListenerState.Failed.Reason.Other, "Too many open files"))
+
     private fun render(
-        name: String, id: String, dark: Boolean,
+        name: String, id: String, dark: Boolean, data: ScenarioData = ScenarioData.of(id),
         width: Int = 1440, height: Int = 900, view: InspectorViewState.() -> Unit = {},
         select: InspectorSelection.() -> Unit = {},
     ) {
         val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
-        val inspector = ScenarioData.of(id).newInspector(scope, Dispatchers.Default)
+        val inspector = data.newInspector(scope, Dispatchers.Default)
         val viewState = InspectorViewState().also { it.dark = dark; it.view() }
         try {
             inspector.selection.select()
@@ -64,6 +69,7 @@ class ShellRenderTest {
         for (dark in listOf(true, false)) {
             render("empty", "empty", dark)
             render("cannot-listen", "cannotListen", dark)
+            render("cannot-listen-other", "cannotListen", dark, data = ScenarioData("cannotListen", listOf(notAPortInUse)))
         }
     }
 

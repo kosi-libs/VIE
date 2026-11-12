@@ -1,5 +1,7 @@
 package org.kodein.arch.vie.timemachine.server.transport
 
+import java.io.IOException
+import java.net.BindException
 import java.net.ServerSocket
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -417,9 +419,24 @@ class TimeMachineServerTest {
         ServerSocket(0).use { taken ->
             inspector(port = taken.localPort) { store, server ->
                 server.start()
-                assertIs<ListenerState.Failed>(store.state.first { it.listener != ListenerState.Starting }.listener)
+                val failed = assertIs<ListenerState.Failed>(store.state.first { it.listener != ListenerState.Starting }.listener)
+                assertEquals(ListenerState.Failed.Reason.PortInUse, failed.reason)
             }
         }
+    }
+
+    @Test
+    fun aFailureThatIsNotABindIsNotBlamedOnThePort() {
+        val failed = listenerFailure(IllegalStateException("wrapping", IOException("Too many open files")))
+
+        assertEquals(ListenerState.Failed(ListenerState.Failed.Reason.Other, "Too many open files"), failed)
+    }
+
+    @Test
+    fun aBindFailureIsAPortInUseWhateverItIsWrappedIn() {
+        val failed = listenerFailure(CancellationException("wrapping", BindException("Adresse déjà utilisée")))
+
+        assertEquals(ListenerState.Failed(ListenerState.Failed.Reason.PortInUse, "Adresse déjà utilisée"), failed)
     }
 
     @Test

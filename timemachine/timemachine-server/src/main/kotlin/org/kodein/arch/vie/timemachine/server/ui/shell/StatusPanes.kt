@@ -74,8 +74,8 @@ internal interface NoticesVIE : VIE<NoticesVIE.Model, NoticesVIE.Intent, VIE.NoS
         /** No session yet, and the listener is on its way or listening. */
         data object Empty : Screen
 
-        /** Nothing can connect: [message] says why. */
-        data class CannotListen(val message: String) : Screen
+        /** Nothing can connect: [reason] says what to do about it, and [message] what the failure says of itself. */
+        data class CannotListen(val reason: ListenerState.Failed.Reason, val message: String) : Screen
     }
 
     sealed interface Intent : VIE.Intent {
@@ -103,7 +103,7 @@ private fun noticesModel(state: TimeMachineState, scope: InspectorScope?) = Noti
     disconnected = scope?.let { state.sessions[it.sessionId] }?.takeIf { !it.isConnected }
         ?.let { DisconnectedNotice(it.id, it.session.name, it.disconnectedAt) },
     screen = when {
-        state.listener is ListenerState.Failed -> NoticesVIE.Screen.CannotListen(state.listener.message)
+        state.listener is ListenerState.Failed -> NoticesVIE.Screen.CannotListen(state.listener.reason, state.listener.message)
         state.sessions.isEmpty() -> NoticesVIE.Screen.Empty
         else -> NoticesVIE.Screen.None
     },

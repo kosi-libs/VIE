@@ -21,8 +21,9 @@ import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorTheme
 
 
 /**
- * One pane's view, [content], over a live inspector of scenario [id], with what the window gives every
- * pane: the theme and the window's locals. The scene is [width] by [height] px, at a density of 1.
+ * One pane's view, [content], over a live inspector of scenario [id], or of [data] when the catalogue
+ * has no scenario for it, with what the window gives every pane: the theme and the window's locals. The
+ * scene is [width] by [height] px, at a density of 1.
  *
  * The store applies its events off the UI thread and the panes project on [compute], so [block] waits
  * for what it looks at with [until]. A test that has to hold a projection back passes a [compute] it
@@ -33,11 +34,12 @@ internal fun paneTest(
     width: Int = 900,
     height: Int = 600,
     compute: CoroutineDispatcher = Dispatchers.Default,
+    data: ScenarioData = ScenarioData.of(id),
     content: @Composable () -> Unit,
     block: suspend DesktopComposeUiTest.(inspector: Inspector) -> Unit,
 ) = runDesktopComposeUiTest(width, height) {
     val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
-    val inspector = ScenarioData.of(id).newInspector(scope, compute)
+    val inspector = data.newInspector(scope, compute)
     val viewState = InspectorViewState()
     try {
         setContent {

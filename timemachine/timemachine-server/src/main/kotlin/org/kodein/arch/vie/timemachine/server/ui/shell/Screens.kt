@@ -32,6 +32,7 @@ import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineConnection
+import org.kodein.arch.vie.timemachine.server.store.ListenerState
 import org.kodein.arch.vie.timemachine.server.ui.common.HorizontalRule
 import org.kodein.arch.vie.timemachine.server.ui.common.LiveDot
 import org.kodein.arch.vie.timemachine.server.ui.common.TextAction
@@ -158,9 +159,13 @@ private fun SnippetCard() {
     }
 }
 
-/** The listener could not bind: nothing can connect until the port is free. */
+/**
+ * The listener did not start: nothing can connect until it does. A port in use is the one [reason] the
+ * screen can tell what to do about; for any other, it shows the failure's own [message].
+ */
 @Composable
-internal fun CannotListenScreen(message: String, onRetry: () -> Unit) {
+internal fun CannotListenScreen(reason: ListenerState.Failed.Reason, message: String, onRetry: () -> Unit) {
+    val inUse = reason == ListenerState.Failed.Reason.PortInUse
     val scheme = MaterialTheme.colorScheme
     val colors = InspectorTheme.colors
     val port = TimeMachineConnection.port
@@ -179,11 +184,12 @@ internal fun CannotListenScreen(message: String, onRetry: () -> Unit) {
                     style = MaterialTheme.typography.bodyMedium.copy(fontSize = 20.sp, lineHeight = 26.sp, fontWeight = FontWeight.Medium), color = scheme.onSurface,
                 )
                 Text(
-                    "Another program is already using it — usually a second TimeMachine inspector. No app can connect until the port is free.",
+                    if (inUse) "Another program is already using it — usually a second TimeMachine inspector. No app can connect until the port is free."
+                    else "The listener could not start. No app can connect until it does.",
                     style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.5.sp, lineHeight = 20.sp), color = scheme.onSurfaceVariant,
                 )
             }
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            if (inUse) Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Step(1) { Text("Close the other inspector window.", style = body) }
                 Step(2) {
                     Text("Not sure what holds it? Run", style = body)
@@ -191,7 +197,10 @@ internal fun CannotListenScreen(message: String, onRetry: () -> Unit) {
                     CopyGlyph("lsof -i :$port")
                 }
                 Step(3) { Text("Retry.", style = body) }
-            }
+            } else Text(
+                message, style = monoStyle(12f, scheme.onSurface),
+                modifier = Modifier.fillMaxWidth().background(scheme.surfaceContainerHigh, RoundedCornerShape(8.dp)).padding(horizontal = 12.dp, vertical = 10.dp),
+            )
             Row(
                 Modifier.height(34.dp).background(scheme.primary, InspectorPillShape)
                     .pointerHoverIcon(PointerIcon.Hand).clickable(onClick = onRetry).padding(start = 14.dp, end = 18.dp),
@@ -200,7 +209,7 @@ internal fun CannotListenScreen(message: String, onRetry: () -> Unit) {
                 Symbol("refresh", size = 18.dp, tint = scheme.onPrimary)
                 Text("Retry", style = MaterialTheme.typography.labelMedium.copy(fontSize = 13.sp), color = scheme.onPrimary)
             }
-            Text("$message · 0.0.0.0:$port", style = monoStyle(11.5f, scheme.outline))
+            Text(if (inUse) "$message · 0.0.0.0:$port" else "0.0.0.0:$port", style = monoStyle(11.5f, scheme.outline))
         }
     }
 }
