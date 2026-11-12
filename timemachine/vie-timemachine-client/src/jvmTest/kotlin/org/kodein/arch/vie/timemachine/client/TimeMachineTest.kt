@@ -10,6 +10,7 @@ import kotlin.test.assertIs
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.seconds
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.consumeAsFlow
 import kotlinx.coroutines.flow.filterIsInstance
 import kotlinx.coroutines.flow.first
@@ -126,6 +127,44 @@ class TimeMachineTest {
         assertTrue(info.model.typeName.endsWith("UndescribableModel"), info.model.typeName)
         assertEquals(role<StressIntent>().toVIETypeInfo(), info.intent)
         assertEquals(role<StressSignal>().toVIETypeInfo(), info.signal)
+    }
+
+    @Test
+    fun aProbeWhoseConnectionLoopDiesOfAnErrorIsRetiredAndCanBeStartedAgain() {
+        FakeInspector().use { inspector ->
+            val config = TimeMachineConfig(appName = "Retired", port = inspector.port)
+            val retired = CompletableDeferred<Unit>()
+            TimeMachine.start(config) { onRetired ->
+                TimeMachineClient(
+                    config,
+                    notice = { if ("connected to the inspector" in it) throw LinkageError("from the test") },
+                    onRetired = {
+                        onRetired(it)
+                        retired.complete(Unit)
+                    },
+                )
+            }
+            runBlocking { withTimeout(10.seconds) { retired.await() } }
+
+            assertSame<Any>(NoOpMiddleware, middleware(), "A retired probe must no longer provide observing middlewares")
+            TimeMachine.start(config("Again"))
+            assertIs<TimeMachineMiddleware<*, *, *>>(middleware())
+        }
+    }
+
+    @Test
+    fun anErrorWhileBuildingTheProbeDoesNotReachTheCaller() {
+        TimeMachine.start(config("Unbuildable")) { throw NoClassDefFoundError("from the test") }
+        assertSame<Any>(NoOpMiddleware, middleware())
+    }
+
+    @Test
+    fun anErrorWhileStartingTheProbeLeavesNoProbeRunning() {
+        val config = config("Unstartable")
+        TimeMachine.start(config) { onRetired ->
+            TimeMachineClient(config, notice = { throw LinkageError("from the test") }, onRetired = onRetired)
+        }
+        assertSame<Any>(NoOpMiddleware, middleware())
     }
 
     /** Starts the probe against an inspector, builds a ViewModel with [newVM], and checks how the inspector sees it. */

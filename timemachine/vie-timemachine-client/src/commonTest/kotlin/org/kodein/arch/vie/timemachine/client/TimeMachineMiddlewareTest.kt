@@ -191,6 +191,40 @@ class TimeMachineMiddlewareTest {
     }
 
     @Test
+    fun aMiddlewareWhoseSinkIsClosedReportsNothingAndLeavesItsViewModelWorking() = runTest {
+        val messages = mutableListOf<TimeMachineTimelineMessage>()
+        val sink = recordingSink(messages)
+        sink.close()
+
+        withoutView({ ProbeVM(CountModel(0), { copy(count = count + 1) }, listOf(probe<CountModel>(sink))) }) { vm ->
+            vm.post(ProbeIntent.Increment)
+            advanceUntilIdle()
+            assertEquals(1, vm.processed)
+        }
+
+        assertTrue(messages.isEmpty(), "Reported $messages")
+        assertTrue(sink.liveViewModels.isEmpty())
+    }
+
+    @Test
+    fun aSinkClosedWhileAViewModelLivesSilencesItsMiddleware() = runTest {
+        val messages = mutableListOf<TimeMachineTimelineMessage>()
+        val sink = recordingSink(messages)
+
+        withoutView({ ProbeVM(CountModel(0), { copy(count = count + 1) }, listOf(probe<CountModel>(sink))) }) { vm ->
+            advanceUntilIdle()
+            sink.close()
+            messages.clear()
+
+            vm.post(ProbeIntent.Increment)
+            advanceUntilIdle()
+            assertEquals(1, vm.processed)
+        }
+
+        assertTrue(messages.isEmpty(), "Reported $messages, the ViewModel's close included")
+    }
+
+    @Test
     fun aSubclassIsNamedAfterItselfNotItsParent() = runTest {
         val messages = mutableListOf<TimeMachineTimelineMessage>()
         withoutView({ ChildProbeVM(listOf(probe(recordingSink(messages)))) }) {}

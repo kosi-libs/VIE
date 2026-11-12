@@ -7,6 +7,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertNull
+import kotlin.test.assertSame
 import kotlin.test.assertTrue
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
@@ -55,6 +56,9 @@ private fun withClient(
     // Longer than any test: no connection becomes stable unless the test asks for it.
     stableAfter: Duration = 10.seconds,
     notices: SendChannel<String>? = null,
+    // Runs inside the probe, wherever it prints a notice: what it throws is thrown there.
+    onNotice: (String) -> Unit = {},
+    onRetired: (TimeMachineClient) -> Unit = {},
     block: suspend (TimeMachineClient) -> Unit,
 ) = runBlocking {
     val client = TimeMachineClient(
@@ -64,7 +68,8 @@ private fun withClient(
         stableAfter = stableAfter,
         handshakeTimeout = 300.milliseconds,
         window = window,
-        notice = { println(it); notices?.trySend(it) },
+        notice = { println(it); notices?.trySend(it); onNotice(it) },
+        onRetired = onRetired,
     )
     try {
         withTimeout(10.seconds) { block(client) }
@@ -435,6 +440,27 @@ class TimeMachineClientTest {
             // Still streaming: the next request is answered.
             connection.send(TimeMachineServerMessage.serializer(), TimeMachineServerMessage.RequestViewModelInfo(vm))
             assertEquals(TimeMachineClientMessage.ViewModelInfo(vm, info(vm)), inspector.received.receive())
+        }
+    }
+
+    @Test
+    fun anErrorInTheConnectionLoopRetiresTheProbe() {
+        val inspector = FakeInspector()
+        val retired = CompletableDeferred<TimeMachineClient>()
+        withClient(
+            inspector,
+            onNotice = { if ("connected to the inspector" in it) throw LinkageError("from the test") },
+            onRetired = { retired.complete(it) },
+        ) { client ->
+            val vm = Uuid.random()
+            client.sink.started(info(vm), noIntervention)
+            client.start()
+            inspector.hellos.receive()
+
+            assertSame(client, retired.await())
+            assertTrue(client.sink.isClosed, "A retired probe must stop buffering what its middlewares report")
+            assertTrue(client.sink.liveViewModels.isEmpty(), "A retired probe must let go of its ViewModels")
+            assertNull(withTimeoutOrNull(500.milliseconds) { inspector.hellos.receive() }, "A retired probe must not connect again")
         }
     }
 

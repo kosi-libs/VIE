@@ -32,6 +32,9 @@ import org.kodein.arch.vie.timemachine.protocol.VIEViewModelInfo
  * down the ViewModel's own dispatcher. The object therefore stays reachable until its entry is
  * described, just before it is sent, or dropped.
  *
+ * Once [close]d, when its probe stops, the sink reports nothing and knows no ViewModel: a middleware
+ * that outlives its probe then costs its ViewModel one check per object.
+ *
  * @param outlet Receives every entry, in report order for any single calling thread. Must not
  *   throw nor suspend.
  */
@@ -53,14 +56,24 @@ internal class TimeMachineSink(private val outlet: (Entry) -> Unit) {
     /** A ViewModel started and not closed yet. */
     class LiveViewModel(val info: VIEViewModelInfo, val intervener: TimeMachineIntervener)
 
-    private val live = AtomicReference<Map<Uuid, LiveViewModel>>(emptyMap())
+    // `null` once closed: a ViewModel that starts while the sink closes is then never registered.
+    private val live = AtomicReference<Map<Uuid, LiveViewModel>?>(emptyMap())
 
-    /** The ViewModels started and not closed yet, by identifier. */
-    val liveViewModels: Map<Uuid, LiveViewModel> get() = live.load()
+    /** Whether [close] was called. */
+    val isClosed: Boolean get() = live.load() == null
+
+    /** The ViewModels started and not closed yet, by identifier; none once the sink is closed. */
+    val liveViewModels: Map<Uuid, LiveViewModel> get() = live.load().orEmpty()
+
+    /** Stops reporting, for good, and lets go of the live ViewModels. */
+    fun close() {
+        live.store(null)
+    }
 
     /** Reports that the ViewModel described by [info] started, and that [intervener] intervenes in it. */
     fun started(info: VIEViewModelInfo, intervener: TimeMachineIntervener) {
-        live.update { it + (info.id to LiveViewModel(info, intervener)) }
+        if (isClosed) return
+        live.update { it?.plus(info.id to LiveViewModel(info, intervener)) }
         val at = Clock.System.now()
         outlet(Entry(info.id) { TimeMachineClientMessage.ViewModelStarted(info = info, at = at, sequence = it) })
     }
@@ -71,6 +84,8 @@ internal class TimeMachineSink(private val outlet: (Entry) -> Unit) {
      * @param interventionId The request that placed the object, or `null` if the app produced it.
      */
     fun <T : Any> observed(viewModelId: Uuid, kind: VIEObjectKind, role: VIERole<T>, value: T, interventionId: Uuid? = null) {
+        // Checked first: an object of a stopped probe costs neither a clock reading nor an entry.
+        if (isClosed) return
         val at = Clock.System.now()
         outlet(Entry(viewModelId) { sequence ->
             val asString = try {
@@ -94,7 +109,8 @@ internal class TimeMachineSink(private val outlet: (Entry) -> Unit) {
 
     /** Reports that the ViewModel [viewModelId] was closed. */
     fun closed(viewModelId: Uuid) {
-        live.update { it - viewModelId }
+        if (isClosed) return
+        live.update { it?.minus(viewModelId) }
         val at = Clock.System.now()
         outlet(Entry(viewModelId) { TimeMachineClientMessage.ViewModelClosed(viewModelId = viewModelId, at = at, sequence = it) })
     }
