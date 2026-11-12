@@ -969,7 +969,7 @@ private fun EvictedRow(count: Int) {
             Text(
                 buildAnnotatedString {
                     withStyle(SpanStyle(fontFamily = InspectorTheme.fonts.mono, fontWeight = FontWeight.Medium)) { append(count.toString()) }
-                    append(" older entries evicted · timeline size limit")
+                    append(" older ${if (count == 1) "entry" else "entries"} evicted · timeline size limit")
                 },
                 style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.5.sp), color = colors.evicted, maxLines = 1,
             )
