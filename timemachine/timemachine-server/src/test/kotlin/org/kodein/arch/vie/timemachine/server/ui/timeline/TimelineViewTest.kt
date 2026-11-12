@@ -36,6 +36,8 @@ import kotlin.test.assertTrue
 import kotlin.test.fail
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineSequence
 import org.kodein.arch.vie.timemachine.server.fixtures.Demo
+import org.kodein.arch.vie.timemachine.server.fixtures.SampleWorld
+import org.kodein.arch.vie.timemachine.server.fixtures.ScenarioData
 import org.kodein.arch.vie.timemachine.server.fixtures.paneTest
 import org.kodein.arch.vie.timemachine.server.fixtures.shown
 import org.kodein.arch.vie.timemachine.server.fixtures.until
@@ -296,6 +298,19 @@ class TimelineViewTest {
             until { shown("Possibly incomplete") }
             assertFalse(shown(lostInViewModel), "a session's timeline has no \"this ViewModel\"")
             assertTrue(shown(lostInSession))
+        }
+    }
+
+    @Test
+    fun `one evicted entry is counted in the singular`() {
+        // The earlier session's TaskListVM had three rows: a bound of two evicts one.
+        val earlierTaskList = InspectorScope.ViewModel(Demo.oldSession.id, Demo.oldTaskList)
+        paneTest(data = ScenarioData("main", SampleWorld.events(), maxRows = 2), content = { TimelineView(earlierTaskList) }) { inspector ->
+            until { inspector.timeline(earlierTaskList).projection.items.isNotEmpty() }
+            waitForIdle()
+
+            assertFalse(shown("1 older entries evicted · timeline size limit"))
+            assertTrue(shown("1 older entry evicted · timeline size limit"))
         }
     }
 }
