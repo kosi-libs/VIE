@@ -85,10 +85,15 @@ private fun Listening(status: StatusBarVIE.Model) {
     val colors = InspectorTheme.colors
     Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
         Box(Modifier.size(7.dp).background(if (status.listener is ListenerState.Failed) colors.error else colors.success, CircleShape))
-        when (status.listener) {
+        when (val listener = status.listener) {
             ListenerState.Starting -> Text("Starting…", style = StatusText, color = scheme.onSurfaceVariant)
-            is ListenerState.Failed ->
-                Text("Not listening — port ${TimeMachineConnection.port} is in use", style = StatusText, color = scheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            is ListenerState.Failed -> {
+                val why = when (listener.reason) {
+                    ListenerState.Failed.Reason.PortInUse -> "is in use"
+                    ListenerState.Failed.Reason.Other -> "could not be opened"
+                }
+                Text("Not listening — port ${TimeMachineConnection.port} $why", style = StatusText, color = scheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis)
+            }
             is ListenerState.Listening -> {
                 Text("Listening on", style = StatusText, color = scheme.onSurfaceVariant, maxLines = 1)
                 Text(status.address.orEmpty(), style = monoStyle(11f, scheme.onSurface), maxLines = 1)

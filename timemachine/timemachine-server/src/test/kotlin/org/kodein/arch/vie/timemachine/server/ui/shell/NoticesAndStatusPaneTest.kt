@@ -34,7 +34,7 @@ class NoticesAndStatusPaneTest {
             },
             block = {
                 runCurrent()
-                assertEquals(NoticesVIE.Screen.CannotListen("Address already in use"), model.screen)
+                assertEquals(NoticesVIE.Screen.CannotListen(ListenerState.Failed.Reason.PortInUse, "Address already in use"), model.screen)
                 post(NoticesVIE.Intent.Retry)
                 runCurrent()
                 assertEquals(1, retried)
