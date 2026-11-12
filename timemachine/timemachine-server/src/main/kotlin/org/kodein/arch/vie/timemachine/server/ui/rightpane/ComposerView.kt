@@ -60,7 +60,6 @@ import org.kodein.arch.vie.timemachine.server.ui.common.action
 import org.kodein.arch.vie.timemachine.server.ui.common.colorJsonLine
 import org.kodein.arch.vie.timemachine.server.ui.common.formatDelay
 import org.kodein.arch.vie.timemachine.server.ui.common.formatTime
-import org.kodein.arch.vie.timemachine.server.ui.common.monoStyle
 import org.kodein.arch.vie.timemachine.server.ui.common.splitSerialName
 import org.kodein.arch.vie.timemachine.server.ui.common.verb
 import org.kodein.arch.vie.timemachine.server.ui.core.InspectorPane
@@ -104,7 +103,7 @@ private fun ComposerContent(model: ComposerVIE.Model, editorHeight: Dp, post: (C
                 horizontalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 Symbol("do_not_disturb_on", size = 18.dp, tint = scheme.outline)
-                Text(text, style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.5.sp), color = scheme.onSurface, modifier = Modifier.weight(1f))
+                Text(text, style = InspectorTheme.text.bodyEmphasis, color = scheme.onSurface, modifier = Modifier.weight(1f))
             }
         }
         if (target != null) {
@@ -113,9 +112,9 @@ private fun ComposerContent(model: ComposerVIE.Model, editorHeight: Dp, post: (C
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                    Text("Target", style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp), color = scheme.outline, modifier = Modifier.width(44.dp))
-                    Text(projection.name, style = monoStyle(12f, scheme.onSurface, bold = true), maxLines = 1)
-                    Text(projection.shortId, style = monoStyle(11f, scheme.outline), maxLines = 1)
+                    Text("Target", style = InspectorTheme.text.body, color = scheme.outline, modifier = Modifier.width(44.dp))
+                    Text(projection.name, style = InspectorTheme.text.code, color = scheme.onSurface, fontWeight = FontWeight.SemiBold, maxLines = 1)
+                    Text(projection.shortId, style = InspectorTheme.text.monoSecondary, color = scheme.outline, maxLines = 1)
                 }
                 KindSegments(target.kind, target.enabledKinds, blocked) { post(ComposerVIE.Intent.SetKind(it)) }
                 projection.unserializable?.let { (kind, typeName) -> KindReason(kind, typeName) }
@@ -150,7 +149,7 @@ private fun KindSegments(kind: VIEObjectKind, enabled: Set<VIEObjectKind>, block
                 horizontalArrangement = Arrangement.spacedBy(4.dp, Alignment.CenterHorizontally), verticalAlignment = Alignment.CenterVertically,
             ) {
                 if (on) Symbol("check", size = 15.dp, tint = foreground) else if (!ok) Symbol("block", size = 15.dp, tint = foreground)
-                Text(entry.name, style = MaterialTheme.typography.labelMedium.copy(fontSize = 12.sp), color = foreground, maxLines = 1)
+                Text(entry.name, style = InspectorTheme.text.label, color = foreground, maxLines = 1)
             }
         }
     }
@@ -171,7 +170,7 @@ private fun KindReason(kind: VIEObjectKind, typeName: String) {
                 withStyle(SpanStyle(color = scheme.onSurface, fontFamily = InspectorTheme.fonts.mono)) { append(typeName) }
                 append(" isn’t serializable — ${kind.name}s of this ViewModel only exist as toString, so they can’t be $tail.")
             },
-            style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.5.sp), color = scheme.onSurfaceVariant,
+            style = InspectorTheme.text.note, color = scheme.onSurfaceVariant,
         )
     }
 }
@@ -191,13 +190,13 @@ private fun TypeField(type: String, types: List<String>, open: Boolean, blocked:
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Row(Modifier.weight(1f)) {
-                Text(name.prefix, style = monoStyle(12f, scheme.outline), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
-                Text(name.last, style = monoStyle(12f, scheme.onSurface, bold = true), maxLines = 1)
+                Text(name.prefix, style = InspectorTheme.text.code, color = scheme.outline, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
+                Text(name.last, style = InspectorTheme.text.code, color = scheme.onSurface, fontWeight = FontWeight.SemiBold, maxLines = 1)
             }
             Symbol(if (open) "arrow_drop_up" else "arrow_drop_down", size = 18.dp, tint = scheme.onSurfaceVariant)
         }
         Text(
-            "Type", style = MaterialTheme.typography.labelSmall.copy(fontSize = 10.5.sp), color = if (open) scheme.primary else scheme.onSurfaceVariant,
+            "Type", style = MaterialTheme.typography.labelSmall, color = if (open) scheme.primary else scheme.onSurfaceVariant,
             modifier = Modifier.offset(x = 10.dp, y = (-8).dp).background(scheme.surfaceContainerLow).padding(horizontal = 4.dp),
         )
         DropdownMenu(
@@ -213,8 +212,8 @@ private fun TypeField(type: String, types: List<String>, open: Boolean, blocked:
                     horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Symbol("check", size = 15.dp, tint = if (option == type) scheme.primary else Color.Transparent)
-                    Text(parts.prefix, style = monoStyle(12f, scheme.outline), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
-                    Text(parts.last, style = monoStyle(12f, scheme.onSurface, bold = true), maxLines = 1)
+                    Text(parts.prefix, style = InspectorTheme.text.code, color = scheme.outline, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
+                    Text(parts.last, style = InspectorTheme.text.code, color = scheme.onSurface, fontWeight = FontWeight.SemiBold, maxLines = 1)
                 }
             }
         }
@@ -232,14 +231,14 @@ private fun JsonSection(model: ComposerVIE.Model, editorHeight: Dp, blocked: Boo
     val invalid = projection.parse as? JsonParse.Invalid
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-            Text("JSON", style = MaterialTheme.typography.labelMedium.copy(fontSize = 11.5.sp), color = scheme.onSurface)
+            Text("JSON", style = InspectorTheme.text.action, color = scheme.onSurface)
             Text(
                 prefillNote(target.type.orEmpty(), target.kind, target.prefill?.source, edited = model.controls.draft != null),
-                style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.5.sp), color = scheme.outline, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f),
+                style = InspectorTheme.text.note, color = scheme.outline, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f),
             )
             for ((label, intent) in listOf("Format" to ComposerVIE.Intent.Format, "Reset" to ComposerVIE.Intent.Reset)) {
                 Text(
-                    label, style = MaterialTheme.typography.labelMedium.copy(fontSize = 11.5.sp), color = scheme.primary,
+                    label, style = InspectorTheme.text.action, color = scheme.primary,
                     modifier = Modifier.action(enabled = !blocked) { post(intent) },
                 )
             }
@@ -248,7 +247,7 @@ private fun JsonSection(model: ComposerVIE.Model, editorHeight: Dp, blocked: Boo
         target.signalNote?.let { note ->
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 Symbol("warning", size = 15.dp, tint = colors.timeout)
-                Text(note.text, style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.5.sp), color = scheme.onSurfaceVariant)
+                Text(note.text, style = InspectorTheme.text.note, color = scheme.onSurfaceVariant)
             }
         }
     }
@@ -270,7 +269,7 @@ private fun JsonEditorBox(text: String, invalid: JsonParse.Invalid?, enabled: Bo
                 horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.Top,
             ) {
                 Symbol("error", size = 15.dp, tint = colors.error)
-                Text("Line ${it.line}, col ${it.column}: ${it.message}. Fix it to send.", style = monoStyle(11.5f, scheme.onSurface))
+                Text("Line ${it.line}, col ${it.column}: ${it.message}. Fix it to send.", style = InspectorTheme.text.codeRow, color = scheme.onSurface)
             }
         }
     }
@@ -328,7 +327,7 @@ private fun JsonEditor(text: String, errorLine: Int?, enabled: Boolean, modifier
         Column(Modifier.width(34.dp).padding(end = 12.dp), horizontalAlignment = Alignment.End) {
             for (line in 1..lines) {
                 Text(
-                    line.toString(), style = monoStyle(12f, if (line == errorLine) colors.error else scheme.outline).copy(lineHeight = lineHeight),
+                    line.toString(), style = InspectorTheme.text.code.copy(lineHeight = lineHeight), color = if (line == errorLine) colors.error else scheme.outline,
                     maxLines = 1, modifier = Modifier.height(InspectorDimens.codeLine),
                 )
             }
@@ -337,7 +336,7 @@ private fun JsonEditor(text: String, errorLine: Int?, enabled: Boolean, modifier
             value = text,
             onValueChange = onText,
             enabled = enabled,
-            textStyle = monoStyle(12f, scheme.onSurfaceVariant).copy(lineHeight = lineHeight),
+            textStyle = InspectorTheme.text.code.copy(color = scheme.onSurfaceVariant, lineHeight = lineHeight),
             cursorBrush = SolidColor(scheme.primary),
             visualTransformation = coloring,
             modifier = Modifier.weight(1f).horizontalScroll(rememberScrollState()).padding(end = 10.dp),
@@ -370,9 +369,9 @@ private fun SendRow(kind: VIEObjectKind, enabled: Boolean, onSend: () -> Unit) {
             horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically,
         ) {
             Symbol(glyph, size = 17.dp, tint = foreground)
-            Text(verb(kind), style = MaterialTheme.typography.labelMedium.copy(fontSize = 13.sp), color = foreground, maxLines = 1)
+            Text(verb(kind), style = InspectorTheme.text.actionLarge, color = foreground, maxLines = 1)
         }
-        Text(effect, style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.5.sp), color = scheme.onSurfaceVariant, modifier = Modifier.weight(1f))
+        Text(effect, style = InspectorTheme.text.note, color = scheme.onSurfaceVariant, modifier = Modifier.weight(1f))
     }
 }
 
@@ -463,34 +462,34 @@ private fun ResultCard(view: InterventionView, projection: ComposerProjection, p
             CircularProgressIndicator(Modifier.padding(top = 1.dp).size(14.dp), color = scheme.primary, trackColor = InspectorTheme.colors.strongOutline, strokeWidth = 2.dp)
         } else Symbol(tone.glyph, size = 18.dp, tint = tone.glyphColor)
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text(title, style = MaterialTheme.typography.labelMedium.copy(fontSize = 12.5.sp, fontWeight = FontWeight.SemiBold), color = tone.title)
-            Text(body, style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp), color = scheme.onSurfaceVariant)
+            Text(title, style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold), color = tone.title)
+            Text(body, style = InspectorTheme.text.body, color = scheme.onSurfaceVariant)
             if (reasons.isNotEmpty()) Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                 reasons.forEach { reason ->
                     Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Text("–", style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.5.sp), color = scheme.outline)
-                        Text(reason, style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.5.sp), color = scheme.onSurfaceVariant)
+                        Text("–", style = InspectorTheme.text.note, color = scheme.outline)
+                        Text(reason, style = InspectorTheme.text.note, color = scheme.onSurfaceVariant)
                     }
                 }
             }
-            foot?.let { Text(it, style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.5.sp), color = scheme.outline) }
+            foot?.let { Text(it, style = InspectorTheme.text.note, color = scheme.outline) }
             if (status is InterventionStatus.Succeeded) {
                 if (view.rowRetained) Row(
                     Modifier.action { post(ComposerVIE.Intent.SelectRow(status.sequence)) },
                     horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Text("Jump to #${status.sequence}", style = MaterialTheme.typography.labelMedium.copy(fontSize = 12.sp), color = scheme.primary)
+                    Text("Jump to #${status.sequence}", style = InspectorTheme.text.label, color = scheme.primary)
                     Symbol("arrow_forward", size = 15.dp, tint = scheme.primary)
-                } else Text("Row #${status.sequence} is evicted", style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.5.sp), color = scheme.outline)
+                } else Text("Row #${status.sequence} is evicted", style = InspectorTheme.text.note, color = scheme.outline)
             }
             message?.let {
                 Text(
-                    it, style = monoStyle(11f, scheme.onSurface).copy(lineHeight = 16.sp),
+                    it, style = InspectorTheme.text.monoSecondary.copy(lineHeight = 16.sp), color = scheme.onSurface,
                     modifier = Modifier.fillMaxWidth().background(scheme.surfaceContainerLow, RoundedCornerShape(6.dp)).padding(horizontal = 8.dp, vertical = 6.dp),
                 )
             }
             if (status == InterventionStatus.TimedOut) Text(
-                "Resend", style = MaterialTheme.typography.labelMedium.copy(fontSize = 12.sp), color = scheme.primary,
+                "Resend", style = InspectorTheme.text.label, color = scheme.primary,
                 modifier = Modifier.action { post(ComposerVIE.Intent.Resend(view.requestId)) },
             )
         }
@@ -507,7 +506,7 @@ private fun RecentInterventions(history: List<InterventionView>, post: (Composer
             "RECENT INTERVENTIONS", style = MaterialTheme.typography.labelSmall.copy(letterSpacing = 0.06.sp), color = scheme.outline,
             modifier = Modifier.padding(bottom = 4.dp),
         )
-        if (history.isEmpty()) Text("None yet for this ViewModel.", style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp), color = scheme.outline)
+        if (history.isEmpty()) Text("None yet for this ViewModel.", style = InspectorTheme.text.body, color = scheme.outline)
         history.forEach { view ->
             val tone = toneOf(view.status)
             Row(
@@ -517,18 +516,18 @@ private fun RecentInterventions(history: List<InterventionView>, post: (Composer
             ) {
                 if (tone.glyph == null) CircularProgressIndicator(Modifier.size(14.dp), color = scheme.primary, trackColor = InspectorTheme.colors.strongOutline, strokeWidth = 2.dp)
                 else Symbol(tone.glyph, size = 17.dp, tint = tone.glyphColor)
-                Text("#${view.number}", style = monoStyle(11f, scheme.outline), modifier = Modifier.width(22.dp))
+                Text("#${view.number}", style = InspectorTheme.text.monoSecondary, color = scheme.outline, modifier = Modifier.width(22.dp))
                 Column(Modifier.weight(1f)) {
                     Text(
                         buildAnnotatedString {
                             append(verb(view.kind) + " ")
-                            withStyle(SpanStyle(fontFamily = InspectorTheme.fonts.mono, fontSize = 11.5.sp, color = scheme.onSurfaceVariant)) { append(splitSerialName(view.typeName).last) }
+                            withStyle(SpanStyle(fontFamily = InspectorTheme.fonts.mono, fontSize = InspectorTheme.text.codeRow.fontSize, color = scheme.onSurfaceVariant)) { append(splitSerialName(view.typeName).last) }
                         },
-                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp), color = scheme.onSurface, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                        style = InspectorTheme.text.body, color = scheme.onSurface, maxLines = 1, overflow = TextOverflow.Ellipsis,
                     )
                     Text(
                         "${statusText(view)} · ${formatTime(view.requestedAt)}",
-                        style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp),
+                        style = MaterialTheme.typography.bodySmall,
                         color = if (view.status is InterventionStatus.Failed) InspectorTheme.colors.error else scheme.outline, maxLines = 1, overflow = TextOverflow.Ellipsis,
                     )
                 }

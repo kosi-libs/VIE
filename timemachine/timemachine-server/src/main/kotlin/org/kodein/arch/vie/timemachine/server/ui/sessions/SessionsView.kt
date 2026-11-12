@@ -21,12 +21,10 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import org.kodein.arch.vie.timemachine.server.ui.common.LiveDot
 import org.kodein.arch.vie.timemachine.server.ui.common.TextAction
 import org.kodein.arch.vie.timemachine.server.ui.common.action
 import org.kodein.arch.vie.timemachine.server.ui.common.clock
-import org.kodein.arch.vie.timemachine.server.ui.common.monoStyle
 import org.kodein.arch.vie.timemachine.server.ui.common.viewModelName
 import org.kodein.arch.vie.timemachine.server.ui.core.InspectorPane
 import org.kodein.arch.vie.timemachine.server.ui.core.InspectorScope
@@ -34,6 +32,7 @@ import org.kodein.arch.vie.timemachine.server.ui.core.LocalInspector
 import org.kodein.arch.vie.timemachine.server.ui.core.LocalInspectorViewState
 import org.kodein.arch.vie.timemachine.server.ui.core.ViewModelStatus
 import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorDimens
+import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorTheme
 import org.kodein.arch.vie.timemachine.server.ui.theme.Symbol
 
 
@@ -78,7 +77,7 @@ private fun SessionsContent(model: SessionsVIE.Model, modifier: Modifier = Modif
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text("Sessions", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurface)
-            Text(model.sessions.size.toString(), style = monoStyle(11f, MaterialTheme.colorScheme.outline))
+            Text(model.sessions.size.toString(), style = InspectorTheme.text.monoSecondary, color = MaterialTheme.colorScheme.outline)
             Box(Modifier.weight(1f))
             TextAction(
                 "Clear disconnected", glyph = "delete_sweep", enabled = model.disconnectedSessions > 0,
@@ -120,17 +119,17 @@ private fun SessionBlock(session: SessionItem, selected: InspectorScope?, post: 
                         color = if (onSession) scheme.onPrimaryContainer else scheme.onSurface, maxLines = 1, overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.weight(1f, fill = false),
                     )
-                    Text(session.shortId, style = monoStyle(10.5f, scheme.outline), maxLines = 1)
+                    Text(session.shortId, style = InspectorTheme.text.monoMeta, color = scheme.outline, maxLines = 1)
                     LiveDot(session.connected)
                 }
                 Text(
                     if (session.connected) "connected ${clock(session.connectedAt)}"
                     else "${clock(session.connectedAt)} – ${session.disconnectedAt?.let(::clock) ?: "?"} · disconnected",
-                    style = monoStyle(10.5f, scheme.outline), maxLines = 1, overflow = TextOverflow.Ellipsis,
+                    style = InspectorTheme.text.monoMeta, color = scheme.outline, maxLines = 1, overflow = TextOverflow.Ellipsis,
                 )
             }
             if (onSession) {
-                Text("all ViewModels", style = MaterialTheme.typography.labelMedium.copy(fontSize = 10.5.sp), color = scheme.onPrimaryContainer, maxLines = 1)
+                Text("all ViewModels", style = InspectorTheme.text.tag, color = scheme.onPrimaryContainer, maxLines = 1)
             }
         }
         session.viewModels.forEach { vm ->
@@ -167,16 +166,16 @@ private fun ViewModelRow(vm: ViewModelItem, session: SessionItem, selected: Bool
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.Bottom) {
                 Text(
-                    name, style = monoStyle(12.5f, if (selected) scheme.onPrimaryContainer else scheme.onSurface, bold = true),
+                    name, style = InspectorTheme.text.monoTitle, color = if (selected) scheme.onPrimaryContainer else scheme.onSurface, fontWeight = FontWeight.SemiBold,
                     maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false),
                 )
-                if (vm.typeName != null) Text(vm.shortId, style = monoStyle(10.5f, scheme.outline), maxLines = 1)
+                if (vm.typeName != null) Text(vm.shortId, style = InspectorTheme.text.monoMeta, color = scheme.outline, maxLines = 1)
             }
             Text(vm.meta(session), style = MaterialTheme.typography.bodySmall, color = scheme.outline, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
         Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(3.dp)) {
             Sparkline(vm.sparkline, dead)
-            Text(if (vm.rowCount == 1) "1 entry" else "${vm.rowCount} entries", style = monoStyle(10.5f, scheme.outline), maxLines = 1)
+            Text(if (vm.rowCount == 1) "1 entry" else "${vm.rowCount} entries", style = InspectorTheme.text.monoMeta, color = scheme.outline, maxLines = 1)
         }
     }
 }

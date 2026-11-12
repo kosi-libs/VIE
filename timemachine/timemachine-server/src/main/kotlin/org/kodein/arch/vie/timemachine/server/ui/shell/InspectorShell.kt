@@ -28,7 +28,6 @@ import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.flow.map
@@ -47,6 +46,7 @@ import org.kodein.arch.vie.timemachine.server.ui.sessions.SessionsVIE
 import org.kodein.arch.vie.timemachine.server.ui.sessions.SessionsView
 import org.kodein.arch.vie.timemachine.server.ui.sessions.sessionsPane
 import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorDimens
+import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorTheme
 import org.kodein.arch.vie.timemachine.server.ui.theme.Symbol
 import org.kodein.arch.vie.timemachine.server.ui.timeline.TimelineView
 
@@ -263,10 +263,10 @@ private fun NoViewModelContent(model: SessionsVIE.Model, modifier: Modifier) {
     val session = model.sessions.firstOrNull { it.connected } ?: model.sessions.firstOrNull()
     Column(modifier, horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterVertically)) {
         Symbol("view_timeline", size = 28.dp, tint = scheme.outline)
-        Text("Select a ViewModel to see its timeline", style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.5.sp), color = scheme.onSurfaceVariant)
+        Text("Select a ViewModel to see its timeline", style = InspectorTheme.text.emptyTitle, color = scheme.onSurfaceVariant)
         session?.let {
             val count = it.viewModels.size
-            Text("${it.name} has $count ViewModel${if (count == 1) "" else "s"} · pick one on the left", style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp), color = scheme.outline)
+            Text("${it.name} has $count ViewModel${if (count == 1) "" else "s"} · pick one on the left", style = InspectorTheme.text.body, color = scheme.outline)
         }
     }
 }

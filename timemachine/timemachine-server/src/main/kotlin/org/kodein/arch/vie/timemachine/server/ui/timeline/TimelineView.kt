@@ -80,7 +80,6 @@ import org.kodein.arch.vie.timemachine.server.ui.common.copyToClipboard
 import org.kodein.arch.vie.timemachine.server.ui.common.formatTime
 import org.kodein.arch.vie.timemachine.server.ui.common.kind
 import org.kodein.arch.vie.timemachine.server.ui.common.kindContainer
-import org.kodein.arch.vie.timemachine.server.ui.common.monoStyle
 import org.kodein.arch.vie.timemachine.server.ui.common.pretty
 import org.kodein.arch.vie.timemachine.server.ui.common.rememberJsonLines
 import org.kodein.arch.vie.timemachine.server.ui.common.role
@@ -189,7 +188,7 @@ private fun StatusPill(text: String, color: Color, container: Color, square: Boo
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (dot) Box(Modifier.size(6.dp).background(color, if (square) RoundedCornerShape(1.dp) else CircleShape))
-        Text(text, style = MaterialTheme.typography.labelMedium.copy(fontSize = 11.5.sp), color = color, maxLines = 1)
+        Text(text, style = InspectorTheme.text.action, color = color, maxLines = 1)
     }
 }
 
@@ -197,7 +196,7 @@ private fun StatusPill(text: String, color: Color, container: Color, square: Boo
 private fun IdChip(text: String) {
     val scheme = MaterialTheme.colorScheme
     Text(
-        text, style = monoStyle(11f, scheme.onSurfaceVariant), maxLines = 1,
+        text, style = InspectorTheme.text.monoSecondary, color = scheme.onSurfaceVariant, maxLines = 1,
         modifier = Modifier.background(scheme.surfaceContainerHigh, RoundedCornerShape(4.dp)).padding(horizontal = 6.dp, vertical = 1.dp),
     )
 }
@@ -241,7 +240,7 @@ private fun ViewModelHeader(header: TimelineHeader.ViewModel) {
             }
             Text(
                 sub, maxLines = 1, overflow = TextOverflow.Ellipsis, color = scheme.outline,
-                style = if (info != null) monoStyle(11f, scheme.outline) else MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp),
+                style = if (info != null) InspectorTheme.text.monoSecondary else InspectorTheme.text.body,
             )
         }
         if (info != null) {
@@ -289,14 +288,14 @@ private fun TypeChip(kind: VIEObjectKind, role: VIETypeInfo, open: Boolean, onCl
         Box(Modifier.size(6.dp).background(colors.kind(kind), CircleShape))
         Text(
             kind.name,
-            style = MaterialTheme.typography.labelMedium.copy(
-                fontSize = 11.5.sp, fontWeight = FontWeight.Normal,
+            style = InspectorTheme.text.action.copy(
+                fontWeight = FontWeight.Normal,
                 textDecoration = if (role.isSerializable) TextDecoration.None else TextDecoration.LineThrough,
             ),
             color = if (role.isSerializable) scheme.onSurfaceVariant else scheme.outline,
         )
         Symbol(if (role.isSerializable) "data_object" else "text_fields", size = 14.dp, tint = if (role.isSerializable) colors.success else colors.error)
-        role.sealedSubTypes?.let { Text(it.size.toString(), style = monoStyle(10.5f, scheme.outline)) }
+        role.sealedSubTypes?.let { Text(it.size.toString(), style = InspectorTheme.text.monoMeta, color = scheme.outline) }
     }
 }
 
@@ -319,8 +318,8 @@ private fun TypeInfoPopover(info: org.kodein.arch.vie.timemachine.protocol.VIEVi
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                     KindBadge(kind)
                     Row(Modifier.weight(1f)) {
-                        Text(parts.prefix, style = monoStyle(11.5f, scheme.outline), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
-                        Text(parts.last, style = monoStyle(11.5f, scheme.onSurface, bold = true), maxLines = 1)
+                        Text(parts.prefix, style = InspectorTheme.text.codeRow, color = scheme.outline, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
+                        Text(parts.last, style = InspectorTheme.text.codeRow, color = scheme.onSurface, fontWeight = FontWeight.SemiBold, maxLines = 1)
                     }
                 }
                 FlowRow(
@@ -331,13 +330,13 @@ private fun TypeInfoPopover(info: org.kodein.arch.vie.timemachine.protocol.VIEVi
                     val ok = role.isSerializable
                     Text(
                         if (ok) "JSON · can intervene" else "toString only · can't intervene",
-                        style = MaterialTheme.typography.labelMedium.copy(fontSize = 11.sp),
+                        style = InspectorTheme.text.actionSmall,
                         color = if (ok) colors.success else colors.error,
                         modifier = Modifier.background(if (ok) colors.successContainer else colors.errorContainer, RoundedCornerShape(4.dp)).padding(horizontal = 6.dp),
                     )
                     role.sealedSubTypes?.forEach { sub ->
                         Text(
-                            sub, style = monoStyle(11f, scheme.onSurfaceVariant),
+                            sub, style = InspectorTheme.text.monoSecondary, color = scheme.onSurfaceVariant,
                             modifier = Modifier.border(1.dp, scheme.outlineVariant, RoundedCornerShape(4.dp)).padding(horizontal = 5.dp),
                         )
                     }
@@ -363,7 +362,7 @@ private fun SessionHeader(header: TimelineHeader.Session) {
         else StatusPill("disconnected", scheme.outline, scheme.surfaceContainerHigh)
         Text(
             "Session · ${header.viewModelCount} ViewModel${if (header.viewModelCount == 1) "" else "s"}",
-            style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp), color = scheme.onSurfaceVariant, maxLines = 1,
+            style = MaterialTheme.typography.bodySmall, color = scheme.onSurfaceVariant, maxLines = 1,
         )
     }
 }
@@ -433,7 +432,7 @@ private fun FilterSummary(hidden: Int, onClear: () -> Unit) {
             Symbol("filter_alt", size = 15.dp, tint = InspectorTheme.colors.intent)
             Text(
                 "$hidden ${if (hidden == 1) "entry" else "entries"} hidden",
-                style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.5.sp), color = scheme.onSurfaceVariant,
+                style = InspectorTheme.text.note, color = scheme.onSurfaceVariant,
             )
         }
         TextAction("Clear filters", onClick = onClear)
@@ -464,8 +463,8 @@ private fun FilterChip(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         glyph?.let { Symbol(it, size = 15.dp, tint = glyphColor) }
-        Text(label, style = MaterialTheme.typography.labelMedium.copy(fontSize = 12.sp), color = fg, maxLines = 1)
-        Text(count.toString(), style = monoStyle(10.5f, fg), modifier = Modifier.alpha(0.8f))
+        Text(label, style = InspectorTheme.text.label, color = fg, maxLines = 1)
+        Text(count.toString(), style = InspectorTheme.text.monoMeta, color = fg, modifier = Modifier.alpha(0.8f))
     }
 }
 
@@ -484,10 +483,10 @@ private fun SearchField(query: String, onFocus: (Boolean) -> Unit, onChange: (St
     ) {
         Symbol("search", size = 16.dp, tint = scheme.outline)
         Box(Modifier.weight(1f)) {
-            if (query.isEmpty()) Text("Search type, toString, JSON", style = monoStyle(12f, scheme.outline), maxLines = 1)
+            if (query.isEmpty()) Text("Search type, toString, JSON", style = InspectorTheme.text.code, color = scheme.outline, maxLines = 1)
             BasicTextField(
                 value = query, onValueChange = onChange, singleLine = true,
-                textStyle = monoStyle(12f, scheme.onSurface), cursorBrush = SolidColor(scheme.primary),
+                textStyle = InspectorTheme.text.code.copy(color = scheme.onSurface), cursorBrush = SolidColor(scheme.primary),
                 modifier = Modifier.fillMaxWidth().onFocusChanged { onFocus(it.isFocused) },
             )
         }
@@ -514,7 +513,7 @@ private fun FollowToggle(follow: FollowState, newCount: Int, onClick: () -> Unit
         Symbol(if (following) "vertical_align_bottom" else "pause", size = 15.dp, tint = color)
         Text(
             if (follow is FollowState.Paused) "Paused · $newCount new" else "Following",
-            style = MaterialTheme.typography.labelMedium.copy(fontSize = 11.5.sp), color = color, maxLines = 1,
+            style = InspectorTheme.text.action, color = color, maxLines = 1,
         )
     }
 }
@@ -625,8 +624,8 @@ private fun Rows(
                 horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically,
             ) {
                 Symbol("filter_alt_off", size = 15.dp, tint = scheme.onSurfaceVariant)
-                Text("selected row is hidden by filters — ", style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp), color = scheme.onSurfaceVariant)
-                Text("show", style = MaterialTheme.typography.labelMedium.copy(fontSize = 12.sp), color = scheme.primary)
+                Text("selected row is hidden by filters — ", style = InspectorTheme.text.body, color = scheme.onSurfaceVariant)
+                Text("show", style = InspectorTheme.text.label, color = scheme.primary)
             }
         }
         if (controls.follow is FollowState.Paused && projection.newCount > 0) {
@@ -649,11 +648,11 @@ private fun NoMatch(hidden: Int, onClear: () -> Unit) {
     val scheme = MaterialTheme.colorScheme
     Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 48.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Symbol("filter_alt_off", size = 26.dp, tint = scheme.outline)
-        Text("No entry matches the filters", style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.5.sp), color = scheme.onSurfaceVariant)
+        Text("No entry matches the filters", style = InspectorTheme.text.emptyTitle, color = scheme.onSurfaceVariant)
         Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("$hidden ${if (hidden == 1) "entry" else "entries"} hidden · ", style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp), color = scheme.outline)
+            Text("$hidden ${if (hidden == 1) "entry" else "entries"} hidden · ", style = InspectorTheme.text.body, color = scheme.outline)
             Text(
-                "Clear filters", style = MaterialTheme.typography.labelMedium.copy(fontSize = 12.sp), color = scheme.primary,
+                "Clear filters", style = InspectorTheme.text.label, color = scheme.primary,
                 modifier = Modifier.action(onClick = onClear),
             )
         }
@@ -664,8 +663,8 @@ private fun NoMatch(hidden: Int, onClear: () -> Unit) {
 private fun NoEntries() {
     val scheme = MaterialTheme.colorScheme
     Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 40.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text("No observations yet", style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.5.sp), color = scheme.onSurfaceVariant)
-        Text("Use the app — its Models, Intents and Signals appear here.", style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp), color = scheme.outline)
+        Text("No observations yet", style = InspectorTheme.text.emptyTitle, color = scheme.onSurfaceVariant)
+        Text("Use the app — its Models, Intents and Signals appear here.", style = InspectorTheme.text.body, color = scheme.outline)
     }
 }
 
@@ -701,16 +700,16 @@ private fun ObservationRow(
             )
             Text(
                 "#$sequence", textAlign = TextAlign.End, maxLines = 1, modifier = Modifier.width(SeqWidth),
-                style = monoStyle(11.5f, if (intervened) colors.intervened else if (selected) scheme.onSurface else scheme.outline, bold = intervened),
+                style = InspectorTheme.text.codeRow, color = if (intervened) colors.intervened else if (selected) scheme.onSurface else scheme.outline, fontWeight = if (intervened) FontWeight.SemiBold else FontWeight.Normal,
             )
-            Text(formatTime(observation.at), style = monoStyle(11.5f, scheme.outline), maxLines = 1, modifier = Modifier.width(TimeWidth))
+            Text(formatTime(observation.at), style = InspectorTheme.text.codeRow, color = scheme.outline, maxLines = 1, modifier = Modifier.width(TimeWidth))
             Symbol(if (observation.kind == VIEObjectKind.Intent) "login" else "logout", size = 16.dp, tint = kindColor, mirrored = observation.kind != VIEObjectKind.Intent)
             KindBadge(observation.kind)
             if (merged) {
                 item.source?.let { source ->
                     val viewModelId = (item.entry as? SessionTimelineEntry.Scoped)?.viewModelId
                     Text(
-                        source, style = monoStyle(11f, if (selected) scheme.onSurface else scheme.onSurfaceVariant), maxLines = 1, overflow = TextOverflow.Ellipsis,
+                        source, style = InspectorTheme.text.monoSecondary, color = if (selected) scheme.onSurface else scheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis,
                         modifier = Modifier
                             .width(SourceWidth).height(18.dp)
                             .background(scheme.surfaceContainerHigh, RoundedCornerShape(4.dp))
@@ -721,7 +720,7 @@ private fun ObservationRow(
             }
             if (observation.kind != VIEObjectKind.Model) {
                 Text(
-                    splitSerialName(observation.typeName).last, style = monoStyle(12f, scheme.onSurface, bold = true),
+                    splitSerialName(observation.typeName).last, style = InspectorTheme.text.code, color = scheme.onSurface, fontWeight = FontWeight.SemiBold,
                     maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.widthIn(max = 200.dp),
                 )
             }
@@ -732,13 +731,13 @@ private fun ObservationRow(
                 if (diff == null || query.isNotEmpty()) {
                     Text(
                         highlight(item.snippet ?: observation.asString, query, scheme.onPrimaryContainer, scheme.primaryContainer),
-                        style = monoStyle(11.5f, scheme.onSurfaceVariant), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f),
+                        style = InspectorTheme.text.codeRow, color = scheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f),
                     )
                 }
             }
             if (observation.asJson == null) {
                 Text(
-                    "toString only", style = monoStyle(10.5f, scheme.outline).copy(fontSize = 10.5.sp), maxLines = 1,
+                    "toString only", style = InspectorTheme.text.monoMeta, color = scheme.outline, maxLines = 1,
                     modifier = Modifier.border(1.dp, colors.strongOutline, RoundedCornerShape(4.dp)).padding(horizontal = 5.dp),
                 )
             }
@@ -758,7 +757,7 @@ private const val MaxDiffOps = 6
 private fun InitialChip() {
     val scheme = MaterialTheme.colorScheme
     Text(
-        "initial", style = MaterialTheme.typography.labelMedium.copy(fontSize = 10.5.sp), color = scheme.onSurfaceVariant, maxLines = 1,
+        "initial", style = InspectorTheme.text.tag, color = scheme.onSurfaceVariant, maxLines = 1,
         modifier = Modifier.background(scheme.surfaceContainerHigh, RoundedCornerShape(4.dp)).padding(horizontal = 6.dp, vertical = 1.dp),
     )
 }
@@ -795,7 +794,7 @@ private fun RowActions(observation: VIEObservation, onEdit: () -> Unit) {
             horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically,
         ) {
             Symbol("edit_note", size = 14.dp, tint = scheme.onPrimary)
-            Text("Edit & intervene", style = MaterialTheme.typography.labelMedium.copy(fontSize = 11.sp), color = scheme.onPrimary, maxLines = 1)
+            Text("Edit & intervene", style = InspectorTheme.text.actionSmall, color = scheme.onPrimary, maxLines = 1)
         }
         observation.asJson?.let { json ->
             Symbol("content_copy", size = 16.dp, tint = scheme.onSurfaceVariant, modifier = Modifier.action(description = CopyRowDescription) { copyToClipboard(json.pretty()) })
@@ -813,13 +812,13 @@ private fun ExpandedRow(observation: VIEObservation) {
         verticalArrangement = Arrangement.spacedBy(5.dp),
     ) {
         Text("TOSTRING", style = label, color = scheme.outline)
-        Text(observation.asString, style = monoStyle(11.5f, scheme.onSurface))
+        Text(observation.asString, style = InspectorTheme.text.codeRow, color = scheme.onSurface)
         observation.asJson?.let { json ->
             Text("JSON", style = label, color = scheme.outline, modifier = Modifier.padding(top = 4.dp))
             rememberJsonLines(remember(json) { json.pretty() }).forEachIndexed { index, line ->
                 Row(Modifier.height(18.dp)) {
-                    Text((index + 1).toString(), style = monoStyle(11.5f, scheme.outline), textAlign = TextAlign.End, modifier = Modifier.width(32.dp).padding(end = 10.dp), maxLines = 1)
-                    Text(line, style = monoStyle(11.5f, colors.jsonKey), softWrap = false, maxLines = 1)
+                    Text((index + 1).toString(), style = InspectorTheme.text.codeRow, color = scheme.outline, textAlign = TextAlign.End, modifier = Modifier.width(32.dp).padding(end = 10.dp), maxLines = 1)
+                    Text(line, style = InspectorTheme.text.codeRow, color = colors.jsonKey, softWrap = false, maxLines = 1)
                 }
             }
         }
@@ -857,12 +856,12 @@ private fun Bookend(sequence: TimeMachineSequence, at: kotlin.time.Instant, star
             horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically,
         ) {
             Box(Modifier.width(16.dp))
-            Text("#$sequence", style = monoStyle(11.5f, scheme.outline), textAlign = TextAlign.End, maxLines = 1, modifier = Modifier.width(SeqWidth))
-            Text(formatTime(at), style = monoStyle(11.5f, scheme.outline), maxLines = 1, modifier = Modifier.width(TimeWidth))
+            Text("#$sequence", style = InspectorTheme.text.codeRow, color = scheme.outline, textAlign = TextAlign.End, maxLines = 1, modifier = Modifier.width(SeqWidth))
+            Text(formatTime(at), style = InspectorTheme.text.codeRow, color = scheme.outline, maxLines = 1, modifier = Modifier.width(TimeWidth))
             Symbol(if (started) "play_circle" else "stop_circle", size = 16.dp, tint = if (started) colors.success else scheme.outline)
             Text(
                 "${label ?: "ViewModel"} ${if (started) "started" else "closed"}",
-                style = MaterialTheme.typography.labelMedium.copy(fontSize = 12.sp), color = scheme.onSurfaceVariant, maxLines = 1,
+                style = InspectorTheme.text.label, color = scheme.onSurfaceVariant, maxLines = 1,
             )
             Box(Modifier.weight(1f).height(1.dp).background(scheme.outlineVariant))
         }
@@ -885,7 +884,7 @@ private fun DividerRow(divider: SessionTimelineEntry.Divider) {
             horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically,
         ) {
             Symbol(glyph, size = 16.dp, tint = scheme.primary)
-            Text("session $text at ${formatTime(divider.at)}", style = monoStyle(11.5f, scheme.onSurface), maxLines = 1, overflow = TextOverflow.Ellipsis)
+            Text("session $text at ${formatTime(divider.at)}", style = InspectorTheme.text.codeRow, color = scheme.onSurface, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
         HorizontalRule()
     }
@@ -912,13 +911,13 @@ private fun GapRow(count: Int, sequence: TimeMachineSequence, label: String?) {
             horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically,
         ) {
             Symbol("link_off", size = 17.dp, tint = colors.gap)
-            Text("Gap", style = MaterialTheme.typography.labelMedium.copy(fontSize = 12.sp, fontWeight = FontWeight.SemiBold), color = colors.gap)
+            Text("Gap", style = InspectorTheme.text.label.copy(fontWeight = FontWeight.SemiBold), color = colors.gap)
             Text(
                 "$count ${if (count == 1) "entry" else "entries"} dropped${label?.let { " · $it" }.orEmpty()}",
-                style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp), color = MaterialTheme.colorScheme.onSurface,
+                style = InspectorTheme.text.body, color = MaterialTheme.colorScheme.onSurface,
                 maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f),
             )
-            Text("#$sequence", style = monoStyle(11f, colors.gap))
+            Text("#$sequence", style = InspectorTheme.text.monoSecondary, color = colors.gap)
         }
         HorizontalRule(color = colors.gap)
     }
@@ -942,14 +941,14 @@ private fun PossiblyIncompleteRow(range: ClosedRange<TimeMachineSequence>, share
         horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically,
     ) {
         Symbol("help", size = 16.dp, tint = colors.possiblyIncomplete)
-        Text("Possibly incomplete", style = MaterialTheme.typography.labelMedium.copy(fontSize = 12.sp, fontWeight = FontWeight.SemiBold), color = colors.possiblyIncomplete)
+        Text("Possibly incomplete", style = InspectorTheme.text.label.copy(fontWeight = FontWeight.SemiBold), color = colors.possiblyIncomplete)
         Text(
             if (shared) "entries were lost in this session here; they may belong to any of its ViewModels"
             else "entries were lost in this session here; some may belong to this ViewModel",
-            style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp), color = MaterialTheme.colorScheme.onSurfaceVariant,
+            style = InspectorTheme.text.body, color = MaterialTheme.colorScheme.onSurfaceVariant,
             maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f),
         )
-        Text(if (range.start == range.endInclusive) "#${range.start}" else "#${range.start}–#${range.endInclusive}", style = monoStyle(11f, colors.possiblyIncomplete))
+        Text(if (range.start == range.endInclusive) "#${range.start}" else "#${range.start}–#${range.endInclusive}", style = InspectorTheme.text.monoSecondary, color = colors.possiblyIncomplete)
     }
 }
 
@@ -972,7 +971,7 @@ private fun EvictedRow(count: Int) {
                     withStyle(SpanStyle(fontFamily = InspectorTheme.fonts.mono, fontWeight = FontWeight.Medium)) { append(count.toString()) }
                     append(" older ${if (count == 1) "entry" else "entries"} evicted · timeline size limit")
                 },
-                style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.5.sp), color = colors.evicted, maxLines = 1,
+                style = InspectorTheme.text.note, color = colors.evicted, maxLines = 1,
             )
         }
         Box(Modifier.weight(1f).height(1.dp).background(colors.strongOutline))
@@ -988,10 +987,10 @@ private fun HistoryUnavailableRow() {
             horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically,
         ) {
             Symbol("history_toggle_off", size = 17.dp, tint = colors.historyUnavailable)
-            Text("Earlier history unavailable", style = MaterialTheme.typography.labelMedium.copy(fontSize = 12.sp, fontWeight = FontWeight.SemiBold), color = colors.historyUnavailable, maxLines = 1)
+            Text("Earlier history unavailable", style = InspectorTheme.text.label.copy(fontWeight = FontWeight.SemiBold), color = colors.historyUnavailable, maxLines = 1)
             Text(
                 "— the inspector was restarted while the app kept running",
-                style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp), color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis,
+                style = InspectorTheme.text.body, color = MaterialTheme.colorScheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis,
             )
         }
         HorizontalRule(color = colors.rowLine)

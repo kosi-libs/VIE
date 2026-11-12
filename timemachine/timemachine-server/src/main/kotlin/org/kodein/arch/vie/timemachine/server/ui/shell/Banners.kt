@@ -17,7 +17,6 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineConnection
 import org.kodein.arch.vie.timemachine.server.ui.common.HorizontalRule
 import org.kodein.arch.vie.timemachine.server.ui.common.TextAction
@@ -50,7 +49,7 @@ internal fun RejectionBanner(notice: RejectionNotice, onDismiss: () -> Unit) {
                     buildAnnotatedString {
                         withStyle(SpanStyle(fontWeight = FontWeight.SemiBold)) { append("Rejected a connection from ${notice.name}") }
                         append(" ")
-                        withStyle(SpanStyle(fontFamily = mono, fontSize = 11.5.sp, color = scheme.onSurfaceVariant)) { append(shortSessionId(notice.sessionId)) }
+                        withStyle(SpanStyle(fontFamily = mono, fontSize = InspectorTheme.text.codeRow.fontSize, color = scheme.onSurfaceVariant)) { append(shortSessionId(notice.sessionId)) }
                         append(" — ${notice.name} uses protocol ")
                         withStyle(SpanStyle(fontFamily = mono)) { append(notice.protocolVersion.toString()) }
                         append(", this inspector speaks ")
@@ -67,7 +66,7 @@ internal fun RejectionBanner(notice: RejectionNotice, onDismiss: () -> Unit) {
                         append(if (notice.attempts == 1) " attempt · last " else " attempts · last ")
                         withStyle(SpanStyle(fontFamily = mono)) { append(clock(notice.lastAttemptAt)) }
                     },
-                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.5.sp), color = scheme.onSurfaceVariant,
+                    style = InspectorTheme.text.note, color = scheme.onSurfaceVariant,
                 )
             }
             TextAction("Dismiss", color = colors.error, height = 28.dp, onClick = onDismiss)

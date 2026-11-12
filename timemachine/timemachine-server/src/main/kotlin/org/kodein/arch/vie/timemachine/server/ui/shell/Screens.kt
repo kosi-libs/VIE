@@ -36,7 +36,6 @@ import org.kodein.arch.vie.timemachine.server.ui.common.LiveDot
 import org.kodein.arch.vie.timemachine.server.ui.common.TextAction
 import org.kodein.arch.vie.timemachine.server.ui.common.action
 import org.kodein.arch.vie.timemachine.server.ui.common.copyToClipboard
-import org.kodein.arch.vie.timemachine.server.ui.common.monoStyle
 import org.kodein.arch.vie.timemachine.server.ui.core.InspectorPane
 import org.kodein.arch.vie.timemachine.server.ui.core.LocalInspector
 import org.kodein.arch.vie.timemachine.server.ui.theme.AppLockup
@@ -60,7 +59,7 @@ private fun EmptyContent(status: StatusBarVIE.Model) {
         Column(Modifier.widthIn(max = 640.dp).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(22.dp)) {
             AppLockup()
             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                Text("Waiting for an app to connect", style = MaterialTheme.typography.bodyMedium.copy(fontSize = 18.sp, lineHeight = 24.sp, fontWeight = FontWeight.Medium), color = scheme.onSurface)
+                Text("Waiting for an app to connect", style = InspectorTheme.text.screenTitle, color = scheme.onSurface)
                 AddressLine(status)
             }
             SnippetCard()
@@ -68,7 +67,7 @@ private fun EmptyContent(status: StatusBarVIE.Model) {
                 Symbol("lock_open", size = 16.dp, tint = scheme.outline)
                 Text(
                     "The connection is unencrypted and unauthenticated. The inspector listens on all network interfaces: anyone on the network path can read your app's state, and anything that reaches the port can pose as an app. Use it on trusted networks.",
-                    style = MaterialTheme.typography.bodySmall.copy(fontSize = 12.sp, lineHeight = 16.sp), color = scheme.outline,
+                    style = InspectorTheme.text.body.copy(lineHeight = 16.sp), color = scheme.outline,
                 )
             }
         }
@@ -86,7 +85,7 @@ private fun AddressLine(status: StatusBarVIE.Model) {
         } else {
             LiveDot(true)
             Text("Listening on", style = body)
-            Text(address, style = monoStyle(12.5f, scheme.onSurface), modifier = Modifier.background(scheme.surfaceContainerHigh, RoundedCornerShape(4.dp)).padding(horizontal = 8.dp, vertical = 2.dp))
+            Text(address, style = InspectorTheme.text.monoTitle, color = scheme.onSurface, modifier = Modifier.background(scheme.surfaceContainerHigh, RoundedCornerShape(4.dp)).padding(horizontal = 8.dp, vertical = 2.dp))
             CopyGlyph(address, CopyAddressDescription)
             Text(
                 buildAnnotatedString {
@@ -162,7 +161,7 @@ private fun SnippetCard() {
         HorizontalRule()
         Text(
             remember(colors) { probeSnippetText(colors) },
-            style = monoStyle(12.5f, scheme.onSurface).copy(lineHeight = 20.sp),
+            style = InspectorTheme.text.monoTitle.copy(lineHeight = 20.sp), color = scheme.onSurface,
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 14.dp),
         )
     }
@@ -190,24 +189,24 @@ internal fun CannotListenScreen(reason: ListenerState.Failed.Reason, message: St
                         append("Can't listen on port ")
                         withStyle(SpanStyle(fontFamily = InspectorTheme.fonts.mono)) { append(port.toString()) }
                     },
-                    style = MaterialTheme.typography.bodyMedium.copy(fontSize = 20.sp, lineHeight = 26.sp, fontWeight = FontWeight.Medium), color = scheme.onSurface,
+                    style = InspectorTheme.text.screenHeadline, color = scheme.onSurface,
                 )
                 Text(
                     if (inUse) "Another program is already using it — usually a second TimeMachine inspector. No app can connect until the port is free."
                     else "The listener could not start. No app can connect until it does.",
-                    style = MaterialTheme.typography.bodyMedium.copy(fontSize = 13.5.sp, lineHeight = 20.sp), color = scheme.onSurfaceVariant,
+                    style = InspectorTheme.text.emptyTitle.copy(lineHeight = 20.sp), color = scheme.onSurfaceVariant,
                 )
             }
             if (inUse) Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Step(1) { Text("Close the other inspector window.", style = body) }
                 Step(2) {
                     Text("Not sure what holds it? Run", style = body)
-                    Text("lsof -i :$port", style = monoStyle(12f, scheme.onSurface), modifier = Modifier.background(scheme.surfaceContainerHigh, RoundedCornerShape(4.dp)).padding(horizontal = 8.dp, vertical = 2.dp))
+                    Text("lsof -i :$port", style = InspectorTheme.text.code, color = scheme.onSurface, modifier = Modifier.background(scheme.surfaceContainerHigh, RoundedCornerShape(4.dp)).padding(horizontal = 8.dp, vertical = 2.dp))
                     CopyGlyph("lsof -i :$port", CopyCommandDescription)
                 }
                 Step(3) { Text("Retry.", style = body) }
             } else Text(
-                message, style = monoStyle(12f, scheme.onSurface),
+                message, style = InspectorTheme.text.code, color = scheme.onSurface,
                 modifier = Modifier.fillMaxWidth().background(scheme.surfaceContainerHigh, RoundedCornerShape(8.dp)).padding(horizontal = 12.dp, vertical = 10.dp),
             )
             Row(
@@ -216,9 +215,9 @@ internal fun CannotListenScreen(reason: ListenerState.Failed.Reason, message: St
                 horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically,
             ) {
                 Symbol("refresh", size = 18.dp, tint = scheme.onPrimary)
-                Text("Retry", style = MaterialTheme.typography.labelMedium.copy(fontSize = 13.sp), color = scheme.onPrimary)
+                Text("Retry", style = InspectorTheme.text.actionLarge, color = scheme.onPrimary)
             }
-            Text(if (inUse) "$message · 0.0.0.0:$port" else "0.0.0.0:$port", style = monoStyle(11.5f, scheme.outline))
+            Text(if (inUse) "$message · 0.0.0.0:$port" else "0.0.0.0:$port", style = InspectorTheme.text.codeRow, color = scheme.outline)
         }
     }
 }
@@ -226,7 +225,7 @@ internal fun CannotListenScreen(reason: ListenerState.Failed.Reason, message: St
 @Composable
 private fun Step(number: Int, content: @Composable () -> Unit) {
     Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
-        Text(number.toString(), style = monoStyle(13f, MaterialTheme.colorScheme.outline))
+        Text(number.toString(), style = InspectorTheme.text.monoNumeral, color = MaterialTheme.colorScheme.outline)
         content()
     }
 }

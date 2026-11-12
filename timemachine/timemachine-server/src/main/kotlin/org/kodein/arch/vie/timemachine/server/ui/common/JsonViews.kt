@@ -25,7 +25,6 @@ import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
@@ -138,12 +137,12 @@ internal fun JsonTree(
                 if (line.openable) Symbol(if (line.open) "expand_more" else "chevron_right", size = 14.dp, tint = scheme.outline)
                 else Spacer(Modifier.width(14.dp))
                 if (line.key != null) {
-                    Text(line.key, style = monoStyle(12f, if (line.isIndex) scheme.outline else colors.jsonKey), maxLines = 1)
-                    Text(": ", style = monoStyle(12f, scheme.outline), maxLines = 1)
+                    Text(line.key, style = InspectorTheme.text.code, color = if (line.isIndex) scheme.outline else colors.jsonKey, maxLines = 1)
+                    Text(": ", style = InspectorTheme.text.code, color = scheme.outline, maxLines = 1)
                 }
-                Text(line.text, style = monoStyle(12f, colors.value(line.kind, scheme.onSurfaceVariant)), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
+                Text(line.text, style = InspectorTheme.text.code, color = colors.value(line.kind, scheme.onSurfaceVariant), maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
                 line.summary?.let {
-                    Text(it, style = MaterialTheme.typography.bodySmall.copy(fontSize = 11.sp, fontStyle = FontStyle.Italic), color = scheme.outline, maxLines = 1, modifier = Modifier.padding(start = 6.dp))
+                    Text(it, style = MaterialTheme.typography.bodySmall.copy(fontStyle = FontStyle.Italic), color = scheme.outline, maxLines = 1, modifier = Modifier.padding(start = 6.dp))
                 }
             }
         }
@@ -157,8 +156,8 @@ internal fun RawJson(text: String, modifier: Modifier = Modifier) {
     Column(modifier) {
         rememberJsonLines(text).forEachIndexed { index, line ->
             Row(Modifier.height(InspectorDimens.codeLine)) {
-                Text((index + 1).toString(), style = monoStyle(12f, scheme.outline), textAlign = TextAlign.End, maxLines = 1, modifier = Modifier.width(34.dp).padding(end = 10.dp))
-                Text(line, style = monoStyle(12f, scheme.onSurfaceVariant), softWrap = false, maxLines = 1)
+                Text((index + 1).toString(), style = InspectorTheme.text.code, color = scheme.outline, textAlign = TextAlign.End, maxLines = 1, modifier = Modifier.width(34.dp).padding(end = 10.dp))
+                Text(line, style = InspectorTheme.text.code, color = scheme.onSurfaceVariant, softWrap = false, maxLines = 1)
             }
         }
     }
@@ -180,7 +179,7 @@ internal fun TreeRawSwitch(raw: Boolean, modifier: Modifier = Modifier, onChange
                     .action(role = Role.RadioButton, selected = on) { onChange(isRaw) }.padding(horizontal = 10.dp),
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text(label, style = MaterialTheme.typography.labelMedium.copy(fontSize = 11.sp), color = if (on) scheme.onPrimaryContainer else scheme.onSurfaceVariant, maxLines = 1)
+                Text(label, style = InspectorTheme.text.actionSmall, color = if (on) scheme.onPrimaryContainer else scheme.onSurfaceVariant, maxLines = 1)
             }
         }
     }

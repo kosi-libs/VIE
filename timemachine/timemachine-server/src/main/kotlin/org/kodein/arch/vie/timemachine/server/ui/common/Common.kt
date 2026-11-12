@@ -24,10 +24,8 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorPillShape
 import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorTheme
 import org.kodein.arch.vie.timemachine.server.ui.theme.Symbol
@@ -35,16 +33,6 @@ import java.awt.Toolkit
 import java.awt.datatransfer.StringSelection
 import kotlin.time.Instant
 
-
-/** [InspectorTheme.fonts]' mono at [size], in [color]. */
-@Composable
-internal fun monoStyle(size: Float, color: Color, bold: Boolean = false): TextStyle =
-    TextStyle(
-        fontFamily = InspectorTheme.fonts.mono,
-        fontSize = size.sp,
-        color = color,
-        fontWeight = if (bold) androidx.compose.ui.text.font.FontWeight.SemiBold else androidx.compose.ui.text.font.FontWeight.Normal,
-    )
 
 /** `HH:mm:ss`: the design prints seconds in the shell, milliseconds only in the timeline. */
 internal fun clock(at: Instant): String = formatTime(at).take(8)
@@ -117,7 +105,7 @@ internal fun TextAction(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         glyph?.let { Symbol(it, size = 15.dp, tint = tint) }
-        Text(label, style = MaterialTheme.typography.labelMedium.copy(fontSize = 11.5.sp), color = tint, maxLines = 1)
+        Text(label, style = InspectorTheme.text.action, color = tint, maxLines = 1)
     }
 }
 
