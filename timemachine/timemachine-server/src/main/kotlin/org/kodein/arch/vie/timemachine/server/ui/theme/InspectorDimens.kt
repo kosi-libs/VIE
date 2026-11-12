@@ -33,6 +33,10 @@ object InspectorDimens {
     val tabRow: Dp = 38.dp
     val sendButton: Dp = 34.dp
 
+    /** A scrollbar's thumb, and the track it lies in over the edge of what scrolls. */
+    val scrollbarThumb: Dp = 6.dp
+    val scrollbarTrack: Dp = 8.dp
+
     val dividerHitArea: Dp = 8.dp
     val minSessionsPane: Dp = 200.dp
     val minRightPane: Dp = 320.dp

@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.rememberScrollbarAdapter
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.BasicTextField
@@ -76,6 +77,7 @@ import org.kodein.arch.vie.timemachine.protocol.VIEViewModelInfo
 import org.kodein.arch.vie.timemachine.server.store.SessionTimelineEntry
 import org.kodein.arch.vie.timemachine.server.store.TimelineEntry
 import org.kodein.arch.vie.timemachine.server.ui.common.DiffText
+import org.kodein.arch.vie.timemachine.server.ui.common.EdgeScrollbar
 import org.kodein.arch.vie.timemachine.server.ui.common.HorizontalRule
 import org.kodein.arch.vie.timemachine.server.ui.common.KindBadge
 import org.kodein.arch.vie.timemachine.server.ui.common.LocalCompact
@@ -620,6 +622,7 @@ private fun Rows(
             }
             if (noEntries) item(key = "no-entries", contentType = RowContent.NoEntries) { NoEntries() }
         }
+        EdgeScrollbar(rememberScrollbarAdapter(state))
         if (projection.selectedHidden) {
             Row(
                 Modifier.align(Alignment.TopCenter).padding(top = 10.dp)
