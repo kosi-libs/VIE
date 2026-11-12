@@ -326,10 +326,8 @@ internal class TimelineVM(
             is TimelineVIE.Intent.SelectRow -> inspector.selection.selectRow(intent.sequence)
             is TimelineVIE.Intent.Step -> step(intent.delta)
             is TimelineVIE.Intent.ComposeFrom -> composeFrom(intent.sequence)
-            is TimelineVIE.Intent.OpenViewModel -> {
-                inspector.selection.selectScope(InspectorScope.ViewModel(scope.sessionId, intent.viewModelId))
-                inspector.selection.selectRow(intent.sequence)
-            }
+            is TimelineVIE.Intent.OpenViewModel ->
+                inspector.selection.selectRowIn(InspectorScope.ViewModel(scope.sessionId, intent.viewModelId), intent.sequence)
             TimelineVIE.Intent.ShowSelectedRow -> showSelectedRow()
         }
     }

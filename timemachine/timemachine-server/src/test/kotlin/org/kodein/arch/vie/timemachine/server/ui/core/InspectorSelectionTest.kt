@@ -56,6 +56,41 @@ class InspectorSelectionTest {
     }
 
     @Test
+    fun `a row selected in another scope changes the scope as a scope change does, with the row`() {
+        val selection = InspectorSelection()
+        selection.selectScope(demoSession)
+        selection.selectRow(seq(258))
+        selection.composeFrom(Demo.taskList, VIEObjectKind.Model, Demo.TaskListModel, "{}")
+
+        selection.selectRowIn(editScope, seq(258))
+
+        assertEquals(Selection(scope = editScope, row = seq(258), tab = RightTab.Composer, composerRequest = null), selection.state.value)
+    }
+
+    @Test
+    fun `a row selected in another scope keeps a request for that scope's ViewModel`() {
+        val selection = InspectorSelection()
+        selection.selectScope(demoSession)
+        selection.composeFrom(Demo.editTask, VIEObjectKind.Intent, Demo.EditTaskEdit, "{}")
+
+        selection.selectRowIn(editScope, seq(258))
+
+        assertEquals(Demo.editTask, selection.state.value.composerRequest?.viewModelId)
+        assertEquals(seq(258), selection.state.value.row)
+    }
+
+    @Test
+    fun `a row selected in the scope already selected is that row`() {
+        val selection = InspectorSelection()
+        selection.selectScope(taskListScope)
+        selection.selectRow(seq(208))
+
+        selection.selectRowIn(taskListScope, seq(229))
+
+        assertEquals(Selection(scope = taskListScope, row = seq(229)), selection.state.value)
+    }
+
+    @Test
     fun `composeFrom opens the Composer tab and records the request`() {
         val selection = InspectorSelection()
         selection.composeFrom(Demo.taskList, VIEObjectKind.Intent, Demo.DeleteTask, "{\"a\":1}")

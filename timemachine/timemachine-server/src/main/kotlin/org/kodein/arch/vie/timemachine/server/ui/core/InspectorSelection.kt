@@ -98,19 +98,28 @@ internal class InspectorSelection(initial: Selection = Selection()) {
 
     /** Another scope clears the row, keeps the tab, and drops a request unless it targets the new scope's ViewModel. */
     fun selectScope(scope: InspectorScope?) {
-        mutable.update { current ->
-            if (current.scope == scope) current
-            else current.copy(
-                scope = scope,
-                row = null,
-                composerRequest = current.composerRequest?.takeIf { scope is InspectorScope.ViewModel && scope.viewModelId == it.viewModelId },
-            )
-        }
+        mutable.update { it.inScope(scope) }
     }
 
     fun selectRow(sequence: TimeMachineSequence?) {
         mutable.update { it.copy(row = sequence) }
     }
+
+    /**
+     * A row in the timeline of [scope], which may not be the one selected: the scope, as [selectScope]
+     * selects it, and the row, in the one update. Two would show every pane the scope without its row.
+     */
+    fun selectRowIn(scope: InspectorScope, sequence: TimeMachineSequence) {
+        mutable.update { it.inScope(scope).copy(row = sequence) }
+    }
+
+    private fun Selection.inScope(scope: InspectorScope?): Selection =
+        if (this.scope == scope) this
+        else copy(
+            scope = scope,
+            row = null,
+            composerRequest = composerRequest?.takeIf { scope is InspectorScope.ViewModel && scope.viewModelId == it.viewModelId },
+        )
 
     fun selectTab(tab: RightTab) {
         mutable.update { it.copy(tab = tab) }

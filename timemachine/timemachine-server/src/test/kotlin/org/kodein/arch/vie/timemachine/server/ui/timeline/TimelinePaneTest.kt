@@ -3,7 +3,9 @@
 package org.kodein.arch.vie.timemachine.server.ui.timeline
 
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestResult
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import org.kodein.arch.vie.VIE
 import org.kodein.arch.vie.test.VMTestScope
 import org.kodein.arch.vie.test.runVMTest
@@ -367,4 +369,17 @@ class TimelinePaneTest {
         length = 100,
         now = Demo.now,
     )
+
+    @Test
+    fun `opening a row's ViewModel selects its scope and the row in one update`() = timeline(scope = demoSession) { inspector ->
+        val seen = mutableListOf<Selection>()
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { inspector.selection.state.collect { seen += it } }
+
+        post(TimelineVIE.Intent.OpenViewModel(Demo.taskList, seq(208)))
+        runCurrent()
+
+        val opened = Selection(scope = taskListScope, row = seq(208))
+        assertEquals(opened, inspector.selection.state.value)
+        assertEquals(listOf(Selection(scope = demoSession), opened), seen, "no pane sees the ViewModel's scope without its row")
+    }
 }
