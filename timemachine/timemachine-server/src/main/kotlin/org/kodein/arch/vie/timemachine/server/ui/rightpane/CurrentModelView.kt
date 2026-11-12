@@ -76,7 +76,7 @@ private fun CurrentModelContent(model: CurrentModelVIE.Model, post: (CurrentMode
     val copy = rememberCopy()
     Column(Modifier.fillMaxWidth().height(if (compact) CompactPinnedHeight else PinnedHeight)) {
         Row(
-            Modifier.fillMaxWidth().height(InspectorDimens.paneHeader).padding(start = 14.dp, end = 8.dp),
+            Modifier.fillMaxWidth().height(InspectorDimens.paneHeader).padding(start = InspectorDimens.paneHorizontalPadding, end = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically,
         ) {
             Symbol("push_pin", size = 16.dp, tint = InspectorTheme.colors.model)
@@ -112,7 +112,7 @@ private fun CurrentModelContent(model: CurrentModelVIE.Model, post: (CurrentMode
         }
         if (projection.changedFrom != null && projection.json != null && projection.changedPaths.isNotEmpty()) {
             Row(
-                Modifier.fillMaxWidth().padding(start = 14.dp, end = 14.dp, bottom = 4.dp),
+                Modifier.fillMaxWidth().padding(start = InspectorDimens.paneHorizontalPadding, end = InspectorDimens.paneHorizontalPadding, bottom = 4.dp),
                 horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically,
             ) {
                 Box(Modifier.size(8.dp).background(InspectorTheme.colors.modelContainer, RoundedCornerShape(2.dp)).border(1.dp, InspectorTheme.colors.model, RoundedCornerShape(2.dp)))

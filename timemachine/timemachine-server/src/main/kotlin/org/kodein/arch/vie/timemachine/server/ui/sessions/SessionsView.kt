@@ -73,7 +73,7 @@ private fun SessionsSlot(model: SessionsVIE.Model, presentation: SessionsPresent
 private fun SessionsContent(model: SessionsVIE.Model, modifier: Modifier = Modifier, post: (SessionsVIE.Intent) -> Unit) {
     Column(modifier.background(MaterialTheme.colorScheme.surfaceContainerLow)) {
         Row(
-            Modifier.fillMaxWidth().height(InspectorDimens.paneHeader).padding(start = 14.dp, end = 8.dp),
+            Modifier.fillMaxWidth().height(InspectorDimens.paneHeader).padding(start = InspectorDimens.paneHorizontalPadding, end = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(6.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
