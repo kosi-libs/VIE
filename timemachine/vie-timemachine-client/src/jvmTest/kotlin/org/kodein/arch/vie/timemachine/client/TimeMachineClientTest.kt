@@ -62,7 +62,7 @@ private fun withClient(
     block: suspend (TimeMachineClient) -> Unit,
 ) = runBlocking {
     val client = TimeMachineClient(
-        TimeMachineConfig(appName = "ClientTest", port = inspector.port, bufferSize = bufferSize),
+        TimeMachineConfig(appName = "ClientTest", enabled = true, port = inspector.port, bufferSize = bufferSize),
         firstRetryDelay = 20.milliseconds,
         maxRetryDelay = maxRetryDelay,
         stableAfter = stableAfter,
