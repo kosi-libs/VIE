@@ -605,8 +605,8 @@ private fun Rows(
 
     Box(Modifier.fillMaxSize()) {
         LazyColumn(Modifier.fillMaxSize(), state = state) {
-            if (noMatch) item(key = "no-match") { NoMatch(projection.hidden) { post(TimelineVIE.Intent.ClearFilters) } }
-            itemsIndexed(items, key = { _, item -> item.key }) { _, item ->
+            if (noMatch) item(key = "no-match", contentType = RowContent.NoMatch) { NoMatch(projection.hidden) { post(TimelineVIE.Intent.ClearFilters) } }
+            itemsIndexed(items, key = { _, item -> item.key }, contentType = { _, item -> item.content() }) { _, item ->
                 val sequence = item.sequence
                 when {
                     item.observation != null && sequence != null ->
@@ -618,7 +618,7 @@ private fun Rows(
                     else -> MarkerRow(item)
                 }
             }
-            if (noEntries) item(key = "no-entries") { NoEntries() }
+            if (noEntries) item(key = "no-entries", contentType = RowContent.NoEntries) { NoEntries() }
         }
         if (projection.selectedHidden) {
             Row(
@@ -827,6 +827,27 @@ private fun ExpandedRow(observation: VIEObservation) {
                     Text(line, style = InspectorTheme.text.codeRow, color = colors.jsonKey, softWrap = false, maxLines = 1)
                 }
             }
+        }
+    }
+}
+
+/**
+ * What a row of the list is made of. A row that scrolls into view is composed in the nodes of one of the
+ * same content that scrolled out, rather than from nothing.
+ */
+private enum class RowContent { Observation, Bookend, Gap, Divider, PossiblyIncomplete, Evicted, HistoryUnavailable, NoMatch, NoEntries }
+
+private fun TimelineItem.content(): RowContent = when (val entry = entry) {
+    is SessionTimelineEntry.Divider -> RowContent.Divider
+    is SessionTimelineEntry.Shared -> RowContent.PossiblyIncomplete
+    is SessionTimelineEntry.Scoped -> when (val e = entry.entry) {
+        TimelineEntry.HistoryUnavailable -> RowContent.HistoryUnavailable
+        is TimelineEntry.Evicted -> RowContent.Evicted
+        is TimelineEntry.PossiblyIncomplete -> RowContent.PossiblyIncomplete
+        is TimelineEntry.Message -> when (e.row.message) {
+            is TimeMachineClientMessage.Observed -> RowContent.Observation
+            is TimeMachineClientMessage.ObservationsDropped -> RowContent.Gap
+            is TimeMachineClientMessage.ViewModelStarted, is TimeMachineClientMessage.ViewModelClosed -> RowContent.Bookend
         }
     }
 }
