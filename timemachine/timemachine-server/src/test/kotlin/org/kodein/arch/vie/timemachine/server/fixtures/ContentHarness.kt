@@ -8,7 +8,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.test.DesktopComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
-import androidx.compose.ui.test.runDesktopComposeUiTest
+import androidx.compose.ui.test.v2.runDesktopComposeUiTest
 import org.kodein.arch.vie.VIE
 import org.kodein.arch.vie.VIEViewScope
 import org.kodein.arch.vie.test.MockVIE
