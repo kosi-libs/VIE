@@ -15,8 +15,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
-import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
@@ -28,13 +26,12 @@ import androidx.compose.ui.input.pointer.pointerHoverIcon
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import org.kodein.arch.vie.timemachine.server.store.ViewModelRecord
 import org.kodein.arch.vie.timemachine.server.ui.common.HorizontalRule
 import org.kodein.arch.vie.timemachine.server.ui.common.monoStyle
+import org.kodein.arch.vie.timemachine.server.ui.core.InspectorPane
 import org.kodein.arch.vie.timemachine.server.ui.core.InspectorScope
 import org.kodein.arch.vie.timemachine.server.ui.core.LocalInspector
 import org.kodein.arch.vie.timemachine.server.ui.core.RightTab
-import org.kodein.arch.vie.timemachine.server.ui.core.Target
 import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorDimens
 import kotlin.uuid.Uuid
 
@@ -42,26 +39,24 @@ import kotlin.uuid.Uuid
 internal const val HideRightPaneDescription = "Hide the right pane"
 
 /**
- * The right pane of a selected ViewModel over what the store and the selection hold: its current model,
- * pinned, then the Detail and Composer tabs. With nothing to show it says what will appear.
+ * The right pane of a selected ViewModel over what its pane projects of the store and the selection:
+ * its current model, pinned, then the Detail and Composer tabs. With nothing to show it says what will
+ * appear.
  */
 @Composable
 internal fun RightPane(modifier: Modifier = Modifier) {
-    val inspector = LocalInspector.current
-    val selection by inspector.selection.state.collectAsState()
-    val state by inspector.store.state.collectAsState()
-    val resolved = selection.resolvedIn(state)
-    val target = resolved.target(state)
-    RightPaneLayout(
-        scope = resolved.scope,
-        target = target,
-        tab = resolved.tab,
-        onSelectTab = { inspector.selection.selectTab(it) },
-        currentModel = { sessionId, viewModelId -> CurrentModelView(sessionId, viewModelId) },
-        detail = { DetailView() },
-        composer = { sessionId, viewModelId -> ComposerView(sessionId, viewModelId) },
-        modifier = modifier,
-    )
+    InspectorPane(LocalInspector.current.rightPane()) { model ->
+        RightPaneLayout(
+            scope = model.scope,
+            target = model.target,
+            tab = model.tab,
+            onSelectTab = { post(RightPaneVIE.Intent.SelectTab(it)) },
+            currentModel = { sessionId, viewModelId -> CurrentModelView(sessionId, viewModelId) },
+            detail = { DetailView() },
+            composer = { sessionId, viewModelId -> ComposerView(sessionId, viewModelId) },
+            modifier = modifier,
+        )
+    }
 }
 
 /**
@@ -71,7 +66,7 @@ internal fun RightPane(modifier: Modifier = Modifier) {
 @Composable
 private fun RightPaneLayout(
     scope: InspectorScope?,
-    target: Target?,
+    target: RightTarget?,
     tab: RightTab,
     onSelectTab: (RightTab) -> Unit,
     currentModel: @Composable (sessionId: Uuid, viewModelId: Uuid) -> Unit,
@@ -90,12 +85,10 @@ private fun RightPaneLayout(
             )
             return@Column
         }
-        val sessionId = target.session.id
-        val viewModelId = target.vm.id
-        currentModel(sessionId, viewModelId)
-        RightTabs(tab, target.vm, onSelectTab)
+        currentModel(target.sessionId, target.viewModelId)
+        RightTabs(tab, target.interventions, onSelectTab)
         Box(Modifier.weight(1f).fillMaxWidth()) {
-            if (tab == RightTab.Composer) composer(sessionId, viewModelId) else detail()
+            if (tab == RightTab.Composer) composer(target.sessionId, target.viewModelId) else detail()
         }
     }
 }
@@ -104,8 +97,9 @@ private fun rightEmptyText(scope: InspectorScope?): String =
     if (scope is InspectorScope.Session) "Select a row — the current model and details of its ViewModel appear here."
     else "The current model and entry details appear here."
 
+/** The tabs, the Composer's with a badge of the [interventions] asked of the ViewModel, when there are any. */
 @Composable
-private fun RightTabs(tab: RightTab, vm: ViewModelRecord, onSelect: (RightTab) -> Unit) {
+private fun RightTabs(tab: RightTab, interventions: Int, onSelect: (RightTab) -> Unit) {
     val scheme = MaterialTheme.colorScheme
     Row(
         Modifier.fillMaxWidth().height(InspectorDimens.tabRow).padding(horizontal = 6.dp),
@@ -113,7 +107,7 @@ private fun RightTabs(tab: RightTab, vm: ViewModelRecord, onSelect: (RightTab) -
     ) {
         for (entry in RightTab.entries) {
             val on = tab == entry
-            val badge = if (entry == RightTab.Composer) vm.interventions.size.takeIf { it > 0 }?.toString() else null
+            val badge = if (entry == RightTab.Composer) interventions.takeIf { it > 0 }?.toString() else null
             Box(
                 Modifier.fillMaxHeight().pointerHoverIcon(PointerIcon.Hand).clickable { onSelect(entry) }
                     .drawBehind {

@@ -59,11 +59,13 @@ internal fun Inspector.statusBarPane() = Pane(StatusBarVM.Key) { StatusBarVM(thi
 internal interface NoticesVIE : VIE<NoticesVIE.Model, NoticesVIE.Intent, VIE.NoSignal> {
 
     /**
+     * @property scope The selected scope, as the store still holds it: what the centre pane shows the timeline of.
      * @property rejections The rejected probes not dismissed, one per session however often it retried.
      * @property disconnected The banner for the selected scope's session, when it is disconnected.
      * @property screen What replaces the panes when there is nothing to browse.
      */
     data class Model(
+        val scope: InspectorScope? = null,
         val rejections: List<RejectionNotice> = emptyList(),
         val disconnected: DisconnectedNotice? = null,
         val screen: Screen = Screen.None,
@@ -97,8 +99,13 @@ internal data class RejectionNotice(
 
 internal data class DisconnectedNotice(val sessionId: Uuid, val name: String, val disconnectedAt: Instant?)
 
-/** What the window tells the developer apart from the panes: notices of what was turned away, and of a session that is gone, and the screen when there is nothing to show. */
+/**
+ * What the window tells the developer apart from the panes: notices of what was turned away, and of a
+ * session that is gone, and the screen when there is nothing to show; and [scope], which it resolved
+ * to tell them, for the centre pane.
+ */
 private fun noticesModel(state: TimeMachineState, scope: InspectorScope?) = NoticesVIE.Model(
+    scope = scope,
     rejections = state.rejections.values.filterNot { it.dismissed }
         .map { RejectionNotice(it.sessionId, it.name, it.protocolVersion, it.attempts, it.lastAttemptAt) },
     disconnected = scope?.let { state.sessions[it.sessionId] }?.takeIf { !it.isConnected }

@@ -12,9 +12,11 @@ import org.kodein.arch.vie.timemachine.server.fixtures.inspector
 import org.kodein.arch.vie.timemachine.server.fixtures.newInspector
 import org.kodein.arch.vie.timemachine.server.fixtures.taskListScope
 import org.kodein.arch.vie.timemachine.server.store.ListenerState
+import org.kodein.arch.vie.timemachine.server.store.TimeMachineEvent
 import org.kodein.arch.vie.timemachine.server.ui.core.Inspector
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 
@@ -93,6 +95,30 @@ class NoticesAndStatusPaneTest {
     )
 
     @Test
+    fun `the scope is the selected one, for as long as the store holds it`() {
+        lateinit var inspector: Inspector
+        runVMTest(
+            newVM = {
+                inspector = inspector("disconnected")
+                inspector.visibility.show(NoticesVM.Key)
+                NoticesVM(inspector)
+            },
+            block = {
+                runCurrent()
+                assertNull(model.scope)
+
+                inspector.selection.selectScope(taskListScope)
+                runCurrent()
+                assertEquals(taskListScope, model.scope)
+
+                inspector.store.post(TimeMachineEvent.ClearSession(Demo.session.id))
+                runCurrent()
+                assertNull(model.scope)
+            },
+        )
+    }
+
+    @Test
     fun `the status bar shows the address, the protocol and the connected sessions`() = runVMTest(
         newVM = {
             val inspector = inspector("main")
@@ -118,6 +144,7 @@ class NoticesAndStatusPaneTest {
         }
         runVMTest(newVM = { NoticesVM(inspector("disconnected").also { it.selection.selectScope(taskListScope) }) }) {
             assertEquals("Demo", model.disconnected?.name)
+            assertEquals(taskListScope, model.scope)
         }
     }
 
