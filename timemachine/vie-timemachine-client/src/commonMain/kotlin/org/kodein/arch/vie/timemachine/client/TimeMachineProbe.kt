@@ -10,7 +10,7 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import org.kodein.arch.vie.VIE
 import org.kodein.arch.vie.timemachine.client.connection.InspectorConnection
-import org.kodein.arch.vie.timemachine.client.role.VIERoles
+import org.kodein.arch.vie.timemachine.client.type.VIEObjectTypes
 import org.kodein.arch.vie.timemachine.client.timeline.TimeMachineOutbox
 import org.kodein.arch.vie.timemachine.client.timeline.TimeMachineSink
 import org.kodein.arch.vie.timemachine.client.viewmodel.TimeMachineMiddleware
@@ -19,7 +19,7 @@ import org.kodein.arch.vie.timemachine.protocol.TimeMachineSession
 
 /**
  * One run of the probe, from [start] to [stop]: the session of this application process, its sink
- * and outbound queue, the roles of the types it observes, and its [InspectorConnection], which it
+ * and outbound queue, what it introspected of the types it observes, and its [InspectorConnection], which it
  * runs for as long as it runs itself.
  *
  * Never throws into the host app: every failure is printed and swallowed, an `Error` on a thread of
@@ -50,7 +50,7 @@ internal class TimeMachineProbe(
 
     private val sink = TimeMachineSink(log, config.maxObservationLength, outbox::offer)
 
-    private val roles = VIERoles(log)
+    private val types = VIEObjectTypes(log)
 
     // The handler is the backstop behind "never throws into the host app": without it, a failure the
     // connection loop does not catch would reach the thread's uncaught-exception handler, which on
@@ -62,7 +62,7 @@ internal class TimeMachineProbe(
         intent: KType,
         signal: KType,
     ): TimeMachineMiddleware<Model, Intent, Signal> =
-        TimeMachineMiddleware(roles[model], roles[intent], roles[signal], sink)
+        TimeMachineMiddleware(types[model], types[intent], types[signal], sink)
 
     fun start() {
         printBanner()

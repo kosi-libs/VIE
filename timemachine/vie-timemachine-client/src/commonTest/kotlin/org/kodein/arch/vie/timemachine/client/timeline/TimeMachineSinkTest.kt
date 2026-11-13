@@ -20,9 +20,9 @@ import org.kodein.arch.vie.VIE
 import org.kodein.arch.vie.timemachine.client.fixtures.collectedOnce
 import org.kodein.arch.vie.timemachine.client.fixtures.info
 import org.kodein.arch.vie.timemachine.client.fixtures.noIntervention
-import org.kodein.arch.vie.timemachine.client.fixtures.role
+import org.kodein.arch.vie.timemachine.client.fixtures.objectType
 import org.kodein.arch.vie.timemachine.client.fixtures.testLog
-import org.kodein.arch.vie.timemachine.client.role.VIERole
+import org.kodein.arch.vie.timemachine.client.type.VIEObjectType
 import org.kodein.arch.vie.timemachine.protocol.VIEObjectKind
 import org.kodein.arch.vie.timemachine.protocol.VIESignalDelivery
 
@@ -73,7 +73,7 @@ class TimeMachineSinkTest {
         val sink = TimeMachineSink(testLog) { entries += it }
         val value = Counted(1)
 
-        sink.observed(vmA, VIEObjectKind.Model, role<Counted>(), value)
+        sink.observed(vmA, VIEObjectKind.Model, objectType<Counted>(), value)
         assertEquals(0, value.described)
 
         val observed = assertIs<TimeMachineClientMessage.Observed>(entries.single().describe(sequence = TimeMachineSequence(7)))
@@ -82,9 +82,9 @@ class TimeMachineSinkTest {
     }
 
     /** Reports [value] and describes it right away. */
-    private fun <T : Any> describe(role: VIERole<T>, value: T): TimeMachineClientMessage.Observed {
+    private fun <T : Any> describe(type: VIEObjectType<T>, value: T): TimeMachineClientMessage.Observed {
         val entries = mutableListOf<TimeMachineSink.Entry>()
-        TimeMachineSink(testLog) { entries += it }.observed(vmA, VIEObjectKind.Model, role, value)
+        TimeMachineSink(testLog) { entries += it }.observed(vmA, VIEObjectKind.Model, type, value)
         return assertIs<TimeMachineClientMessage.Observed>(entries.single().describe(sequence = TimeMachineSequence(0)))
     }
 
@@ -92,7 +92,7 @@ class TimeMachineSinkTest {
     fun aSignalIsDescribedWithTheDeliveryItsTypePicked() {
         fun delivery(signal: DeliverySignal): VIESignalDelivery? {
             val entries = mutableListOf<TimeMachineSink.Entry>()
-            TimeMachineSink(testLog) { entries += it }.observed(vmA, VIEObjectKind.Signal, role<DeliverySignal>(), signal)
+            TimeMachineSink(testLog) { entries += it }.observed(vmA, VIEObjectKind.Signal, objectType<DeliverySignal>(), signal)
             return assertIs<TimeMachineClientMessage.Observed>(entries.single().describe(TimeMachineSequence(0))).observation.delivery
         }
 
@@ -103,21 +103,21 @@ class TimeMachineSinkTest {
 
     @Test
     fun aModelAndAnIntentCarryNoDelivery() {
-        assertNull(describe(role<Counted>(), Counted(1)).observation.delivery)
+        assertNull(describe(objectType<Counted>(), Counted(1)).observation.delivery)
         val entries = mutableListOf<TimeMachineSink.Entry>()
-        TimeMachineSink(testLog) { entries += it }.observed(vmA, VIEObjectKind.Intent, role<Counted>(), Counted(2))
+        TimeMachineSink(testLog) { entries += it }.observed(vmA, VIEObjectKind.Intent, objectType<Counted>(), Counted(2))
         assertNull(assertIs<TimeMachineClientMessage.Observed>(entries.single().describe(TimeMachineSequence(0))).observation.delivery)
     }
 
     @Test
     fun anErrorFromToStringIsAFailureToDescribe() {
-        val observed = describe(role<FailingToString>(), FailingToString { Error("too deep") })
+        val observed = describe(objectType<FailingToString>(), FailingToString { Error("too deep") })
         assertTrue(observed.observation.asString.startsWith("<toString() failed:"), observed.observation.asString)
     }
 
     @Test
     fun aCancellationFromToStringIsAFailureToDescribe() {
-        val observed = describe(role<FailingToString>(), FailingToString { CancellationException("from the app") })
+        val observed = describe(objectType<FailingToString>(), FailingToString { CancellationException("from the app") })
         assertTrue(observed.observation.asString.startsWith("<toString() failed:"), observed.observation.asString)
     }
 
@@ -126,7 +126,7 @@ class TimeMachineSinkTest {
         val entries = mutableListOf<TimeMachineSink.Entry>()
         // The limit is on the whole observation: its toString() is cut at half of it.
         TimeMachineSink(testLog, maxObservationLength = 200) { entries += it }
-            .observed(vmA, VIEObjectKind.Model, role<String>(), "x".repeat(1_000))
+            .observed(vmA, VIEObjectKind.Model, objectType<String>(), "x".repeat(1_000))
 
         val observation = assertIs<TimeMachineClientMessage.Observed>(entries.single().describe(TimeMachineSequence(0))).observation
         assertEquals("x".repeat(100) + "… (900 more characters)", observation.asString)
@@ -137,7 +137,7 @@ class TimeMachineSinkTest {
     fun aToStringWithinTheLimitIsLeftAlone() {
         val entries = mutableListOf<TimeMachineSink.Entry>()
         TimeMachineSink(testLog, maxObservationLength = 200) { entries += it }
-            .observed(vmA, VIEObjectKind.Model, role<String>(), "x".repeat(100))
+            .observed(vmA, VIEObjectKind.Model, objectType<String>(), "x".repeat(100))
 
         val observation = assertIs<TimeMachineClientMessage.Observed>(entries.single().describe(TimeMachineSequence(0))).observation
         assertEquals("x".repeat(100), observation.asString)
@@ -149,7 +149,7 @@ class TimeMachineSinkTest {
         val entries = mutableListOf<TimeMachineSink.Entry>()
         // Cut at 3 characters, the pair "😀" would be split after its first half.
         TimeMachineSink(testLog, maxObservationLength = 6) { entries += it }
-            .observed(vmA, VIEObjectKind.Model, role<String>(), "ab😀cd")
+            .observed(vmA, VIEObjectKind.Model, objectType<String>(), "ab😀cd")
 
         val observation = assertIs<TimeMachineClientMessage.Observed>(entries.single().describe(TimeMachineSequence(0))).observation
         assertEquals("ab… (4 more characters)", observation.asString)
@@ -157,7 +157,7 @@ class TimeMachineSinkTest {
 
     @Test
     fun anErrorFromTheSerializerLeavesOnlyTheJsonOut() {
-        val observed = describe(role<ErrorModel>(), ErrorModel(1))
+        val observed = describe(objectType<ErrorModel>(), ErrorModel(1))
         assertEquals("ErrorModel(count=1)", observed.observation.asString)
         assertNull(observed.observation.asJson)
     }
@@ -227,7 +227,7 @@ class TimeMachineSinkTest {
         assertTrue(sink.liveViewModels.isEmpty(), "A closed sink must let go of the ViewModels it knew")
 
         sink.started(info(vmB), noIntervention)
-        sink.observed(vmA, VIEObjectKind.Model, role<Counted>(), Counted(1))
+        sink.observed(vmA, VIEObjectKind.Model, objectType<Counted>(), Counted(1))
         sink.closed(vmA)
         assertTrue(entries.isEmpty(), "A closed sink must report nothing")
         assertTrue(sink.liveViewModels.isEmpty(), "A closed sink must register no ViewModel")

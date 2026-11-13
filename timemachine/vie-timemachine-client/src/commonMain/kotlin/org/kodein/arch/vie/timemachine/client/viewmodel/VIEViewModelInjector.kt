@@ -8,7 +8,7 @@ import org.kodein.arch.vie.VIEViewModel
 
 
 /**
- * Places an intervened object into a live ViewModel, through the same public entry points the
+ * Injects the object of an intervention into a live ViewModel, through the same public entry points the
  * ViewModel's own code uses — so every middleware sees it, wherever the [TimeMachineMiddleware] is
  * installed.
  *

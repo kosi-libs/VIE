@@ -131,7 +131,7 @@ public object TimeMachine {
      * whose serializer cannot be introspected is printed, and its objects are reported without JSON.
      */
     public inline fun <reified Model : VIE.Model, reified Intent : VIE.Intent, reified Signal : VIE.Signal> middleware(): VIEMiddleware<Model, Intent, Signal> {
-        // Checked first: a probe that does not run must not even introspect the roles.
+        // Checked first: a probe that does not run must not even introspect its types.
         if (!isStarted) return NoOpMiddleware.typed()
         return middleware(typeOf<Model>(), typeOf<Intent>(), typeOf<Signal>())
     }

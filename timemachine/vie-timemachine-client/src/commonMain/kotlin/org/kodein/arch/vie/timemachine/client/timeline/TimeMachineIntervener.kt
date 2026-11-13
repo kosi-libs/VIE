@@ -11,10 +11,10 @@ import org.kodein.arch.vie.timemachine.protocol.VIEInterventionResult
  * ViewModel reachable: one that is never cleared would otherwise never be garbage-collected.
  */
 internal fun interface TimeMachineIntervener {
-    /** Places [request]'s object, or says why it cannot. Never throws nor suspends. */
+    /** Injects [request]'s object, or says why it cannot. Never throws nor suspends. */
     fun intervene(request: TimeMachineServerMessage.Intervene): VIEInterventionResult
 
     /** Whether the ViewModel was garbage-collected without ever being cleared: it then reports nothing
-     *  more, its close included, and nothing can be placed in it. */
+     *  more, its close included, and nothing can be injected into it. */
     val isViewModelCollected: Boolean get() = false
 }

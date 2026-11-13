@@ -26,9 +26,9 @@ import kotlinx.serialization.Serializable
 import org.kodein.arch.vie.VIE
 import org.kodein.arch.vie.VIEMiddleware
 import org.kodein.arch.vie.VIEViewModel
-import org.kodein.arch.vie.timemachine.client.fixtures.role
+import org.kodein.arch.vie.timemachine.client.fixtures.objectType
 import org.kodein.arch.vie.timemachine.client.fixtures.testLog
-import org.kodein.arch.vie.timemachine.client.role.VIERole
+import org.kodein.arch.vie.timemachine.client.type.VIEObjectType
 import org.kodein.arch.vie.timemachine.client.timeline.TimeMachineIntervener
 import org.kodein.arch.vie.timemachine.client.timeline.TimeMachineSink
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineClientMessage
@@ -83,7 +83,7 @@ class TimeMachineMiddlewareConcurrencyTest {
     fun aViewModelThatIsNeverClearedIsNotKeptReachableAndIsReportedClosedOnceCollected() {
         val messages = ConcurrentLinkedQueue<TimeMachineTimelineMessage>()
         val sink = TimeMachineSink(testLog) { messages += it.describe(TimeMachineSequence.First) }
-        val probe = TimeMachineMiddleware(role<StressModel>(), role<StressIntent>(), role<StressSignal>(), sink)
+        val probe = TimeMachineMiddleware(objectType<StressModel>(), objectType<StressIntent>(), objectType<StressSignal>(), sink)
 
         val dropped = buildThenDrop(probe, sink)
         val deadline = TimeSource.Monotonic.markNow() + 10.seconds
@@ -94,7 +94,7 @@ class TimeMachineMiddlewareConcurrencyTest {
         }
 
         assertTrue(dropped.intervener.isViewModelCollected)
-        val request = TimeMachineServerMessage.Intervene(Uuid.random(), probe.viewModelId, VIEObjectKind.Intent, role<StressIntent>().typeNameOf(StressIntent.Ping), requireNotNull(role<StressIntent>().encode(StressIntent.Ping)))
+        val request = TimeMachineServerMessage.Intervene(Uuid.random(), probe.viewModelId, VIEObjectKind.Intent, objectType<StressIntent>().typeNameOf(StressIntent.Ping), requireNotNull(objectType<StressIntent>().encode(StressIntent.Ping)))
         val failure = assertIs<VIEInterventionResult.Failure>(dropped.intervener.intervene(request))
         assertEquals(VIEInterventionResult.Reason.ClosedViewModel, failure.reason)
 
@@ -108,7 +108,7 @@ class TimeMachineMiddlewareConcurrencyTest {
         val sink = TimeMachineSink(testLog) { entry ->
             (entry.describe(TimeMachineSequence.First) as? TimeMachineClientMessage.Observed)?.let { observations += it.observation }
         }
-        val probe = TimeMachineMiddleware(role<StressModel>(), role<StressIntent>(), role<StressSignal>(), sink)
+        val probe = TimeMachineMiddleware(objectType<StressModel>(), objectType<StressIntent>(), objectType<StressSignal>(), sink)
 
         Dispatchers.setMain(Dispatchers.Default)
         try {
@@ -121,9 +121,9 @@ class TimeMachineMiddlewareConcurrencyTest {
                     requested += (0 until 18).map { i ->
                         async(Dispatchers.Default) {
                             val request = when (i % 3) {
-                                0 -> intervention(probe.viewModelId, VIEObjectKind.Model, role<StressModel>(), StressModel(round * 18 + i + 1))
-                                1 -> intervention(probe.viewModelId, VIEObjectKind.Intent, role<StressIntent>(), StressIntent.Ping)
-                                else -> intervention(probe.viewModelId, VIEObjectKind.Signal, role<StressSignal>(), StressSignal.Pinged)
+                                0 -> intervention(probe.viewModelId, VIEObjectKind.Model, objectType<StressModel>(), StressModel(round * 18 + i + 1))
+                                1 -> intervention(probe.viewModelId, VIEObjectKind.Intent, objectType<StressIntent>(), StressIntent.Ping)
+                                else -> intervention(probe.viewModelId, VIEObjectKind.Signal, objectType<StressSignal>(), StressSignal.Pinged)
                             }
                             assertEquals(VIEInterventionResult.Success, intervener.intervene(request))
                             request.requestId
@@ -147,12 +147,12 @@ class TimeMachineMiddlewareConcurrencyTest {
         }
     }
 
-    private fun <T : Any> intervention(viewModelId: Uuid, kind: VIEObjectKind, role: VIERole<T>, value: T) =
+    private fun <T : Any> intervention(viewModelId: Uuid, kind: VIEObjectKind, type: VIEObjectType<T>, value: T) =
         TimeMachineServerMessage.Intervene(
             requestId = Uuid.random(),
             viewModelId = viewModelId,
             kind = kind,
-            typeName = role.typeNameOf(value),
-            asJson = requireNotNull(role.encode(value)),
+            typeName = type.typeNameOf(value),
+            asJson = requireNotNull(type.encode(value)),
         )
 }

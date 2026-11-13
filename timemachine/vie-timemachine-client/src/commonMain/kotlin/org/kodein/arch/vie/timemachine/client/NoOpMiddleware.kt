@@ -12,7 +12,7 @@ import org.kodein.arch.vie.VIEMiddleware
 @PublishedApi
 internal object NoOpMiddleware : VIEMiddleware<VIE.Model, VIE.Intent, VIE.Signal> {
 
-    /** This middleware, for a ViewModel of any roles: it never touches a model, intent or signal. */
+    /** This middleware, for a ViewModel of any types: it never touches a model, intent or signal. */
     @Suppress("UNCHECKED_CAST")
     fun <Model : VIE.Model, Intent : VIE.Intent, Signal : VIE.Signal> typed(): VIEMiddleware<Model, Intent, Signal> =
         this as VIEMiddleware<Model, Intent, Signal>

@@ -41,9 +41,9 @@ import org.kodein.arch.vie.timemachine.client.TimeMachineProbe
 import org.kodein.arch.vie.timemachine.client.fixtures.FakeInspector
 import org.kodein.arch.vie.timemachine.client.fixtures.info
 import org.kodein.arch.vie.timemachine.client.fixtures.noIntervention
-import org.kodein.arch.vie.timemachine.client.fixtures.role
+import org.kodein.arch.vie.timemachine.client.fixtures.objectType
 import org.kodein.arch.vie.timemachine.client.fixtures.send
-import org.kodein.arch.vie.timemachine.client.role.VIERole
+import org.kodein.arch.vie.timemachine.client.type.VIEObjectType
 import org.kodein.arch.vie.timemachine.client.timeline.TimeMachineOutbox
 import org.kodein.arch.vie.timemachine.client.timeline.TimeMachineSink
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineClientMessage
@@ -131,7 +131,7 @@ class InspectorConnectionTest {
         withConnection(inspector) { probed ->
             val vm = Uuid.random()
             probed.sink.started(info(vm), noIntervention)
-            probed.sink.observed(vm, VIEObjectKind.Model, role<String>(), "first")
+            probed.sink.observed(vm, VIEObjectKind.Model, objectType<String>(), "first")
             probed.start()
 
             val hello = inspector.hellos.receive()
@@ -190,7 +190,7 @@ class InspectorConnectionTest {
             // A description, not a start: it takes no position in the timeline.
             assertEquals(TimeMachineClientMessage.ViewModelInfo(alive, info(alive)), inspector.received.receive())
 
-            probed.sink.observed(alive, VIEObjectKind.Model, role<String>(), "after")
+            probed.sink.observed(alive, VIEObjectKind.Model, objectType<String>(), "after")
             val observed = assertIs<TimeMachineClientMessage.Observed>(inspector.received.receive())
             assertEquals("after" to 3L, observed.observation.asString to observed.sequence.value)
         }
@@ -213,14 +213,14 @@ class InspectorConnectionTest {
             val first = inspector.welcomed.receive()
             inspector.receiveAnnounce(alive)
             inspector.received.receive() // started
-            probed.sink.observed(alive, VIEObjectKind.Model, role<String>(), "before")
+            probed.sink.observed(alive, VIEObjectKind.Model, objectType<String>(), "before")
             inspector.received.receive() // observed
             first.close()
 
             // Once the probe says hello again, the first stream is over: what follows is queued.
             inspector.hellos.receive()
             probed.sink.started(info(new), noIntervention)
-            probed.sink.observed(alive, VIEObjectKind.Model, role<String>(), "during")
+            probed.sink.observed(alive, VIEObjectKind.Model, objectType<String>(), "during")
             probed.sink.closed(new)
             secondWelcome.complete(Unit)
 
@@ -244,8 +244,8 @@ class InspectorConnectionTest {
         withConnection(inspector, maxObservationLength = 16 * 1024) { probed ->
             val vm = Uuid.random()
             probed.sink.started(info(vm), noIntervention)
-            probed.sink.observed(vm, VIEObjectKind.Model, role<String>(), "x".repeat(200_000))
-            probed.sink.observed(vm, VIEObjectKind.Model, role<String>(), "after")
+            probed.sink.observed(vm, VIEObjectKind.Model, objectType<String>(), "x".repeat(200_000))
+            probed.sink.observed(vm, VIEObjectKind.Model, objectType<String>(), "after")
             probed.start()
 
             inspector.hellos.receive()
@@ -265,7 +265,7 @@ class InspectorConnectionTest {
         withConnection(inspector) { probed ->
             val vm = Uuid.random()
             probed.sink.started(info(vm), noIntervention)
-            probed.sink.observed(vm, VIEObjectKind.Model, role<String>(), "first")
+            probed.sink.observed(vm, VIEObjectKind.Model, objectType<String>(), "first")
             probed.start()
             assertEquals(probed.session, inspector.hellos.receive().session)
             val first = inspector.welcomed.receive()
@@ -284,7 +284,7 @@ class InspectorConnectionTest {
             assertEquals("first" to 1L, observed.observation.asString to observed.sequence.value)
 
             // The loop is streaming again, not only reconnected.
-            probed.sink.observed(vm, VIEObjectKind.Model, role<String>(), "after")
+            probed.sink.observed(vm, VIEObjectKind.Model, objectType<String>(), "after")
             val after = assertIs<TimeMachineClientMessage.Observed>(inspector.received.receive())
             assertEquals("after" to 2L, after.observation.asString to after.sequence.value)
         }
@@ -302,7 +302,7 @@ class InspectorConnectionTest {
             inspector.receiveAnnounce(vm)
             assertEquals(0L, assertIs<TimeMachineClientMessage.ViewModelStarted>(inspector.received.receive()).sequence.value)
 
-            listOf("1", "2", "3", "4").forEach { probed.sink.observed(vm, VIEObjectKind.Model, role<String>(), it) }
+            listOf("1", "2", "3", "4").forEach { probed.sink.observed(vm, VIEObjectKind.Model, objectType<String>(), it) }
             assertNull(withTimeoutOrNull(200.milliseconds) { inspector.received.receive() })
 
             inspector.acknowledge = true
@@ -320,7 +320,7 @@ class InspectorConnectionTest {
         withConnection(inspector) { probed ->
             val vm = Uuid.random()
             probed.sink.started(info(vm), noIntervention)
-            probed.sink.observed(vm, VIEObjectKind.Model, role<String>(), "first")
+            probed.sink.observed(vm, VIEObjectKind.Model, objectType<String>(), "first")
             probed.start()
             val first = inspector.welcomed.receive()
             inspector.receiveAnnounce(vm)
@@ -531,11 +531,11 @@ class InspectorConnectionTest {
         val inspector = FakeInspector()
         withConnection(inspector) { probed ->
             val vm = Uuid.random()
-            val role = role<Undecodable>()
+            val type = objectType<Undecodable>()
             probed.sink.started(info(vm)) { request ->
-                when (val decoded = role.decodeForIntervention(request.typeName, request.asJson)) {
-                    is VIERole.Decoded.Value -> VIEInterventionResult.Success
-                    is VIERole.Decoded.Refused -> decoded.failure
+                when (val decoded = type.decodeForIntervention(request.typeName, request.asJson)) {
+                    is VIEObjectType.Decoded.Value -> VIEInterventionResult.Success
+                    is VIEObjectType.Decoded.Refused -> decoded.failure
                 }
             }
             probed.start()
@@ -543,7 +543,7 @@ class InspectorConnectionTest {
             inspector.receiveAnnounce(vm)
             assertIs<TimeMachineClientMessage.ViewModelStarted>(inspector.received.receive())
 
-            val request = TimeMachineServerMessage.Intervene(Uuid.random(), vm, VIEObjectKind.Model, role.typeName, JsonPrimitive("x"))
+            val request = TimeMachineServerMessage.Intervene(Uuid.random(), vm, VIEObjectKind.Model, type.typeName, JsonPrimitive("x"))
             connection.send(TimeMachineServerMessage.serializer(), request)
             val answer = assertIs<TimeMachineClientMessage.InterventionResult>(inspector.received.receive())
             assertEquals(request.requestId, answer.requestId)

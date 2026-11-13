@@ -1,4 +1,4 @@
-package org.kodein.arch.vie.timemachine.client.role
+package org.kodein.arch.vie.timemachine.client.type
 
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.test.Test
@@ -25,7 +25,7 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
-import org.kodein.arch.vie.timemachine.client.fixtures.role
+import org.kodein.arch.vie.timemachine.client.fixtures.objectType
 import org.kodein.arch.vie.timemachine.protocol.VIEInterventionResult
 
 
@@ -144,255 +144,255 @@ private sealed interface ShapeIntent {
     data class Square(val side: Int) : ShapeIntent
 }
 
-class VIERoleTest {
+class VIEObjectTypeTest {
 
     @Test
-    fun nonSealedSerializableRoleReportsItsFqnAndNoSealedSubTypes() {
-        val role = role<SimpleModel>()
+    fun nonSealedSerializableTypeReportsItsFqnAndNoSealedSubTypes() {
+        val type = objectType<SimpleModel>()
 
-        assertTrue(role.isSerializable)
-        assertEquals(requireNotNull(role.serializer).descriptor.serialName, role.typeName)
-        assertNull(role.sealedSubTypes)
+        assertTrue(type.isSerializable)
+        assertEquals(requireNotNull(type.serializer).descriptor.serialName, type.typeName)
+        assertNull(type.sealedSubTypes)
     }
 
     @Test
-    fun nonSerializableRoleReportsNotSerializable() {
-        val role = role<NotSerializable>()
+    fun nonSerializableTypeReportsNotSerializable() {
+        val type = objectType<NotSerializable>()
 
-        assertFalse(role.isSerializable)
-        assertNull(role.sealedSubTypes)
-        assertNull(role.encode(NotSerializable()))
+        assertFalse(type.isSerializable)
+        assertNull(type.sealedSubTypes)
+        assertNull(type.encode(NotSerializable()))
     }
 
     @Test
-    fun plainInterfaceRoleReportsNotSerializable() {
-        val role = role<PlainIntent>()
+    fun plainInterfaceTypeReportsNotSerializable() {
+        val type = objectType<PlainIntent>()
 
-        assertFalse(role.isSerializable)
-        assertNull(role.serializer)
-        assertNull(role.sealedSubTypes)
-        assertNull(role.encode(PlainIntent.A))
-        assertTrue(role.typeName.endsWith("PlainIntent"), role.typeName)
+        assertFalse(type.isSerializable)
+        assertNull(type.serializer)
+        assertNull(type.sealedSubTypes)
+        assertNull(type.encode(PlainIntent.A))
+        assertTrue(type.typeName.endsWith("PlainIntent"), type.typeName)
     }
 
     @Test
-    fun aRoleWhoseDescriptorThrowsIsNotSerializable() {
-        val role = role<ThrowingDescriptor>()
+    fun aTypeWhoseDescriptorThrowsIsNotSerializable() {
+        val type = objectType<ThrowingDescriptor>()
 
-        assertNotIntrospected(role)
-        assertTrue(role.typeName.endsWith("ThrowingDescriptor"), role.typeName)
+        assertNotIntrospected(type)
+        assertTrue(type.typeName.endsWith("ThrowingDescriptor"), type.typeName)
     }
 
     @Test
-    fun aRoleWhoseDescriptorThrowsAnErrorIsNotSerializable() {
-        val role = role<UnimplementedDescriptor>()
+    fun aTypeWhoseDescriptorThrowsAnErrorIsNotSerializable() {
+        val type = objectType<UnimplementedDescriptor>()
 
-        assertNotIntrospected(role)
-        assertTrue(role.typeName.endsWith("UnimplementedDescriptor"), role.typeName)
+        assertNotIntrospected(type)
+        assertTrue(type.typeName.endsWith("UnimplementedDescriptor"), type.typeName)
     }
 
     @Test
-    fun aRoleWhoseSealedSubTypesThrowAnErrorIsNotSerializable() {
-        val role = role<HalfSealed>()
+    fun aTypeWhoseSealedSubTypesThrowAnErrorIsNotSerializable() {
+        val type = objectType<HalfSealed>()
 
-        assertNotIntrospected(role)
-        assertTrue(role.typeName.endsWith("HalfSealed"), role.typeName)
+        assertNotIntrospected(type)
+        assertTrue(type.typeName.endsWith("HalfSealed"), type.typeName)
     }
 
     @Test
-    fun aStarProjectedRoleIsNotSerializable() {
-        assertNotIntrospected(role<Box<*>>())
+    fun aStarProjectedTypeIsNotSerializable() {
+        assertNotIntrospected(objectType<Box<*>>())
     }
 
-    /** [role] fell back to a role without a serializer, and nothing it is asked afterwards throws. */
-    private fun assertNotIntrospected(role: VIERole<*>) {
-        assertFalse(role.isSerializable)
-        assertNull(role.serializer)
-        assertNull(role.sealedSubTypes)
-        val info = role.toVIETypeInfo()
-        assertEquals(role.typeName, info.typeName)
+    /** [type] fell back to one without a serializer, and nothing it is asked afterwards throws. */
+    private fun assertNotIntrospected(type: VIEObjectType<*>) {
+        assertFalse(type.isSerializable)
+        assertNull(type.serializer)
+        assertNull(type.sealedSubTypes)
+        val info = type.toVIETypeInfo()
+        assertEquals(type.typeName, info.typeName)
         assertFalse(info.isSerializable)
         assertNull(info.sealedSubTypes)
-        assertEquals(VIEInterventionResult.Reason.NotSerializable, role.decodeForIntervention(role.typeName, JsonNull).reason())
+        assertEquals(VIEInterventionResult.Reason.NotSerializable, type.decodeForIntervention(type.typeName, JsonNull).reason())
     }
 
     @Test
-    fun sealedRoleReportsItsSubTypes() {
-        val role = role<TestIntent>()
+    fun sealedTypeReportsItsSubTypes() {
+        val type = objectType<TestIntent>()
 
-        assertTrue(role.isSerializable)
+        assertTrue(type.isSerializable)
         assertEquals(
             setOf(
-                "org.kodein.arch.vie.timemachine.client.role.TestIntent.Add",
-                "org.kodein.arch.vie.timemachine.client.role.TestIntent.Remove",
+                "org.kodein.arch.vie.timemachine.client.type.TestIntent.Add",
+                "org.kodein.arch.vie.timemachine.client.type.TestIntent.Remove",
             ),
-            role.sealedSubTypes?.toSet(),
+            type.sealedSubTypes?.toSet(),
         )
     }
 
     @Test
     fun nestedSealedHierarchyFlattensToLeafTypesOnly() {
-        val role = role<NestedRoot>()
-        val descriptor = requireNotNull(role.serializer).descriptor
+        val type = objectType<NestedRoot>()
+        val descriptor = requireNotNull(type.serializer).descriptor
 
         assertEquals(2, descriptor.elementsCount)
         assertEquals("type", descriptor.getElementName(0))
         assertEquals(
             setOf(
-                "org.kodein.arch.vie.timemachine.client.role.NestedRoot.Branch.Leaf",
-                "org.kodein.arch.vie.timemachine.client.role.NestedRoot.Other",
+                "org.kodein.arch.vie.timemachine.client.type.NestedRoot.Branch.Leaf",
+                "org.kodein.arch.vie.timemachine.client.type.NestedRoot.Other",
             ),
-            role.sealedSubTypes?.toSet(),
+            type.sealedSubTypes?.toSet(),
         )
     }
 
     @Test
     fun encodeAndDecodeRoundTrip() {
-        val role = role<SimpleModel>()
+        val type = objectType<SimpleModel>()
 
-        val json = requireNotNull(role.encode(SimpleModel(42)))
+        val json = requireNotNull(type.encode(SimpleModel(42)))
 
-        assertEquals(SimpleModel(42), role.decodeForIntervention(role.typeName, json).value())
+        assertEquals(SimpleModel(42), type.decodeForIntervention(type.typeName, json).value())
     }
 
     @Test
     fun sealedSubTypeWithATypePropertyRoundTrips() {
-        val role = role<FilterIntent>()
-        val json = requireNotNull(role.encode(FilterIntent.SetFilter("done")))
-        val typeName = "org.kodein.arch.vie.timemachine.client.role.FilterIntent.SetFilter"
+        val type = objectType<FilterIntent>()
+        val json = requireNotNull(type.encode(FilterIntent.SetFilter("done")))
+        val typeName = "org.kodein.arch.vie.timemachine.client.type.FilterIntent.SetFilter"
 
         assertEquals(typeName, (json as JsonObject).getValue("#type").jsonPrimitive.content)
         assertEquals("done", json.getValue("type").jsonPrimitive.content)
-        assertEquals(typeName, role.typeNameOf(FilterIntent.SetFilter("done")))
-        assertEquals(FilterIntent.SetFilter("done"), role.decodeForIntervention(typeName, json).value())
+        assertEquals(typeName, type.typeNameOf(FilterIntent.SetFilter("done")))
+        assertEquals(FilterIntent.SetFilter("done"), type.decodeForIntervention(typeName, json).value())
     }
 
     @Test
     fun sealedValueIsNamedBySerialNameWithoutEncoding() {
-        val role = role<TestIntent>()
+        val type = objectType<TestIntent>()
 
-        assertEquals("org.kodein.arch.vie.timemachine.client.role.TestIntent.Add", role.typeNameOf(TestIntent.Add("hi")))
+        assertEquals("org.kodein.arch.vie.timemachine.client.type.TestIntent.Add", type.typeNameOf(TestIntent.Add("hi")))
     }
 
     @Test
-    fun nonSealedSerializableValueIsNamedByItsRole() {
-        val role = role<SimpleModel>()
+    fun nonSealedSerializableValueIsNamedByItsType() {
+        val type = objectType<SimpleModel>()
 
-        assertEquals(role.typeName, role.typeNameOf(SimpleModel(1)))
+        assertEquals(type.typeName, type.typeNameOf(SimpleModel(1)))
     }
 
     @Test
     fun nonSerializableValueIsNamedByItsClass() {
-        val role = role<NotSerializable>()
+        val type = objectType<NotSerializable>()
 
-        val typeName = role.typeNameOf(NotSerializable())
+        val typeName = type.typeNameOf(NotSerializable())
 
         assertTrue(typeName.endsWith("NotSerializable"), typeName)
     }
 
     @Test
     fun plainInterfaceValueIsNamedByItsClass() {
-        val role = role<PlainIntent>()
+        val type = objectType<PlainIntent>()
 
-        val typeName = role.typeNameOf(PlainIntent.A)
+        val typeName = type.typeNameOf(PlainIntent.A)
 
         assertTrue(typeName.endsWith("A"), typeName)
     }
 
     @Test
-    fun sealedRoleWithACustomDiscriminatorNamesValuesBySerialName() {
-        val role = role<ShapeIntent>()
-        val json = requireNotNull(role.encode(ShapeIntent.Circle(3)))
+    fun sealedTypeWithACustomDiscriminatorNamesValuesBySerialName() {
+        val type = objectType<ShapeIntent>()
+        val json = requireNotNull(type.encode(ShapeIntent.Circle(3)))
 
         assertEquals("circle", (json as JsonObject).getValue("kind").jsonPrimitive.content)
-        assertEquals("circle", role.typeNameOf(ShapeIntent.Circle(3)))
-        assertTrue("circle" in requireNotNull(role.sealedSubTypes))
+        assertEquals("circle", type.typeNameOf(ShapeIntent.Circle(3)))
+        assertTrue("circle" in requireNotNull(type.sealedSubTypes))
     }
 
     @Test
     fun decodeForInterventionRefusesAMismatchedTypeNameUnderACustomDiscriminator() {
-        val role = role<ShapeIntent>()
-        val json = requireNotNull(role.encode(ShapeIntent.Circle(3)))
+        val type = objectType<ShapeIntent>()
+        val json = requireNotNull(type.encode(ShapeIntent.Circle(3)))
 
-        assertEquals(VIEInterventionResult.Reason.BadJson, role.decodeForIntervention("square", json).reason())
+        assertEquals(VIEInterventionResult.Reason.BadJson, type.decodeForIntervention("square", json).reason())
     }
 
     @Test
-    fun sealedRoleWithACustomDiscriminatorRoundTrips() {
-        val role = role<ShapeIntent>()
-        val json = requireNotNull(role.encode(ShapeIntent.Circle(3)))
+    fun sealedTypeWithACustomDiscriminatorRoundTrips() {
+        val type = objectType<ShapeIntent>()
+        val json = requireNotNull(type.encode(ShapeIntent.Circle(3)))
 
-        assertEquals(ShapeIntent.Circle(3), role.decodeForIntervention("circle", json).value())
+        assertEquals(ShapeIntent.Circle(3), type.decodeForIntervention("circle", json).value())
     }
 
-    private fun <T> VIERole.Decoded<T>.value(): T = assertIs<VIERole.Decoded.Value<T>>(this).value
+    private fun <T> VIEObjectType.Decoded<T>.value(): T = assertIs<VIEObjectType.Decoded.Value<T>>(this).value
 
-    private fun <T> VIERole.Decoded<T>.reason(): VIEInterventionResult.Reason? = (this as? VIERole.Decoded.Refused)?.reason
+    private fun <T> VIEObjectType.Decoded<T>.reason(): VIEInterventionResult.Reason? = (this as? VIEObjectType.Decoded.Refused)?.reason
 
     @Test
     fun decodeForInterventionDecodesAKnownSubType() {
-        val role = role<TestIntent>()
-        val json = requireNotNull(role.encode(TestIntent.Add("hi")))
+        val type = objectType<TestIntent>()
+        val json = requireNotNull(type.encode(TestIntent.Add("hi")))
 
-        val decoded = role.decodeForIntervention("org.kodein.arch.vie.timemachine.client.role.TestIntent.Add", json)
+        val decoded = type.decodeForIntervention("org.kodein.arch.vie.timemachine.client.type.TestIntent.Add", json)
 
         assertEquals(TestIntent.Add("hi"), decoded.value())
     }
 
     @Test
     fun decodeForInterventionRefusesAPayloadWhoseSerializerThrowsACancellation() {
-        val role = role<Cancelling>()
+        val type = objectType<Cancelling>()
 
-        assertEquals(VIEInterventionResult.Reason.BadJson, role.decodeForIntervention(role.typeName, JsonPrimitive("x")).reason())
+        assertEquals(VIEInterventionResult.Reason.BadJson, type.decodeForIntervention(type.typeName, JsonPrimitive("x")).reason())
     }
 
     @Test
     fun decodeForInterventionRefusesAPayloadWhoseSerializerThrowsAnError() {
-        val role = role<Unimplemented>()
+        val type = objectType<Unimplemented>()
 
-        assertEquals(VIEInterventionResult.Reason.BadJson, role.decodeForIntervention(role.typeName, JsonPrimitive("x")).reason())
+        assertEquals(VIEInterventionResult.Reason.BadJson, type.decodeForIntervention(type.typeName, JsonPrimitive("x")).reason())
     }
 
     @Test
-    fun decodeForInterventionRefusesANonSerializableRole() {
-        val role = role<NotSerializable>()
+    fun decodeForInterventionRefusesANonSerializableType() {
+        val type = objectType<NotSerializable>()
 
-        assertEquals(VIEInterventionResult.Reason.NotSerializable, role.decodeForIntervention(role.typeName, JsonNull).reason())
+        assertEquals(VIEInterventionResult.Reason.NotSerializable, type.decodeForIntervention(type.typeName, JsonNull).reason())
     }
 
     @Test
-    fun decodeForInterventionRefusesAPlainInterfaceRole() {
-        val role = role<PlainIntent>()
+    fun decodeForInterventionRefusesAPlainInterfaceType() {
+        val type = objectType<PlainIntent>()
 
-        assertEquals(VIEInterventionResult.Reason.NotSerializable, role.decodeForIntervention(role.typeName, JsonNull).reason())
+        assertEquals(VIEInterventionResult.Reason.NotSerializable, type.decodeForIntervention(type.typeName, JsonNull).reason())
     }
 
     @Test
     fun decodeForInterventionRefusesAnUnknownTypeName() {
-        val role = role<TestIntent>()
-        val json = requireNotNull(role.encode(TestIntent.Add("hi")))
+        val type = objectType<TestIntent>()
+        val json = requireNotNull(type.encode(TestIntent.Add("hi")))
 
-        assertEquals(VIEInterventionResult.Reason.UnknownType, role.decodeForIntervention("org.example.NotARegisteredType", json).reason())
+        assertEquals(VIEInterventionResult.Reason.UnknownType, type.decodeForIntervention("org.example.NotARegisteredType", json).reason())
     }
 
     @Test
     fun decodeForInterventionRefusesJsonOfAnotherSubTypeAsBadJson() {
-        val role = role<TestIntent>()
-        val json = requireNotNull(role.encode(TestIntent.Add("hi")))
+        val type = objectType<TestIntent>()
+        val json = requireNotNull(type.encode(TestIntent.Add("hi")))
 
-        val decoded = role.decodeForIntervention("org.kodein.arch.vie.timemachine.client.role.TestIntent.Remove", json)
+        val decoded = type.decodeForIntervention("org.kodein.arch.vie.timemachine.client.type.TestIntent.Remove", json)
 
         assertEquals(VIEInterventionResult.Reason.BadJson, decoded.reason())
     }
 
     @Test
     fun decodeForInterventionRefusesAMistypedKeyAsBadJson() {
-        val role = role<SimpleModel>()
+        val type = objectType<SimpleModel>()
         val json = buildJsonObject {
             put("count", 1)
             put("cuont", 2)
         }
 
-        assertEquals(VIEInterventionResult.Reason.BadJson, role.decodeForIntervention(role.typeName, json).reason())
+        assertEquals(VIEInterventionResult.Reason.BadJson, type.decodeForIntervention(type.typeName, json).reason())
     }
 }

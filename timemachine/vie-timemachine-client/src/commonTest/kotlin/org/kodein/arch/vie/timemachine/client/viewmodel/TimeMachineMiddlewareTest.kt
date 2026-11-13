@@ -37,10 +37,10 @@ import org.kodein.arch.vie.VIEMiddleware
 import org.kodein.arch.vie.VIEViewModel
 import org.kodein.arch.vie.test.runVMTest
 import org.kodein.arch.vie.timemachine.client.ProbeLog
-import org.kodein.arch.vie.timemachine.client.fixtures.role
+import org.kodein.arch.vie.timemachine.client.fixtures.objectType
 import org.kodein.arch.vie.timemachine.client.fixtures.testLog
-import org.kodein.arch.vie.timemachine.client.role.VIERole
-import org.kodein.arch.vie.timemachine.client.role.displayName
+import org.kodein.arch.vie.timemachine.client.type.VIEObjectType
+import org.kodein.arch.vie.timemachine.client.type.displayName
 import org.kodein.arch.vie.timemachine.client.timeline.TimeMachineSink
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineClientMessage
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineServerMessage
@@ -131,7 +131,7 @@ private class ChildProbeVM(
 ) : ProbeVM<CountModel>(CountModel(0), { copy(count = count + 1) }, middlewares)
 
 private inline fun <reified M : VIE.Model> probe(sink: TimeMachineSink) =
-    TimeMachineMiddleware(role<M>(), role<ProbeIntent>(), role<ProbeSignal>(), sink)
+    TimeMachineMiddleware(objectType<M>(), objectType<ProbeIntent>(), objectType<ProbeSignal>(), sink)
 
 /** A sink that describes each entry as soon as it is reported, on the reporting thread. */
 private fun recordingSink(messages: MutableList<TimeMachineTimelineMessage>, log: ProbeLog = testLog) = TimeMachineSink(log) { messages += it.describe(TimeMachineSequence(messages.size.toLong())) }
@@ -141,13 +141,13 @@ private val List<TimeMachineTimelineMessage>.observations: List<VIEObservation>
 
 /** Asks the live ViewModel [viewModelId] to take [value], as the inspector would: returns the request's
  *  identifier and its result. */
-private fun <T : Any> TimeMachineSink.intervene(viewModelId: Uuid, kind: VIEObjectKind, role: VIERole<T>, value: T): Pair<Uuid, VIEInterventionResult> {
+private fun <T : Any> TimeMachineSink.intervene(viewModelId: Uuid, kind: VIEObjectKind, type: VIEObjectType<T>, value: T): Pair<Uuid, VIEInterventionResult> {
     val request = TimeMachineServerMessage.Intervene(
         requestId = Uuid.random(),
         viewModelId = viewModelId,
         kind = kind,
-        typeName = role.typeNameOf(value),
-        asJson = requireNotNull(role.encode(value)),
+        typeName = type.typeNameOf(value),
+        asJson = requireNotNull(type.encode(value)),
     )
     return request.requestId to requireNotNull(liveViewModels[viewModelId]).intervener.intervene(request)
 }
@@ -191,9 +191,9 @@ class TimeMachineMiddlewareTest {
         val started = assertIs<TimeMachineClientMessage.ViewModelStarted>(messages.first())
         assertEquals(probe.viewModelId, started.info.id)
         assertEquals(ProbeVM::class.displayName, started.info.typeName)
-        assertEquals(role<CountModel>().toVIETypeInfo(), started.info.model)
-        assertEquals(role<ProbeIntent>().toVIETypeInfo(), started.info.intent)
-        assertEquals(role<ProbeSignal>().toVIETypeInfo(), started.info.signal)
+        assertEquals(objectType<CountModel>().toVIETypeInfo(), started.info.model)
+        assertEquals(objectType<ProbeIntent>().toVIETypeInfo(), started.info.intent)
+        assertEquals(objectType<ProbeSignal>().toVIETypeInfo(), started.info.signal)
     }
 
     @Test
@@ -272,10 +272,10 @@ class TimeMachineMiddlewareTest {
                 messages.observations.map { it.kind to it.asString },
             )
             val (_, intent, model, signal) = messages.observations
-            assertEquals(role<CountModel>().typeName, model.typeName)
-            assertEquals(role<ProbeIntent>().sealedSubTypes!!.single(), intent.typeName)
-            assertEquals(role<ProbeSignal>().typeNameOf(ProbeSignal.Incremented), signal.typeName)
-            assertEquals(role<CountModel>().encode(CountModel(1)), model.asJson)
+            assertEquals(objectType<CountModel>().typeName, model.typeName)
+            assertEquals(objectType<ProbeIntent>().sealedSubTypes!!.single(), intent.typeName)
+            assertEquals(objectType<ProbeSignal>().typeNameOf(ProbeSignal.Incremented), signal.typeName)
+            assertEquals(objectType<CountModel>().encode(CountModel(1)), model.asJson)
             assertNotNull(intent.asJson)
             assertNotNull(signal.asJson)
             assertTrue(messages.observations.all { it.interventionId == null })
@@ -434,8 +434,8 @@ class TimeMachineMiddlewareTest {
             val models = messages.observations.filter { it.kind == VIEObjectKind.Model }
             assertEquals(2, models.size)
             models.forEach { assertTrue(it.asString.startsWith("<toString() failed:"), it.asString) }
-            val role = role<ThrowingToStringModel>()
-            assertEquals(listOf(role.encode(ThrowingToStringModel(0)), role.encode(ThrowingToStringModel(1))), models.map { it.asJson })
+            val type = objectType<ThrowingToStringModel>()
+            assertEquals(listOf(type.encode(ThrowingToStringModel(0)), type.encode(ThrowingToStringModel(1))), models.map { it.asJson })
         }
     }
 
@@ -475,9 +475,9 @@ class TimeMachineMiddlewareTest {
 
             val models = messages.observations.filter { it.kind == VIEObjectKind.Model }
             assertEquals(2, models.size)
-            val role = role<SealedModel>()
+            val type = objectType<SealedModel>()
             models.forEach { assertEquals("org.kodein.arch.vie.timemachine.client.viewmodel.SealedModel.Filtered", it.typeName) }
-            assertEquals(role.encode(SealedModel.Filtered("all", 1)), models.last().asJson)
+            assertEquals(type.encode(SealedModel.Filtered("all", 1)), models.last().asJson)
         }
     }
 
@@ -493,7 +493,7 @@ class TimeMachineMiddlewareTest {
             assertEquals(1, pendingSignals().size)
             val models = messages.observations.filter { it.kind == VIEObjectKind.Model }
             assertEquals(2, models.size)
-            assertTrue("BrokenModel" in requireNotNull(role<SealedModel>().sealedSubTypes))
+            assertTrue("BrokenModel" in requireNotNull(objectType<SealedModel>().sealedSubTypes))
             models.forEach {
                 assertNull(it.asJson)
                 assertEquals("BrokenModel", it.typeName)
@@ -513,7 +513,7 @@ class TimeMachineMiddlewareTest {
             advanceUntilIdle()
             assertEquals(CountModel(5), model)
 
-            val (requestId, result) = sink.intervene(probe.viewModelId, VIEObjectKind.Model, role<CountModel>(), CountModel(100))
+            val (requestId, result) = sink.intervene(probe.viewModelId, VIEObjectKind.Model, objectType<CountModel>(), CountModel(100))
             assertEquals(VIEInterventionResult.Success, result)
             advanceUntilIdle()
             post(ProbeIntent.Increment)
@@ -539,7 +539,7 @@ class TimeMachineMiddlewareTest {
             advanceUntilIdle()
             assertEquals(CountModel(5), model)
 
-            val (requestId, result) = sink.intervene(probe.viewModelId, VIEObjectKind.Model, role<CountModel>(), CountModel(5))
+            val (requestId, result) = sink.intervene(probe.viewModelId, VIEObjectKind.Model, objectType<CountModel>(), CountModel(5))
             assertEquals(VIEInterventionResult.Success, result)
             advanceUntilIdle()
 
@@ -560,8 +560,8 @@ class TimeMachineMiddlewareTest {
 
             // Both handled before the ViewModel's dispatcher gets a turn, as a double-click on the
             // inspector's send button would: the update loop then applies them back to back.
-            val (firstId, firstResult) = sink.intervene(probe.viewModelId, VIEObjectKind.Model, role<CountModel>(), CountModel(10))
-            val (secondId, secondResult) = sink.intervene(probe.viewModelId, VIEObjectKind.Model, role<CountModel>(), CountModel(20))
+            val (firstId, firstResult) = sink.intervene(probe.viewModelId, VIEObjectKind.Model, objectType<CountModel>(), CountModel(10))
+            val (secondId, secondResult) = sink.intervene(probe.viewModelId, VIEObjectKind.Model, objectType<CountModel>(), CountModel(20))
             assertEquals(VIEInterventionResult.Success, firstResult)
             assertEquals(VIEInterventionResult.Success, secondResult)
             advanceUntilIdle()
@@ -583,7 +583,7 @@ class TimeMachineMiddlewareTest {
         return runVMTest(
             newVM = { ProbeVM(CountModel(0), { copy(count = count + 1) }, listOf(probe)) },
         ) {
-            val (requestId, result) = sink.intervene(probe.viewModelId, VIEObjectKind.Intent, role<ProbeIntent>(), ProbeIntent.Increment)
+            val (requestId, result) = sink.intervene(probe.viewModelId, VIEObjectKind.Intent, objectType<ProbeIntent>(), ProbeIntent.Increment)
             assertEquals(VIEInterventionResult.Success, result)
             advanceUntilIdle()
             post(ProbeIntent.Increment)
@@ -603,7 +603,7 @@ class TimeMachineMiddlewareTest {
         return runVMTest(
             newVM = { ProbeVM(CountModel(0), { copy(count = count + 1) }, listOf(probe)) },
         ) {
-            val (requestId, result) = sink.intervene(probe.viewModelId, VIEObjectKind.Signal, role<ProbeSignal>(), ProbeSignal.Incremented)
+            val (requestId, result) = sink.intervene(probe.viewModelId, VIEObjectKind.Signal, objectType<ProbeSignal>(), ProbeSignal.Incremented)
             assertEquals(VIEInterventionResult.Success, result)
             advanceUntilIdle()
 
@@ -619,7 +619,7 @@ class TimeMachineMiddlewareTest {
         return runVMTest(
             newVM = { ProbeVM(CountModel(0), { copy(count = count + 1) }, listOf(probe)) },
         ) {
-            val (_, result) = sink.intervene(probe.viewModelId, VIEObjectKind.Signal, role<ProbeSignal>(), ProbeSignal.Untyped)
+            val (_, result) = sink.intervene(probe.viewModelId, VIEObjectKind.Signal, objectType<ProbeSignal>(), ProbeSignal.Untyped)
             advanceUntilIdle()
 
             assertEquals(VIEInterventionResult.Reason.UnknownType, assertIs<VIEInterventionResult.Failure>(result).reason)
@@ -628,7 +628,7 @@ class TimeMachineMiddlewareTest {
     }
 
     @Test
-    fun aNonSerializableRoleRefusesIntervention(): TestResult {
+    fun aNonSerializableTypeRefusesIntervention(): TestResult {
         val sink = TimeMachineSink(testLog) {}
         val probe = probe<NotSerializableModel>(sink)
         return runVMTest(
@@ -681,7 +681,7 @@ class TimeMachineMiddlewareTest {
         }
 
         val request = TimeMachineServerMessage.Intervene(
-            Uuid.random(), probe.viewModelId, VIEObjectKind.Model, live.info.model.typeName, requireNotNull(role<CountModel>().encode(CountModel(1))),
+            Uuid.random(), probe.viewModelId, VIEObjectKind.Model, live.info.model.typeName, requireNotNull(objectType<CountModel>().encode(CountModel(1))),
         )
         assertEquals(VIEInterventionResult.Reason.ClosedViewModel, assertIs<VIEInterventionResult.Failure>(live.intervener.intervene(request)).reason)
         assertTrue(probe.viewModelId !in sink.liveViewModels)
