@@ -48,7 +48,18 @@ object InspectorDimens {
     val kindBadgeHeight: Dp = 18.dp
 }
 
-/** Badge and code chip 4, filter chip and field 6, nav item, card and editor 8, popover and menu 12. */
+/**
+ * The theme's corner radii, by slot of Material's shape scale.
+ *
+ * - `extraSmall`, 4 dp: read by Material's menus (the composer's type menu) and by a highlighted JSON tree line.
+ * - `small`, 6 dp: read by the composer's type field.
+ * - `medium`, 8 dp, and `large` and `extraLarge`, 12 dp: read by nothing.
+ *
+ * The views write their other radii by hand, mostly at these values: badges and code chips at 4, the search
+ * field and the type chips at 6, cards, notes, the JSON editor and the session rows at 8, the type info popover
+ * at 12. Some have no slot: the filter chips at 7, the rail's tiles and the probe snippet's card at 10.
+ * Buttons and pills are [InspectorPillShape].
+ */
 val InspectorShapes = Shapes(
     extraSmall = RoundedCornerShape(4.dp),
     small = RoundedCornerShape(6.dp),
