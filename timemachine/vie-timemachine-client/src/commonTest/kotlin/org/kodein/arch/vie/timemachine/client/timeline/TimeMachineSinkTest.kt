@@ -21,6 +21,7 @@ import org.kodein.arch.vie.timemachine.client.fixtures.collectedOnce
 import org.kodein.arch.vie.timemachine.client.fixtures.info
 import org.kodein.arch.vie.timemachine.client.fixtures.noIntervention
 import org.kodein.arch.vie.timemachine.client.fixtures.role
+import org.kodein.arch.vie.timemachine.client.fixtures.testLog
 import org.kodein.arch.vie.timemachine.client.role.VIERole
 import org.kodein.arch.vie.timemachine.protocol.VIEObjectKind
 import org.kodein.arch.vie.timemachine.protocol.VIESignalDelivery
@@ -69,7 +70,7 @@ class TimeMachineSinkTest {
     @Test
     fun anObservedObjectIsDescribedByItsEntryNotWhenReported() {
         val entries = mutableListOf<TimeMachineSink.Entry>()
-        val sink = TimeMachineSink { entries += it }
+        val sink = TimeMachineSink(testLog) { entries += it }
         val value = Counted(1)
 
         sink.observed(vmA, VIEObjectKind.Model, role<Counted>(), value)
@@ -83,7 +84,7 @@ class TimeMachineSinkTest {
     /** Reports [value] and describes it right away. */
     private fun <T : Any> describe(role: VIERole<T>, value: T): TimeMachineClientMessage.Observed {
         val entries = mutableListOf<TimeMachineSink.Entry>()
-        TimeMachineSink { entries += it }.observed(vmA, VIEObjectKind.Model, role, value)
+        TimeMachineSink(testLog) { entries += it }.observed(vmA, VIEObjectKind.Model, role, value)
         return assertIs<TimeMachineClientMessage.Observed>(entries.single().describe(sequence = TimeMachineSequence(0)))
     }
 
@@ -91,7 +92,7 @@ class TimeMachineSinkTest {
     fun aSignalIsDescribedWithTheDeliveryItsTypePicked() {
         fun delivery(signal: DeliverySignal): VIESignalDelivery? {
             val entries = mutableListOf<TimeMachineSink.Entry>()
-            TimeMachineSink { entries += it }.observed(vmA, VIEObjectKind.Signal, role<DeliverySignal>(), signal)
+            TimeMachineSink(testLog) { entries += it }.observed(vmA, VIEObjectKind.Signal, role<DeliverySignal>(), signal)
             return assertIs<TimeMachineClientMessage.Observed>(entries.single().describe(TimeMachineSequence(0))).observation.delivery
         }
 
@@ -104,7 +105,7 @@ class TimeMachineSinkTest {
     fun aModelAndAnIntentCarryNoDelivery() {
         assertNull(describe(role<Counted>(), Counted(1)).observation.delivery)
         val entries = mutableListOf<TimeMachineSink.Entry>()
-        TimeMachineSink { entries += it }.observed(vmA, VIEObjectKind.Intent, role<Counted>(), Counted(2))
+        TimeMachineSink(testLog) { entries += it }.observed(vmA, VIEObjectKind.Intent, role<Counted>(), Counted(2))
         assertNull(assertIs<TimeMachineClientMessage.Observed>(entries.single().describe(TimeMachineSequence(0))).observation.delivery)
     }
 
@@ -124,7 +125,7 @@ class TimeMachineSinkTest {
     fun aLongToStringIsCutWithAMarkerAndTheObservationSaysSo() {
         val entries = mutableListOf<TimeMachineSink.Entry>()
         // The limit is on the whole observation: its toString() is cut at half of it.
-        TimeMachineSink(maxObservationLength = 200) { entries += it }
+        TimeMachineSink(testLog, maxObservationLength = 200) { entries += it }
             .observed(vmA, VIEObjectKind.Model, role<String>(), "x".repeat(1_000))
 
         val observation = assertIs<TimeMachineClientMessage.Observed>(entries.single().describe(TimeMachineSequence(0))).observation
@@ -135,7 +136,7 @@ class TimeMachineSinkTest {
     @Test
     fun aToStringWithinTheLimitIsLeftAlone() {
         val entries = mutableListOf<TimeMachineSink.Entry>()
-        TimeMachineSink(maxObservationLength = 200) { entries += it }
+        TimeMachineSink(testLog, maxObservationLength = 200) { entries += it }
             .observed(vmA, VIEObjectKind.Model, role<String>(), "x".repeat(100))
 
         val observation = assertIs<TimeMachineClientMessage.Observed>(entries.single().describe(TimeMachineSequence(0))).observation
@@ -147,7 +148,7 @@ class TimeMachineSinkTest {
     fun aToStringIsNotCutInTheMiddleOfASurrogatePair() {
         val entries = mutableListOf<TimeMachineSink.Entry>()
         // Cut at 3 characters, the pair "😀" would be split after its first half.
-        TimeMachineSink(maxObservationLength = 6) { entries += it }
+        TimeMachineSink(testLog, maxObservationLength = 6) { entries += it }
             .observed(vmA, VIEObjectKind.Model, role<String>(), "ab😀cd")
 
         val observation = assertIs<TimeMachineClientMessage.Observed>(entries.single().describe(TimeMachineSequence(0))).observation
@@ -163,7 +164,7 @@ class TimeMachineSinkTest {
 
     @Test
     fun theSinkKnowsWhichViewModelsAreAlive() {
-        val sink = TimeMachineSink {}
+        val sink = TimeMachineSink(testLog) {}
         sink.started(info(vmA), noIntervention)
         sink.started(info(vmB), noIntervention)
         sink.closed(vmA)
@@ -174,7 +175,7 @@ class TimeMachineSinkTest {
     @Test
     fun aViewModelCollectedWithoutBeingClearedIsReportedClosedOnceAndForgotten() {
         val entries = mutableListOf<TimeMachineSink.Entry>()
-        val sink = TimeMachineSink { entries += it }
+        val sink = TimeMachineSink(testLog) { entries += it }
         var collected = false
         sink.started(info(vmA), collectedOnce { collected })
         sink.started(info(vmB), noIntervention)
@@ -192,7 +193,7 @@ class TimeMachineSinkTest {
     @Test
     fun startingViewModelsForgetsTheCollectedOnesEvenWhenNothingLooksTheRegistryUp() {
         val entries = mutableListOf<TimeMachineSink.Entry>()
-        val sink = TimeMachineSink { entries += it }
+        val sink = TimeMachineSink(testLog) { entries += it }
 
         // As an app that never clears its ViewModels does, with no inspector connected.
         repeat(1000) { sink.started(info(Uuid.random()), collectedOnce { true }) }
@@ -204,7 +205,7 @@ class TimeMachineSinkTest {
     @Test
     fun aViewModelIsReportedClosedOnlyOnce() {
         val entries = mutableListOf<TimeMachineSink.Entry>()
-        val sink = TimeMachineSink { entries += it }
+        val sink = TimeMachineSink(testLog) { entries += it }
         sink.started(info(vmA), noIntervention)
         entries.clear()
 
@@ -217,7 +218,7 @@ class TimeMachineSinkTest {
     @Test
     fun aClosedSinkForgetsItsViewModelsAndReportsNothingMore() {
         val entries = mutableListOf<TimeMachineSink.Entry>()
-        val sink = TimeMachineSink { entries += it }
+        val sink = TimeMachineSink(testLog) { entries += it }
         sink.started(info(vmA), noIntervention)
         entries.clear()
 

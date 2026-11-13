@@ -6,7 +6,6 @@ import kotlin.test.assertNotSame
 import kotlin.test.assertNull
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
-import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 import kotlin.uuid.Uuid
@@ -19,8 +18,11 @@ import kotlinx.coroutines.withTimeoutOrNull
 import org.kodein.arch.vie.timemachine.client.connection.InspectorConnection
 import org.kodein.arch.vie.timemachine.client.fixtures.FakeInspector
 import org.kodein.arch.vie.timemachine.client.fixtures.info
-import org.kodein.arch.vie.timemachine.client.fixtures.noIntervention
+import org.kodein.arch.vie.timemachine.client.fixtures.testLog
+import org.kodein.arch.vie.timemachine.client.timeline.TimeMachineIntervener
 import org.kodein.arch.vie.timemachine.client.timeline.TimeMachineSink
+import org.kodein.arch.vie.timemachine.protocol.TimeMachineServerMessage
+import org.kodein.arch.vie.timemachine.protocol.VIEInterventionResult
 
 
 /**
@@ -29,28 +31,23 @@ import org.kodein.arch.vie.timemachine.client.timeline.TimeMachineSink
  */
 private fun withProbe(
     inspector: FakeInspector,
-    // Longer than any test: no connection holds unless the test asks for it.
-    heldAfter: Duration = 10.seconds,
-    // Runs inside the probe, wherever it prints a notice: what it throws is thrown there.
-    onNotice: (String) -> Unit = {},
     onRetired: (TimeMachineProbe) -> Unit = {},
     // Runs when the probe builds its connection, where it builds it: what it throws is thrown there.
-    onNewConnection: () -> Unit = {},
+    onNewConnection: (TimeMachineSink) -> Unit = {},
     block: suspend (TimeMachineProbe, Deferred<TimeMachineSink>) -> Unit,
 ) = runBlocking {
     val config = TimeMachineConfig(appName = "ProbeTest", enabled = true, port = inspector.port)
-    val notice: (String) -> Unit = { println(it); onNotice(it) }
     val probeSink = CompletableDeferred<TimeMachineSink>()
-    val probe = TimeMachineProbe(config, notice, onRetired) { session, sink, outbox ->
-        onNewConnection()
+    val probe = TimeMachineProbe(config, testLog, onRetired) { session, sink, outbox ->
+        onNewConnection(sink)
         probeSink.complete(sink)
         InspectorConnection(
-            config, session, sink, outbox,
+            config, session, sink, outbox, testLog,
             firstRetryDelay = 20.milliseconds,
             maxRetryDelay = 100.milliseconds,
-            heldAfter = heldAfter,
+            // Longer than any test: no connection holds.
+            heldAfter = 10.seconds,
             handshakeTimeout = 300.milliseconds,
-            notice = notice,
         )
     }
     try {
@@ -67,17 +64,20 @@ class TimeMachineProbeTest {
     fun anErrorInTheConnectionLoopRetiresTheProbe() {
         val inspector = FakeInspector()
         val retired = CompletableDeferred<TimeMachineProbe>()
+        // Looking this ViewModel up throws: the connection loop does, to describe the live
+        // ViewModels, as soon as the inspector welcomes it.
+        val failingLookup = object : TimeMachineIntervener {
+            override val isViewModelCollected: Boolean get() = throw LinkageError("from the test")
+            override fun intervene(request: TimeMachineServerMessage.Intervene): VIEInterventionResult = error("No intervention expected")
+        }
         withProbe(
             inspector,
-            // The connection is announced once it holds, from inside the connection loop.
-            heldAfter = 50.milliseconds,
-            onNotice = { if ("connected to the inspector" in it) throw LinkageError("from the test") },
             onRetired = { retired.complete(it) },
+            // Live before the connection exists, and so before the loop first looks it up.
+            onNewConnection = { sink -> sink.started(info(Uuid.random()), failingLookup) },
         ) { probe, sinkOnceStarted ->
             probe.start()
             val sink = sinkOnceStarted.await()
-            val vm = Uuid.random()
-            sink.started(info(vm), noIntervention)
             inspector.hellos.receive()
 
             assertSame(probe, retired.await())

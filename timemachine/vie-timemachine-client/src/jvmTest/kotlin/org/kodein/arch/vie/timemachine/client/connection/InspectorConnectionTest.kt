@@ -5,6 +5,7 @@ import io.ktor.websocket.close
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
@@ -33,6 +34,7 @@ import kotlinx.serialization.encoding.Decoder
 import kotlinx.serialization.encoding.Encoder
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonPrimitive
+import org.kodein.arch.vie.timemachine.client.ProbeLog
 import org.kodein.arch.vie.timemachine.client.TimeMachineConfig
 import org.kodein.arch.vie.timemachine.client.TimeMachineProbe
 import org.kodein.arch.vie.timemachine.client.fixtures.FakeInspector
@@ -97,14 +99,14 @@ private fun withConnection(
     val config = TimeMachineConfig(appName = "ConnectionTest", enabled = true, port = inspector.port)
     val session = TimeMachineSession(id = Uuid.random(), name = config.appName)
     val outbox = TimeMachineOutbox(bufferSize, window, maxObservationLength)
-    val sink = TimeMachineSink(maxObservationLength, outbox::offer)
+    val log = ProbeLog { println(it); notices?.trySend(it) }
+    val sink = TimeMachineSink(log, maxObservationLength, outbox::offer)
     val connection = InspectorConnection(
-        config, session, sink, outbox,
+        config, session, sink, outbox, log,
         firstRetryDelay = 20.milliseconds,
         maxRetryDelay = maxRetryDelay,
         heldAfter = heldAfter,
         handshakeTimeout = 300.milliseconds,
-        notice = { println(it); notices?.trySend(it) },
     )
     val probed = Probed(session, sink, connection, scope = this)
     try {
@@ -472,8 +474,9 @@ class InspectorConnectionTest {
 
     @Test
     fun anInterventionTheProbeFailsToHandleIsAnsweredWithAProbeFailureAndTheConnectionLoopGoesOn() {
+        val notices = Channel<String>(Channel.UNLIMITED)
         val inspector = FakeInspector()
-        withConnection(inspector) { probed ->
+        withConnection(inspector, notices = notices) { probed ->
             val vm = Uuid.random()
             probed.sink.started(info(vm)) { error("from the test") }
             probed.start()
@@ -481,11 +484,16 @@ class InspectorConnectionTest {
             inspector.receiveAnnounce(vm)
             assertIs<TimeMachineClientMessage.ViewModelStarted>(inspector.received.receive())
 
-            val request = TimeMachineServerMessage.Intervene(Uuid.random(), vm, VIEObjectKind.Intent, "T", JsonNull)
+            val request = TimeMachineServerMessage.Intervene(Uuid.random(), vm, VIEObjectKind.Intent, "T", JsonPrimitive("the object itself"))
             connection.send(TimeMachineServerMessage.serializer(), request)
             val answer = assertIs<TimeMachineClientMessage.InterventionResult>(inspector.received.receive())
             assertEquals(request.requestId, answer.requestId)
             assertEquals(VIEInterventionResult.Reason.ProbeFailure, assertIs<VIEInterventionResult.Failure>(answer.result).reason)
+
+            // The failure names the request by its identifiers, and never prints the object it carries.
+            val failure = notices.receive()
+            assertTrue("Intervene ${request.requestId} on $vm" in failure && "from the test" in failure, failure)
+            assertFalse("the object itself" in failure, failure)
 
             // Still streaming.
             connection.send(TimeMachineServerMessage.serializer(), TimeMachineServerMessage.RequestViewModelInfo(vm))

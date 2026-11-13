@@ -1,6 +1,7 @@
 package org.kodein.arch.vie.timemachine.client
 
 import androidx.lifecycle.ViewModelStore
+import java.util.concurrent.CopyOnWriteArrayList
 import kotlin.reflect.KClass
 import kotlin.test.AfterTest
 import kotlin.test.Test
@@ -76,7 +77,8 @@ private class UndescribableVM : VIEViewModel<UndescribableModel, StressIntent, S
 class TimeMachineTest {
 
     // No inspector listens there: the probe keeps retrying in the background until stopped.
-    private fun config(appName: String, enabled: Boolean = true) = TimeMachineConfig(appName = appName, port = 1, enabled = enabled)
+    private fun config(appName: String, enabled: Boolean = true, logger: (String) -> Unit = ::println) =
+        TimeMachineConfig(appName = appName, port = 1, enabled = enabled, logger = logger)
 
     // Nothing gives this call an expected type: it names the three types itself.
     private fun middleware() = TimeMachine.middleware<StressModel, StressIntent, StressSignal>()
@@ -139,25 +141,24 @@ class TimeMachineTest {
 
     @Test
     fun aProbeWhoseConnectionLoopDiesOfAnErrorIsRetiredAndCanBeStartedAgain() {
-        FakeInspector().use { inspector ->
-            val config = TimeMachineConfig(appName = "Retired", enabled = true, port = inspector.port)
-            val retired = CompletableDeferred<Unit>()
-            TimeMachine.start(config) { onRetired ->
-                TimeMachineProbe(
-                    config,
-                    notice = { if ("connected to the inspector" in it) throw LinkageError("from the test") },
-                    onRetired = {
-                        onRetired(it)
-                        retired.complete(Unit)
-                    },
-                )
-            }
-            runBlocking { withTimeout(10.seconds) { retired.await() } }
-
-            assertSame<Any>(NoOpMiddleware, middleware(), "A retired probe must no longer provide observing middlewares")
-            TimeMachine.start(config("Again"))
-            assertIs<TimeMachineMiddleware<*, *, *>>(middleware())
+        val config = config("Retired")
+        val retired = CompletableDeferred<Unit>()
+        TimeMachine.start(config) { onRetired ->
+            TimeMachineProbe(
+                config,
+                onRetired = {
+                    onRetired(it)
+                    retired.complete(Unit)
+                },
+                // Thrown on the probe's own coroutine, where its connection loop runs.
+                newConnection = { _, _, _ -> throw LinkageError("from the test") },
+            )
         }
+        runBlocking { withTimeout(10.seconds) { retired.await() } }
+
+        assertSame<Any>(NoOpMiddleware, middleware(), "A retired probe must no longer provide observing middlewares")
+        TimeMachine.start(config("Again"))
+        assertIs<TimeMachineMiddleware<*, *, *>>(middleware())
     }
 
     @Test
@@ -167,11 +168,35 @@ class TimeMachineTest {
     }
 
     @Test
-    fun anErrorWhileStartingTheProbeLeavesNoProbeRunning() {
-        val config = config("Unstartable")
-        TimeMachine.start(config) { onRetired ->
-            TimeMachineProbe(config, notice = { throw LinkageError("from the test") }, onRetired = onRetired)
-        }
+    fun everythingTheProbeSaysGoesToTheLoggerOfItsConfiguration() {
+        val said = CopyOnWriteArrayList<String>()
+        TimeMachine.start(config("Logged", logger = { said += it }))
+        assertTrue("TimeMachine probe started for \"Logged\"" in said.first(), said.toString())
+
+        TimeMachine.start(config("Second", logger = { said += it }))
+        assertTrue("already runs" in said.last(), said.toString())
+
+        TimeMachine.stop()
+        said.clear()
+        TimeMachine.start(TimeMachineConfig(appName = "Invalid", enabled = true, port = 0, logger = { said += it }))
+        assertTrue("does not start" in said.single() && "port" in said.single(), said.toString())
+    }
+
+    @Test
+    fun aDisabledProbeNeverCallsItsLogger() {
+        val said = CopyOnWriteArrayList<String>()
+        // Invalid too: a disabled probe does not even say what is wrong with its configuration.
+        TimeMachine.start(TimeMachineConfig(appName = "Disabled", enabled = false, port = 0, logger = { said += it }))
+        middleware()
+        TimeMachine.stop()
+        assertEquals(emptyList<String>(), said.toList())
+    }
+
+    @Test
+    fun aLoggerThatThrowsDoesNotKeepTheProbeFromRunning() {
+        TimeMachine.start(config("Unloggable", logger = { throw LinkageError("from the test") }))
+        assertIs<TimeMachineMiddleware<*, *, *>>(middleware())
+        TimeMachine.stop()
         assertSame<Any>(NoOpMiddleware, middleware())
     }
 
