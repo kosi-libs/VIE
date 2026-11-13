@@ -55,7 +55,7 @@ internal fun railItems(model: SessionsVIE.Model): List<RailItem> {
                         "$name ${vm.shortId}${if (closed) ", closed" else ""}",
                         selected = model.selected == vmScope,
                         dot = RailDot.None,
-                        dimmed = closed || !session.connected,
+                        dimmed = vm.status.gone,
                     ),
                 )
             }

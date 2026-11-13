@@ -22,6 +22,7 @@ import org.kodein.arch.vie.timemachine.server.ui.core.Pane
 import org.kodein.arch.vie.timemachine.server.ui.core.PaneViewModel
 import org.kodein.arch.vie.timemachine.server.ui.core.ViewModelStatus
 import org.kodein.arch.vie.timemachine.server.ui.core.current
+import org.kodein.arch.vie.timemachine.server.ui.core.viewModelStatus
 import org.kodein.arch.vie.timemachine.server.ui.core.whileShown
 import kotlin.time.Instant
 import kotlin.uuid.Uuid
@@ -160,7 +161,7 @@ private fun SessionRecord.item(now: Instant): SessionItem {
         connected = isConnected,
         connectedAt = connectedAt,
         disconnectedAt = disconnectedAt,
-        viewModels = viewModels.values.map { it.item(now) },
+        viewModels = viewModels.values.map { it.item(this, now) },
         sparkline = sparkline(now),
         clearLabel = when {
             !isConnected -> "Clear session"
@@ -172,15 +173,11 @@ private fun SessionRecord.item(now: Instant): SessionItem {
     )
 }
 
-private fun ViewModelRecord.item(now: Instant) = ViewModelItem(
+private fun ViewModelRecord.item(session: SessionRecord, now: Instant) = ViewModelItem(
     id = id,
     typeName = info?.typeName,
     shortId = shortViewModelId(id),
-    status = when {
-        info == null && !closed -> ViewModelStatus.Identifying
-        closed -> ViewModelStatus.Closed
-        else -> ViewModelStatus.Alive
-    },
+    status = viewModelStatus(session, this),
     since = startedAt ?: firstSeenAt,
     startSeen = startedAt != null,
     closedAt = closedAt,

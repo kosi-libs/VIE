@@ -30,6 +30,7 @@ import org.kodein.arch.vie.timemachine.server.ui.core.PaneViewModel
 import org.kodein.arch.vie.timemachine.server.ui.core.Selection
 import org.kodein.arch.vie.timemachine.server.ui.core.ViewModelStatus
 import org.kodein.arch.vie.timemachine.server.ui.core.key
+import org.kodein.arch.vie.timemachine.server.ui.core.viewModelStatus
 import org.kodein.arch.vie.timemachine.server.ui.core.whileShown
 import org.kodein.arch.vie.timemachine.server.ui.rightpane.canIntervene
 import kotlin.time.Instant
@@ -118,7 +119,6 @@ internal sealed interface TimelineHeader {
         val since: Instant,
         val startSeen: Boolean,
         val closedAt: Instant?,
-        val sessionConnected: Boolean,
     ) : TimelineHeader
 
     data class Session(
@@ -222,16 +222,11 @@ internal class TimelineProjector(private val scope: InspectorScope) {
         else TimelineHeader.ViewModel(
             id = vm.id,
             shortId = shortViewModelId(vm.id),
-            status = when {
-                vm.closed -> ViewModelStatus.Closed
-                vm.isUnknown -> ViewModelStatus.Identifying
-                else -> ViewModelStatus.Alive
-            },
+            status = viewModelStatus(session, vm),
             info = vm.info,
             since = vm.startedAt ?: vm.firstSeenAt,
             startSeen = vm.startedAt != null,
             closedAt = vm.closedAt,
-            sessionConnected = session.isConnected,
         )
 
     private fun item(session: SessionRecord, entry: SessionTimelineEntry, query: String): TimelineItem {

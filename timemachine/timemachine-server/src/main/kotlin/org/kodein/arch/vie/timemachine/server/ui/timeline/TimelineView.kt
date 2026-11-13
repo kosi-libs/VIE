@@ -216,7 +216,6 @@ private fun ViewModelHeader(header: TimelineHeader.ViewModel) {
     // Whether the type info is open: one panel for the three kinds, whichever chip opened it. It is this
     // header's own: the one of another ViewModel starts closed.
     var typeInfoOpen by remember { mutableStateOf(false) }
-    val gone = header.status == ViewModelStatus.Closed || !header.sessionConnected
     Row(
         Modifier.fillMaxWidth().padding(start = InspectorDimens.paneHorizontalPadding, end = InspectorDimens.paneHorizontalPadding, top = 10.dp, bottom = 9.dp),
         horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -230,14 +229,12 @@ private fun ViewModelHeader(header: TimelineHeader.ViewModel) {
                     modifier = Modifier.weight(1f, fill = false),
                 )
                 IdChip(if (info == null) "unknown ViewModel" else header.shortId)
-                when {
-                    header.status == ViewModelStatus.Closed ->
-                        StatusPill(header.closedAt?.let { "closed ${clock(it)}" } ?: "closed · time unknown", scheme.outline, scheme.surfaceContainerHigh, square = true)
-                    !header.sessionConnected ->
-                        StatusPill("session disconnected", scheme.outline, scheme.surfaceContainerHigh)
-                    header.status == ViewModelStatus.Identifying ->
-                        StatusPill("identifying…", scheme.onPrimaryContainer, scheme.primaryContainer)
-                    else -> StatusPill("alive", colors.success, colors.successContainer)
+                val label = header.status.label(header.closedAt)
+                when (header.status) {
+                    ViewModelStatus.Closed -> StatusPill(label, scheme.outline, scheme.surfaceContainerHigh, square = true)
+                    ViewModelStatus.SessionDisconnected -> StatusPill(label, scheme.outline, scheme.surfaceContainerHigh)
+                    ViewModelStatus.Identifying -> StatusPill(label, scheme.onPrimaryContainer, scheme.primaryContainer)
+                    ViewModelStatus.Alive -> StatusPill(label, colors.success, colors.successContainer)
                 }
             }
             val sub = when {
