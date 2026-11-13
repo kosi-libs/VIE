@@ -12,7 +12,6 @@ import org.kodein.arch.vie.timemachine.server.ui.common.JsonPath
 import org.kodein.arch.vie.timemachine.server.ui.common.diffJson
 import org.kodein.arch.vie.timemachine.server.ui.common.interventionNumber
 import org.kodein.arch.vie.timemachine.server.ui.common.pretty
-import org.kodein.arch.vie.timemachine.server.ui.common.type
 import org.kodein.arch.vie.timemachine.server.ui.core.Inspector
 import org.kodein.arch.vie.timemachine.server.ui.core.Pane
 import org.kodein.arch.vie.timemachine.server.ui.core.PaneViewModel
@@ -55,6 +54,7 @@ internal interface DetailVIE : VIE<DetailVIE.Model, DetailVIE.Intent, VIE.NoSign
  * @property viewModelId The ViewModel it is in.
  * @property diff For a Model, its differences from the Model observed before, when that one is retained.
  * @property interventionNumber For an intervened observation, its number within its ViewModel.
+ * @property canIntervene Whether "Edit & intervene" is open on the row: `canIntervene(session, vm, observation)` on its observation.
  */
 internal data class DetailProjection(
     val row: Row? = null,
@@ -82,7 +82,7 @@ internal fun detailProjection(state: TimeMachineState, selection: Selection, raw
         diff = previous?.let { ModelDiff(it.sequence, if (old != null && new != null) diffJson(old, new) else emptyList()) },
         interventionNumber = observation?.interventionId?.let { vm.interventionNumber(it) },
         interventionKind = observation?.interventionId?.let { vm.interventions[it]?.kind },
-        canIntervene = observation?.asJson != null && composerBlock(session, vm) == null && vm.info?.type(observation.kind)?.isSerializable == true,
+        canIntervene = observation != null && canIntervene(session, vm, observation),
         rawText = if (raw) new?.pretty() else null,
     )
 }

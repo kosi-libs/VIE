@@ -245,4 +245,31 @@ class ComposerTest {
         val closed = state(more = arrayOf(receive(c1, closed(vm, 1))))
         assertFalse(closed.target(VIEObjectKind.Intent).canSend(parseJson("{}")))
     }
+
+    // Interventions
+
+    private val anIntent = observed(vm, 2, VIEObjectKind.Intent, "app.Intent", json = JsonObject(emptyMap())).observation
+
+    @Test
+    fun anObservationWithJsonOfASerializableTypeCanBeIntervenedOnWhileNothingBlocks() {
+        val s = state()
+        assertTrue(canIntervene(s.session(session.id), s.vm(session.id, vm), anIntent))
+    }
+
+    @Test
+    fun nothingCanBeIntervenedOnWhileTheComposerIsBlocked() {
+        val withClosedVm = state(more = arrayOf(receive(c1, closed(vm, 1))))
+        val withSessionDisconnected = state().after(TimeMachineEvent.Disconnected(c1, t0)).state
+        val withUnknownVm = TimeMachineState().after(hello(c1, session), receive(c1, observed(vm, 0))).state
+        for (s in listOf(withClosedVm, withSessionDisconnected, withUnknownVm)) assertFalse(canIntervene(s.session(session.id), s.vm(session.id, vm), anIntent))
+        assertFalse(canIntervene(null, null, anIntent))
+    }
+
+    @Test
+    fun anObservationWithoutJsonOrOfATypeThatDoesNotSerializeCannotBeIntervenedOn() {
+        val s = state(intent = VIETypeInfo("app.Intent", isSerializable = false))
+        val withoutJson = observed(vm, 1, VIEObjectKind.Model, "app.Model").observation
+        assertFalse(canIntervene(s.session(session.id), s.vm(session.id, vm), withoutJson))
+        assertFalse(canIntervene(s.session(session.id), s.vm(session.id, vm), anIntent))
+    }
 }
