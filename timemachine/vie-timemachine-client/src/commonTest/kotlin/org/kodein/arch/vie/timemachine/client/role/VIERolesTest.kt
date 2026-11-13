@@ -4,11 +4,12 @@ import kotlin.reflect.typeOf
 import kotlin.test.Test
 import kotlin.test.assertNotSame
 import kotlin.test.assertSame
+import org.kodein.arch.vie.timemachine.client.fixtures.testLog
 
 
 class VIERolesTest {
 
-    private val roles = VIERoles()
+    private val roles = VIERoles(testLog)
 
     @Test
     fun aRoleIsIntrospectedOncePerType() {

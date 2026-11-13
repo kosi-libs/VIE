@@ -27,6 +27,7 @@ import org.kodein.arch.vie.VIE
 import org.kodein.arch.vie.VIEMiddleware
 import org.kodein.arch.vie.VIEViewModel
 import org.kodein.arch.vie.timemachine.client.fixtures.role
+import org.kodein.arch.vie.timemachine.client.fixtures.testLog
 import org.kodein.arch.vie.timemachine.client.role.VIERole
 import org.kodein.arch.vie.timemachine.client.timeline.TimeMachineIntervener
 import org.kodein.arch.vie.timemachine.client.timeline.TimeMachineSink
@@ -81,7 +82,7 @@ class TimeMachineMiddlewareConcurrencyTest {
     @Test
     fun aViewModelThatIsNeverClearedIsNotKeptReachableAndIsReportedClosedOnceCollected() {
         val messages = ConcurrentLinkedQueue<TimeMachineTimelineMessage>()
-        val sink = TimeMachineSink { messages += it.describe(TimeMachineSequence.First) }
+        val sink = TimeMachineSink(testLog) { messages += it.describe(TimeMachineSequence.First) }
         val probe = TimeMachineMiddleware(role<StressModel>(), role<StressIntent>(), role<StressSignal>(), sink)
 
         val dropped = buildThenDrop(probe, sink)
@@ -104,7 +105,7 @@ class TimeMachineMiddlewareConcurrencyTest {
     @Test
     fun concurrentInjectionsAreEachTaggedOnAMultiThreadedViewModelScope() = runBlocking {
         val observations = ConcurrentLinkedQueue<VIEObservation>()
-        val sink = TimeMachineSink { entry ->
+        val sink = TimeMachineSink(testLog) { entry ->
             (entry.describe(TimeMachineSequence.First) as? TimeMachineClientMessage.Observed)?.let { observations += it.observation }
         }
         val probe = TimeMachineMiddleware(role<StressModel>(), role<StressIntent>(), role<StressSignal>(), sink)

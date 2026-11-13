@@ -20,10 +20,9 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
+import org.kodein.arch.vie.timemachine.client.ProbeLog
 import org.kodein.arch.vie.timemachine.client.TimeMachineConfig
 import org.kodein.arch.vie.timemachine.client.TimeMachineProbe
-import org.kodein.arch.vie.timemachine.client.guarded
-import org.kodein.arch.vie.timemachine.client.guardedSuspending
 import org.kodein.arch.vie.timemachine.client.timeline.TimeMachineIntervener
 import org.kodein.arch.vie.timemachine.client.timeline.TimeMachineOutbox
 import org.kodein.arch.vie.timemachine.client.timeline.TimeMachineSink
@@ -46,13 +45,15 @@ import org.kodein.arch.vie.timemachine.protocol.VIEInterventionResult
  * `handshakeTimeout`.
  *
  * It knows the probe through three things only: the `session` it says hello with, the `sink` whose
- * live ViewModels it describes and intervenes in, and the `outbox` it drains.
+ * live ViewModels it describes and intervenes in, and the `outbox` it drains. What it has to say
+ * goes to the probe's `log`.
  */
 internal class InspectorConnection(
     private val config: TimeMachineConfig,
     private val session: TimeMachineSession,
     private val sink: TimeMachineSink,
     private val outbox: TimeMachineOutbox,
+    private val log: ProbeLog,
     private val firstRetryDelay: Duration = 500.milliseconds,
     private val maxRetryDelay: Duration = 5.seconds,
     private val quietAfter: Duration = 1.minutes,
@@ -60,7 +61,6 @@ internal class InspectorConnection(
     private val heldAfter: Duration = 5.seconds,
     private val pingInterval: Duration = 5.seconds,
     private val handshakeTimeout: Duration = 10.seconds,
-    private val notice: (String) -> Unit = ::println,
 ) : AutoCloseable {
 
     // The connection is pinged every `pingInterval`, and closed when a pong is late, so that a
@@ -97,7 +97,7 @@ internal class InspectorConnection(
         http.close()
     }
 
-    private fun outage() = Outage(TimeSource.Monotonic.markNow(), address, firstRetryDelay, maxRetryDelay, quietAfter, quietRetryDelay, notice)
+    private fun outage() = Outage(TimeSource.Monotonic.markNow(), address, firstRetryDelay, maxRetryDelay, quietAfter, quietRetryDelay, log::notice)
 
     /** One connection to the inspector, from its opening to its end. Prints nothing but the
      *  connection itself, once it holds: what its end is worth printing is the [Outage]'s to tell. */
@@ -114,7 +114,7 @@ internal class InspectorConnection(
                 // Set on the stream's own coroutine, and read once the stream has joined it.
                 stream(onHeld = {
                     held = true
-                    notice("TimeMachine: connected to the inspector at $address")
+                    log.notice("TimeMachine: connected to the inspector at $address")
                 })
             }
         } catch (e: Exception) {
@@ -181,7 +181,7 @@ internal class InspectorConnection(
             }
             while (true) {
                 val message = receiveMessage() ?: break
-                guardedSuspending({ "answer ${message.summary}" }) { answer(message) }
+                log.guardedSuspending({ "answer ${message.summary}" }) { answer(message) }
             }
             drain.cancel()
             holding.cancel()
@@ -208,7 +208,7 @@ internal class InspectorConnection(
                     VIEInterventionResult.Failure(VIEInterventionResult.Reason.UnknownViewModel, "No live ViewModel ${message.viewModelId}")
                 } else {
                     // An intervener never throws, but it runs app code: a failure still gets its answer.
-                    guardedSuspending({ "intervene with ${message.summary}" }) { live.intervener.intervene(message) }
+                    log.guardedSuspending({ "intervene with ${message.summary}" }) { live.intervener.intervene(message) }
                         ?: VIEInterventionResult.Failure(VIEInterventionResult.Reason.ProbeFailure, "The probe failed to handle the request ${message.requestId}")
                 }
                 sendMessage(TimeMachineClientMessage.InterventionResult(message.requestId, result))
@@ -228,7 +228,7 @@ internal class InspectorConnection(
         for (frame in incoming) {
             if (frame !is Frame.Text) continue
             val text = frame.readText()
-            return guarded({ "decode a ${text.length}-character frame: ${text.excerpt()}" }) { TimeMachineJson.decodeFromString(TimeMachineServerMessage.serializer(), text) } ?: continue
+            return log.guarded({ "decode a ${text.length}-character frame: ${text.excerpt()}" }) { TimeMachineJson.decodeFromString(TimeMachineServerMessage.serializer(), text) } ?: continue
         }
         return null
     }

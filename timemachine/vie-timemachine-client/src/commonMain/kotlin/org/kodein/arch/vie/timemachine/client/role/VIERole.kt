@@ -17,7 +17,7 @@ import kotlinx.serialization.json.decodeFromJsonElement
 import kotlinx.serialization.json.encodeToJsonElement
 import kotlinx.serialization.modules.SerializersModule
 import kotlinx.serialization.serializerOrNull
-import org.kodein.arch.vie.timemachine.client.describing
+import org.kodein.arch.vie.timemachine.client.ProbeLog
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineJson
 import org.kodein.arch.vie.timemachine.protocol.VIEInterventionResult
 import org.kodein.arch.vie.timemachine.protocol.VIEInterventionResult.Reason
@@ -191,12 +191,12 @@ internal class VIERole<T> private constructor(
          * Never throws. Introspecting [type] runs the app's own code — a custom serializer's
          * `descriptor`, and for a sealed type the descriptor of every subtype — on the thread that
          * builds the ViewModel, inside its constructor. Whatever that throws, an `Error` included, is
-         * printed, and [type] then counts as not `@Serializable`: its objects are still observed, only
+         * printed to [log], and [type] then counts as not `@Serializable`: its objects are still observed, only
          * without JSON. So does a type kotlinx-serialization refuses to look up, such as one with a
          * star projection.
          */
-        fun <T> of(type: KType): VIERole<T> =
-            describing({ "introspect $type, reported without JSON" }) { introspect<T>(type) } ?: notSerializable(type)
+        fun <T> of(type: KType, log: ProbeLog): VIERole<T> =
+            log.describing({ "introspect $type, reported without JSON" }) { introspect<T>(type) } ?: notSerializable(type)
 
         /** The role of [type], or `null` if it has no serializer the probe can use. Runs app code, and
          *  throws whatever it throws. */

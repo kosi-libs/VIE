@@ -2,6 +2,7 @@ package org.kodein.arch.vie.timemachine.client.fixtures
 
 import kotlin.reflect.typeOf
 import kotlin.uuid.Uuid
+import org.kodein.arch.vie.timemachine.client.ProbeLog
 import org.kodein.arch.vie.timemachine.client.role.VIERole
 import org.kodein.arch.vie.timemachine.client.timeline.TimeMachineIntervener
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineServerMessage
@@ -22,5 +23,8 @@ internal fun collectedOnce(collected: () -> Boolean) = object : TimeMachineInter
 /** The description of a ViewModel [id], whose three roles are all the same non-serializable type. */
 internal fun info(id: Uuid) = VIETypeInfo("T", isSerializable = false).let { VIEViewModelInfo(id, "VM", it, it, it) }
 
+/** Prints what the probe says, for a test that does not read it. */
+internal val testLog = ProbeLog(::println)
+
 /** The [VIERole] of [T]. */
-internal inline fun <reified T> role(): VIERole<T> = VIERole.of(typeOf<T>())
+internal inline fun <reified T> role(): VIERole<T> = VIERole.of(typeOf<T>(), testLog)

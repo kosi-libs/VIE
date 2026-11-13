@@ -28,7 +28,7 @@ import org.kodein.arch.vie.timemachine.protocol.TimeMachineSession
  * same `Error` may well come back on every attempt. It retires the probe instead: `onRetired` is
  * told, so that nothing keeps providing its middlewares, and the probe is [stop]ped.
  *
- * @param notice Prints what the probe and its connection have to say.
+ * @property log Where the probe, its middlewares and its connection say what they have to say.
  * @param onRetired Called with this probe when an `Error` retires it, before it is stopped. Must not throw.
  * @param newConnection Builds the connection that reads this probe's session, sink and outbound queue.
  * It runs on the probe's own coroutine, once [start]ed, and not on the thread that starts the probe:
@@ -37,19 +37,19 @@ import org.kodein.arch.vie.timemachine.protocol.TimeMachineSession
  */
 internal class TimeMachineProbe(
     private val config: TimeMachineConfig,
-    private val notice: (String) -> Unit = ::println,
+    val log: ProbeLog = ProbeLog(config.logger),
     private val onRetired: (TimeMachineProbe) -> Unit = {},
     private val newConnection: (TimeMachineSession, TimeMachineSink, TimeMachineOutbox) -> InspectorConnection =
-        { session, sink, outbox -> InspectorConnection(config, session, sink, outbox, notice = notice) },
+        { session, sink, outbox -> InspectorConnection(config, session, sink, outbox, log) },
 ) {
 
     private val session = TimeMachineSession(id = Uuid.random(), name = config.appName)
 
     private val outbox = TimeMachineOutbox(config.bufferSize, maxObservationLength = config.maxObservationLength)
 
-    private val sink = TimeMachineSink(config.maxObservationLength, outbox::offer)
+    private val sink = TimeMachineSink(log, config.maxObservationLength, outbox::offer)
 
-    private val roles = VIERoles()
+    private val roles = VIERoles(log)
 
     // The handler is the backstop behind "never throws into the host app": without it, a failure the
     // connection loop does not catch would reach the thread's uncaught-exception handler, which on
@@ -81,7 +81,7 @@ internal class TimeMachineProbe(
     // Nothing may leave: this is the scope's exception handler, past which lies the thread's
     // uncaught-exception handler. onRetired is told first, so that it is told even if stopping fails.
     private fun retire(failure: Throwable) = runCatching {
-        println("TimeMachine: the connection to the inspector stopped for good, and the probe with it: $failure")
+        log.notice("TimeMachine: the connection to the inspector stopped for good, and the probe with it: $failure")
         onRetired(this)
         stop()
     }
@@ -99,7 +99,7 @@ internal class TimeMachineProbe(
         )
         val width = lines.maxOf { it.length }
         val border = "─".repeat(width + 2)
-        notice(buildString {
+        log.notice(buildString {
             appendLine("┌$border┐")
             lines.forEach { appendLine("│ ${it.padEnd(width)} │") }
             append("└$border┘")

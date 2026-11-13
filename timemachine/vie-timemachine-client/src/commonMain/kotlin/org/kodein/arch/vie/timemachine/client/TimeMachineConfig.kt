@@ -36,6 +36,14 @@ import org.kodein.arch.vie.timemachine.protocol.TimeMachineConnection
  *   keeps an observation under the inspector's frame limit, which closes the connection on a larger
  *   one. It does not spare the app the cost of rendering a heavy model, which is done before it is
  *   measured: keep such models out of the observed ones. Invalid unless positive.
+ * @property logger Receives everything the probe has to say: the banner it starts with, the state of
+ *   its connection to the inspector, and each failure it survives. Every call hands it one message,
+ *   ready to print, that starts with `TimeMachine:`; only the banner spans several lines. The
+ *   `println` default prints them on the standard output; pass the application's own logger to route
+ *   them, or `{}` to silence the probe. It is called from whichever thread has something to say, a
+ *   ViewModel's included, so it must be thread-safe and should not block. A logger that throws does
+ *   not break the probe: its message is printed with `println` instead. A probe that is not [enabled]
+ *   never calls it.
  */
 public class TimeMachineConfig(
     public val appName: String,
@@ -44,6 +52,7 @@ public class TimeMachineConfig(
     public val port: Int = TimeMachineConnection.port,
     public val bufferSize: Int = 1024,
     public val maxObservationLength: Int = defaultMaxObservationLength,
+    public val logger: (String) -> Unit = ::println,
 ) {
     /** What makes this configuration invalid, i.e. what keeps a probe from starting with it, or
      *  `null` when nothing does. */

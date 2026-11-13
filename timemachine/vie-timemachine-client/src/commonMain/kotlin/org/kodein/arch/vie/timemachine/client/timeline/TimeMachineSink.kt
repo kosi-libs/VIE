@@ -6,8 +6,8 @@ import kotlin.concurrent.atomics.update
 import kotlin.time.Clock
 import kotlin.uuid.Uuid
 import org.kodein.arch.vie.VIE
+import org.kodein.arch.vie.timemachine.client.ProbeLog
 import org.kodein.arch.vie.timemachine.client.defaultMaxObservationLength
-import org.kodein.arch.vie.timemachine.client.describing
 import org.kodein.arch.vie.timemachine.client.role.VIERole
 import org.kodein.arch.vie.timemachine.client.viewmodel.TimeMachineMiddleware
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineClientMessage
@@ -45,11 +45,14 @@ import org.kodein.arch.vie.timemachine.protocol.VIEViewModelInfo
  * was left out, and the observation says it was [VIEObservation.truncated]: the other half is what
  * its JSON may take, which [TimeMachineOutbox] enforces where it knows its length.
  *
+ * @property log Where a failure to describe an object is printed, and where the middlewares that
+ *   report to this sink print: a middleware knows its probe through its sink alone.
  * @param maxObservationLength See [org.kodein.arch.vie.timemachine.client.TimeMachineConfig.maxObservationLength].
  * @param outlet Receives every entry, in report order for any single calling thread. Must not
  *   throw nor suspend.
  */
 internal class TimeMachineSink(
+    val log: ProbeLog,
     maxObservationLength: Int = defaultMaxObservationLength,
     private val outlet: (Entry) -> Unit,
 ) {
@@ -129,9 +132,9 @@ internal class TimeMachineSink(
                 viewModelId = viewModelId,
                 at = at,
                 kind = kind,
-                typeName = describing({ "name $kind $asString" }) { role.typeNameOf(value) } ?: role.typeName,
+                typeName = log.describing({ "name $kind $asString" }) { role.typeNameOf(value) } ?: role.typeName,
                 asString = asString,
-                asJson = describing({ "encode $kind $asString" }) { role.encode(value) },
+                asJson = log.describing({ "encode $kind $asString" }) { role.encode(value) },
                 interventionId = interventionId,
                 delivery = deliveryOf(kind, value),
                 truncated = rendered.length > maxStringLength,

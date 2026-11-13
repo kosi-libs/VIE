@@ -36,7 +36,9 @@ import org.kodein.arch.vie.VIE
 import org.kodein.arch.vie.VIEMiddleware
 import org.kodein.arch.vie.VIEViewModel
 import org.kodein.arch.vie.test.runVMTest
+import org.kodein.arch.vie.timemachine.client.ProbeLog
 import org.kodein.arch.vie.timemachine.client.fixtures.role
+import org.kodein.arch.vie.timemachine.client.fixtures.testLog
 import org.kodein.arch.vie.timemachine.client.role.VIERole
 import org.kodein.arch.vie.timemachine.client.role.displayName
 import org.kodein.arch.vie.timemachine.client.timeline.TimeMachineSink
@@ -132,7 +134,7 @@ private inline fun <reified M : VIE.Model> probe(sink: TimeMachineSink) =
     TimeMachineMiddleware(role<M>(), role<ProbeIntent>(), role<ProbeSignal>(), sink)
 
 /** A sink that describes each entry as soon as it is reported, on the reporting thread. */
-private fun recordingSink(messages: MutableList<TimeMachineTimelineMessage>) = TimeMachineSink { messages += it.describe(TimeMachineSequence(messages.size.toLong())) }
+private fun recordingSink(messages: MutableList<TimeMachineTimelineMessage>, log: ProbeLog = testLog) = TimeMachineSink(log) { messages += it.describe(TimeMachineSequence(messages.size.toLong())) }
 
 private val List<TimeMachineTimelineMessage>.observations: List<VIEObservation>
     get() = filterIsInstance<TimeMachineClientMessage.Observed>().map { it.observation }
@@ -409,7 +411,7 @@ class TimeMachineMiddlewareTest {
         val before = Recording()
         val after = Recording()
         return runVMTest(
-            newVM = { ProbeVM(CountModel(0), { copy(count = count + 1) }, listOf(before, probe<CountModel>(TimeMachineSink {}), after)) },
+            newVM = { ProbeVM(CountModel(0), { copy(count = count + 1) }, listOf(before, probe<CountModel>(TimeMachineSink(testLog) {}), after)) },
         ) {
             post(ProbeIntent.Increment)
             advanceUntilIdle()
@@ -441,7 +443,7 @@ class TimeMachineMiddlewareTest {
     fun aThrowingOutletNeverReachesTheApp() = runTest {
         val messages = mutableListOf<TimeMachineTimelineMessage>()
         // Records, then throws: every report fails, and what was recorded shows later ones still run.
-        val sink = TimeMachineSink { messages += it.describe(TimeMachineSequence(messages.size.toLong())); error("boom") }
+        val sink = TimeMachineSink(testLog) { messages += it.describe(TimeMachineSequence(messages.size.toLong())); error("boom") }
         withoutView({ ProbeVM(CountModel(0), { copy(count = count + 1) }, listOf(probe<CountModel>(sink))) }) { vm ->
             vm.post(ProbeIntent.Increment)
             advanceUntilIdle()
@@ -607,7 +609,7 @@ class TimeMachineMiddlewareTest {
 
     @Test
     fun aSignalOfNeitherDeliveryKindIsRefused(): TestResult {
-        val sink = TimeMachineSink {}
+        val sink = TimeMachineSink(testLog) {}
         val probe = probe<CountModel>(sink)
         return runVMTest(
             newVM = { ProbeVM(CountModel(0), { copy(count = count + 1) }, listOf(probe)) },
@@ -622,7 +624,7 @@ class TimeMachineMiddlewareTest {
 
     @Test
     fun aNonSerializableRoleRefusesIntervention(): TestResult {
-        val sink = TimeMachineSink {}
+        val sink = TimeMachineSink(testLog) {}
         val probe = probe<NotSerializableModel>(sink)
         return runVMTest(
             newVM = { ProbeVM(NotSerializableModel(0), { copy(count = count + 1) }, listOf(probe)) },
@@ -638,7 +640,8 @@ class TimeMachineMiddlewareTest {
     @Test
     fun aMiddlewareAttachedToASecondViewModelLeavesItAlone() = runTest {
         val messages = mutableListOf<TimeMachineTimelineMessage>()
-        val probe = probe<CountModel>(recordingSink(messages))
+        val printed = mutableListOf<String>()
+        val probe = probe<CountModel>(recordingSink(messages, ProbeLog { printed += it }))
         Dispatchers.setMain(StandardTestDispatcher(testScheduler))
         try {
             // One after the other on a single-threaded dispatcher: the only case where the second
@@ -659,11 +662,13 @@ class TimeMachineMiddlewareTest {
         // Nothing of the second ViewModel is reported: only the first's first model.
         assertEquals(listOf(CountModel(0).toString()), messages.observations.map { it.asString })
         assertEquals(1, messages.count { it is TimeMachineClientMessage.ViewModelClosed })
+        // Said once, where the probe says everything: the middleware knows its log through its sink.
+        assertTrue("already attached to a ViewModel" in printed.single(), printed.toString())
     }
 
     @Test
     fun aClosedViewModelRefusesIntervention() = runTest {
-        val sink = TimeMachineSink {}
+        val sink = TimeMachineSink(testLog) {}
         val probe = probe<CountModel>(sink)
         lateinit var live: TimeMachineSink.LiveViewModel
         withoutView({ ProbeVM(CountModel(0), { copy(count = count + 1) }, listOf(probe)) }) {

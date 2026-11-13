@@ -10,7 +10,6 @@ import kotlinx.coroutines.flow.onEach
 import org.kodein.arch.vie.VIE
 import org.kodein.arch.vie.VIEMiddleware
 import org.kodein.arch.vie.VIEViewModel
-import org.kodein.arch.vie.timemachine.client.guarded
 import org.kodein.arch.vie.timemachine.client.role.VIERole
 import org.kodein.arch.vie.timemachine.client.role.displayName
 import org.kodein.arch.vie.timemachine.client.timeline.TimeMachineIntervener
@@ -115,17 +114,17 @@ internal class TimeMachineMiddleware<Model : VIE.Model, Intent : VIE.Intent, Sig
 
     override fun onAttached(vm: VIEViewModel<Model, Intent, Signal>) {
         if (!attached.compareAndSet(expectedValue = false, newValue = true)) {
-            println("TimeMachine: the middleware $viewModelId is already attached to a ViewModel, and cannot also report this ${vm.typeName}: its objects may even be reported as the other one's. Build one per ViewModel, and never share it (e.g. as a DI singleton).")
+            sink.log.notice("TimeMachine: the middleware $viewModelId is already attached to a ViewModel, and cannot also report this ${vm.typeName}: its objects may even be reported as the other one's. Build one per ViewModel, and never share it (e.g. as a DI singleton).")
             return
         }
         // The probe stopped since it provided this middleware: nothing to report, nor to hold on to.
         if (sink.isClosed) return
         // Before any model is observed: the ViewModel starts its model flow only once every
         // middleware is attached.
-        guarded({ "report ViewModel start" }) { sink.started(infoOf(vm), intervenerOf(weakReference(vm))) }
+        sink.log.guarded({ "report ViewModel start" }) { sink.started(infoOf(vm), intervenerOf(weakReference(vm))) }
         vm.addCloseable(AutoCloseable {
             closed.store(true)
-            guarded({ "report ViewModel close" }) { sink.closed(viewModelId) }
+            sink.log.guarded({ "report ViewModel close" }) { sink.closed(viewModelId) }
         })
     }
 
@@ -186,7 +185,7 @@ internal class TimeMachineMiddleware<Model : VIE.Model, Intent : VIE.Intent, Sig
     private fun <T : Any> observe(kind: VIEObjectKind, role: VIERole<T>, value: T, interventionId: Uuid?) {
         // Only narrows the race with the close: a report already past this check can still follow it.
         if (closed.load()) return
-        guarded({ "report $kind" }) { sink.observed(viewModelId, kind, role, value, interventionId) }
+        sink.log.guarded({ "report $kind" }) { sink.observed(viewModelId, kind, role, value, interventionId) }
     }
 }
 

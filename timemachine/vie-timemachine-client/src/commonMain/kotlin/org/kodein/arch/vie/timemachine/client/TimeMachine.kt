@@ -54,7 +54,8 @@ public object TimeMachine {
      * Starts the probe, unless [config] is not [TimeMachineConfig.enabled] or the probe already runs:
      * a running probe must be [stop]ped before it can start with another configuration.
      *
-     * Never throws: an invalid [config] is printed, and so is a probe that fails to build or start;
+     * Never throws: an invalid [config] is printed, through its [TimeMachineConfig.logger] like
+     * everything the probe says, and so is a probe that fails to build or start;
      * neither runs. Nor does a probe keep running once its connection to the inspector fails beyond
      * recovery, on an `Error` such as running out of memory while encoding a model: it is printed
      * and stopped, as by [stop], and can be started again.
@@ -67,9 +68,10 @@ public object TimeMachine {
     internal fun start(config: TimeMachineConfig, newProbe: (onRetired: (TimeMachineProbe) -> Unit) -> TimeMachineProbe) {
         if (!config.enabled) return
         // Only once enabled: a disabled probe must not even print about a configuration it never uses.
-        config.problem?.let { return println("TimeMachine: the probe does not start: $it.") }
+        val log = ProbeLog(config.logger)
+        config.problem?.let { return log.notice("TimeMachine: the probe does not start: $it.") }
         // Checked before building a probe; compareAndSet still settles a race.
-        if (running.load() != null) return printAlreadyRunning()
+        if (running.load() != null) return log.alreadyRunning()
         var probe: TimeMachineProbe? = null
         try {
             probe = newProbe { retired -> running.compareAndSet(retired, null) }
@@ -77,25 +79,25 @@ public object TimeMachine {
                 probe.start()
             } else {
                 probe.stop()
-                printAlreadyRunning()
+                log.alreadyRunning()
             }
         } catch (e: Throwable) {
             // An Error too: it must not reach the application's startup. The HTTP engine is not loaded
             // here but on the probe's own coroutine, where an Error retires the probe.
-            println("TimeMachine: failed to start the probe: $e")
+            log.notice("TimeMachine: failed to start the probe: $e")
             if (probe != null) {
                 running.compareAndSet(probe, null)
                 try {
                     probe.stop()
                 } catch (e: Throwable) {
-                    println("TimeMachine: failed to stop the probe: $e")
+                    log.notice("TimeMachine: failed to stop the probe: $e")
                 }
             }
         }
     }
 
-    private fun printAlreadyRunning() {
-        println("TimeMachine: the probe already runs; stop() it before starting it again.")
+    private fun ProbeLog.alreadyRunning() {
+        notice("TimeMachine: the probe already runs; stop() it before starting it again.")
     }
 
     /**
@@ -105,7 +107,7 @@ public object TimeMachine {
      */
     public fun stop() {
         val probe = running.exchange(null) ?: return
-        guarded({ "stop the probe" }) { probe.stop() }
+        probe.log.guarded({ "stop the probe" }) { probe.stop() }
     }
 
     /**
@@ -146,6 +148,7 @@ public object TimeMachine {
     ): VIEMiddleware<Model, Intent, Signal> =
         // Stopped since isStarted was checked: the no-op, as if it had been checked a moment later.
         // So is a middleware that fails to build: this runs inside a ViewModel's constructor.
-        guarded({ "provide a middleware" }) { running.load()?.middleware<Model, Intent, Signal>(model, intent, signal) }
-            ?: NoOpMiddleware.typed()
+        running.load()?.let { probe ->
+            probe.log.guarded({ "provide a middleware" }) { probe.middleware<Model, Intent, Signal>(model, intent, signal) }
+        } ?: NoOpMiddleware.typed()
 }
