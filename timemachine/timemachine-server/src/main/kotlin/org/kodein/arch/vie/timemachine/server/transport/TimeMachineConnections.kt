@@ -23,10 +23,12 @@ import kotlin.time.Duration.Companion.seconds
  *
  * [TimeMachineServer] registers a connection before posting any event for it, and unregisters it
  * after posting its disconnect: a command for an id not registered, already gone, is ignored.
+ * [close] does not need a registration: it takes the session itself.
  *
  * @param scope Where the close deadlines run.
- * @param closeTimeout How long a [Command.Close]d connection has to end before it is cancelled: ktor
- *   stops pinging a closing session, and a half-open peer never answers the close.
+ * @param closeTimeout How long a closing connection has to end before it is cancelled, be it
+ *   [Command.Close]d or a handshake refused: ktor stops pinging a closing session, and a half-open
+ *   peer never answers the close.
  */
 class TimeMachineConnections(
     private val scope: CoroutineScope,
@@ -52,14 +54,20 @@ class TimeMachineConnections(
             is Command.Send -> sessions[command.connection]?.outgoing?.trySend(
                 Frame.Text(TimeMachineJson.encodeToString(TimeMachineServerMessage.serializer(), command.message))
             )
-            is Command.Close -> {
-                val session = sessions[command.connection] ?: return
-                session.outgoing.trySend(Frame.Close(CloseReason(CloseReason.Codes.NORMAL, "")))
-                scope.launch {
-                    delay(closeTimeout)
-                    if (sessions[command.connection] === session) session.cancel()
-                }
-            }
+            is Command.Close -> sessions[command.connection]?.let { close(it, CloseReason(CloseReason.Codes.NORMAL, "")) }
+        }
+    }
+
+    /**
+     * Tells [session]'s peer why it is closed, and cancels the session after [closeTimeout] if it
+     * has not ended by then. Works for a session that is not registered, or no longer is: a
+     * session that ended makes the cancellation a no-op.
+     */
+    fun close(session: WebSocketSession, reason: CloseReason) {
+        session.outgoing.trySend(Frame.Close(reason))
+        scope.launch {
+            delay(closeTimeout)
+            session.cancel()
         }
     }
 }
