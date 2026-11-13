@@ -8,7 +8,6 @@ import io.ktor.client.plugins.websocket.webSocket
 import io.ktor.websocket.Frame
 import io.ktor.websocket.readText
 import kotlin.coroutines.cancellation.CancellationException
-import kotlin.time.Duration
 import kotlin.time.TimeSource
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.coroutineScope
@@ -52,20 +51,14 @@ internal class InspectorConnection(
     private val sink: TimeMachineSink,
     private val outbox: TimeMachineOutbox,
     private val log: ProbeLog,
-    private val firstRetryDelay: Duration = ProbeTuning.firstRetryDelay,
-    private val maxRetryDelay: Duration = ProbeTuning.maxRetryDelay,
-    private val quietAfter: Duration = ProbeTuning.quietAfter,
-    private val quietRetryDelay: Duration = ProbeTuning.quietRetryDelay,
-    private val heldAfter: Duration = ProbeTuning.heldAfter,
-    private val pingInterval: Duration = ProbeTuning.pingInterval,
-    private val handshakeTimeout: Duration = ProbeTuning.handshakeTimeout,
+    private val tuning: ProbeTuning.Connection = ProbeTuning.Connection(),
 ) : AutoCloseable {
 
     // The connection is pinged every `pingInterval`, and closed when a pong is late, so that a
     // half-open connection — a phone whose wifi dropped — is not streamed into for minutes. Browsers
     // expose no WebSocket pings: on the web, the probe relies on the browser to notice.
     // Ktor closes the session when a pong takes longer than twice the interval.
-    private val http = HttpClient(timeMachineEngine) { install(WebSockets) { pingInterval = this@InspectorConnection.pingInterval } }
+    private val http = HttpClient(timeMachineEngine) { install(WebSockets) { pingInterval = tuning.pingInterval } }
 
     private val address = config.inspectorAddress
 
@@ -95,7 +88,15 @@ internal class InspectorConnection(
         http.close()
     }
 
-    private fun outage() = Outage(TimeSource.Monotonic.markNow(), address, firstRetryDelay, maxRetryDelay, quietAfter, quietRetryDelay, log::notice)
+    private fun outage() = Outage(
+        since = TimeSource.Monotonic.markNow(),
+        address = address,
+        firstRetryDelay = tuning.firstRetryDelay,
+        maxRetryDelay = tuning.maxRetryDelay,
+        quietAfter = tuning.quietAfter,
+        quietRetryDelay = tuning.quietRetryDelay,
+        notice = log::notice,
+    )
 
     /** One connection to the inspector, from its opening to its end. Prints nothing but the
      *  connection itself, once it holds: what its end is worth printing is the [Outage]'s to tell. */
@@ -128,10 +129,10 @@ internal class InspectorConnection(
     private suspend fun DefaultClientWebSocketSession.handshake(): String? {
         sendMessage(TimeMachineClientMessage.Hello(session = session, protocolVersion = TimeMachineConnection.protocolVersion))
         return try {
-            withTimeout(handshakeTimeout) { awaitAnswer() }
+            withTimeout(tuning.handshakeTimeout) { awaitAnswer() }
         } catch (_: TimeoutCancellationException) {
             // Caught here for its message: the loop would otherwise report it as a lost connection.
-            "the inspector at $address did not answer the handshake within $handshakeTimeout"
+            "the inspector at $address did not answer the handshake within ${tuning.handshakeTimeout}"
         }
     }
 
@@ -174,7 +175,7 @@ internal class InspectorConnection(
         coroutineScope {
             val drain = launch { outbox.drain { send(Frame.Text(it)) } }
             val holding = launch {
-                delay(heldAfter)
+                delay(tuning.heldAfter)
                 onHeld()
             }
             while (true) {

@@ -9,7 +9,6 @@ import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
-import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.TimeSource
@@ -43,6 +42,7 @@ import org.kodein.arch.vie.timemachine.client.fixtures.info
 import org.kodein.arch.vie.timemachine.client.fixtures.noIntervention
 import org.kodein.arch.vie.timemachine.client.fixtures.objectType
 import org.kodein.arch.vie.timemachine.client.fixtures.send
+import org.kodein.arch.vie.timemachine.client.fixtures.testConnectionTuning
 import org.kodein.arch.vie.timemachine.client.type.VIEObjectType
 import org.kodein.arch.vie.timemachine.client.timeline.TimeMachineOutbox
 import org.kodein.arch.vie.timemachine.client.timeline.TimeMachineSink
@@ -91,9 +91,7 @@ private fun withConnection(
     bufferSize: Int = ProbeTuning.bufferSize,
     window: Int = ProbeTuning.window,
     maxObservationLength: Int = ProbeTuning.maxObservationLength,
-    maxRetryDelay: Duration = 100.milliseconds,
-    // Longer than any test: no connection holds unless the test asks for it.
-    heldAfter: Duration = 10.seconds,
+    tuning: ProbeTuning.Connection = testConnectionTuning(),
     notices: SendChannel<String>? = null,
     block: suspend (Probed) -> Unit,
 ) = runBlocking {
@@ -102,13 +100,7 @@ private fun withConnection(
     val outbox = TimeMachineOutbox(bufferSize, window, maxObservationLength)
     val log = ProbeLog { println(it); notices?.trySend(it) }
     val sink = TimeMachineSink(log, maxObservationLength, outbox::offer)
-    val connection = InspectorConnection(
-        config, session, sink, outbox, log,
-        firstRetryDelay = 20.milliseconds,
-        maxRetryDelay = maxRetryDelay,
-        heldAfter = heldAfter,
-        handshakeTimeout = 300.milliseconds,
-    )
+    val connection = InspectorConnection(config, session, sink, outbox, log, tuning)
     val probed = Probed(session, sink, connection, scope = this)
     try {
         withTimeout(10.seconds) { block(probed) }
@@ -388,7 +380,7 @@ class InspectorConnectionTest {
     fun aConnectionIsAnnouncedOnceItHoldsAndEndsTheOutage() {
         val notices = Channel<String>(Channel.UNLIMITED)
         val inspector = FakeInspector()
-        withConnection(inspector, maxRetryDelay = 10.seconds, heldAfter = 1.seconds, notices = notices) { probed ->
+        withConnection(inspector, tuning = testConnectionTuning(maxRetryDelay = 10.seconds, heldAfter = 1.seconds), notices = notices) { probed ->
             probed.start()
             val printed = mutableListOf<String>()
             // Waits for the next notice that contains the fragment, recording every notice on the way.

@@ -18,6 +18,7 @@ import kotlinx.coroutines.withTimeoutOrNull
 import org.kodein.arch.vie.timemachine.client.connection.InspectorConnection
 import org.kodein.arch.vie.timemachine.client.fixtures.FakeInspector
 import org.kodein.arch.vie.timemachine.client.fixtures.info
+import org.kodein.arch.vie.timemachine.client.fixtures.testConnectionTuning
 import org.kodein.arch.vie.timemachine.client.fixtures.testLog
 import org.kodein.arch.vie.timemachine.client.timeline.TimeMachineIntervener
 import org.kodein.arch.vie.timemachine.client.timeline.TimeMachineSink
@@ -41,14 +42,7 @@ private fun withProbe(
     val probe = TimeMachineProbe(config, testLog, onRetired) { session, sink, outbox ->
         onNewConnection(sink)
         probeSink.complete(sink)
-        InspectorConnection(
-            config, session, sink, outbox, testLog,
-            firstRetryDelay = 20.milliseconds,
-            maxRetryDelay = 100.milliseconds,
-            // Longer than any test: no connection holds.
-            heldAfter = 10.seconds,
-            handshakeTimeout = 300.milliseconds,
-        )
+        InspectorConnection(config, session, sink, outbox, testLog, testConnectionTuning())
     }
     try {
         withTimeout(10.seconds) { block(probe, probeSink) }
