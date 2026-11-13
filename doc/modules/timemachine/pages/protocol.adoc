@@ -390,6 +390,10 @@ A Signal that picked neither delivery kind is refused the same way, since the Vi
 
 | `BadJson`
 | The JSON could not be decoded: a missing or mismatched discriminator, or any decoding failure.
+
+| `ProbeFailure`
+| The probe failed while handling the request: a defect of the probe, not a refusal.
+It is not known whether the object reached the ViewModel, and the failure is printed in the application's output.
 |===
 
 What an accepted request does depends on the kind, and uses the ViewModel's own public API:
