@@ -9,6 +9,11 @@ import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.launch
 import org.kodein.arch.vie.VIE
+import org.kodein.arch.vie.timemachine.client.connection.InspectorConnection
+import org.kodein.arch.vie.timemachine.client.role.VIERoles
+import org.kodein.arch.vie.timemachine.client.timeline.TimeMachineOutbox
+import org.kodein.arch.vie.timemachine.client.timeline.TimeMachineSink
+import org.kodein.arch.vie.timemachine.client.viewmodel.TimeMachineMiddleware
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineSession
 
 

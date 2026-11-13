@@ -13,6 +13,11 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.withTimeoutOrNull
+import org.kodein.arch.vie.timemachine.client.connection.InspectorConnection
+import org.kodein.arch.vie.timemachine.client.fixtures.FakeInspector
+import org.kodein.arch.vie.timemachine.client.fixtures.info
+import org.kodein.arch.vie.timemachine.client.fixtures.noIntervention
+import org.kodein.arch.vie.timemachine.client.timeline.TimeMachineSink
 
 
 /** Runs [block] with a probe that connects to [inspector], and with the sink that probe reports to. */
