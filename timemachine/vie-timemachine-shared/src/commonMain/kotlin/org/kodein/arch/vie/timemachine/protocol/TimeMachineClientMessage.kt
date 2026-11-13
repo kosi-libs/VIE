@@ -53,7 +53,8 @@ public sealed interface TimeMachineClientMessage {
      * did not know the ViewModel knows it from then on, started before the server saw its history.
      *
      * [info] is `null` only in an answer, when the client no longer knows a ViewModel with that
-     * identifier.
+     * identifier: a server that knows that ViewModel then takes it as closed, its close having been
+     * dropped or still being in flight.
      */
     @Serializable
     @SerialName("vm-info")

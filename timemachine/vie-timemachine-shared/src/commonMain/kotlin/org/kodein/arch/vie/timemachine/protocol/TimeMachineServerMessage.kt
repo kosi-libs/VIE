@@ -48,8 +48,14 @@ public sealed interface TimeMachineServerMessage {
     ) : TimeMachineServerMessage
 
     /**
-     * Requests the full [VIEViewModelInfo] of a ViewModel the server received an observation about
-     * but does not know.
+     * Requests the full [VIEViewModelInfo] of a ViewModel: one the server received a timeline message
+     * about but does not know, or one it knows, after a [TimeMachineClientMessage.ObservationsDropped]
+     * about it, since the dropped messages may hold its [TimeMachineClientMessage.ViewModelClosed].
+     * The latter is a liveness check: the server takes an answer without info as the ViewModel's close.
+     *
+     * The client answers every request with a [TimeMachineClientMessage.ViewModelInfo], also for a
+     * ViewModel it already described. The server may ask again on a new connection, since an answer
+     * can be lost with the previous one.
      */
     @Serializable
     @SerialName("request-vm-info")
