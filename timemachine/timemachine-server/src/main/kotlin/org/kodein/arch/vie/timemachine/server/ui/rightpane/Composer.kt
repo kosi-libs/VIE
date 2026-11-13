@@ -11,7 +11,7 @@ import org.kodein.arch.vie.timemachine.server.store.SessionRecord
 import org.kodein.arch.vie.timemachine.server.store.TypeKey
 import org.kodein.arch.vie.timemachine.server.store.ViewModelRecord
 import org.kodein.arch.vie.timemachine.server.ui.common.pretty
-import org.kodein.arch.vie.timemachine.server.ui.common.role
+import org.kodein.arch.vie.timemachine.server.ui.common.type
 
 
 /** Why nothing can be sent to a ViewModel, in the priority order a reason is given. */
@@ -23,10 +23,10 @@ sealed interface PrefillSource {
     /** The latest JSON observed for the type, at [sequence]. */
     data class Observed(val sequence: TimeMachineSequence) : PrefillSource
 
-    /** Nothing was observed for the type, and the role is sealed: just its `#type`. */
+    /** Nothing was observed for the type, and the kind's type is sealed: just its `#type`. */
     data object SealedTemplate : PrefillSource
 
-    /** Nothing was observed for the type, and the role is not sealed: an empty object. */
+    /** Nothing was observed for the type, and the kind's type is not sealed: an empty object. */
     data object EmptyObject : PrefillSource
 }
 
@@ -47,9 +47,9 @@ enum class SignalNote(val text: String) {
  * What the composer offers for one ViewModel, one kind and one choice of type.
  *
  * @property block Why nothing can be sent, if so.
- * @property enabledKinds The kinds whose role is `@Serializable`: the others are shown disabled.
- * @property types The types the kind offers: the subtypes of a sealed role, else the role's own type.
- * @property type The chosen type, `null` when the role offers none.
+ * @property enabledKinds The kinds whose type is `@Serializable`: the others are shown disabled.
+ * @property types The types the kind offers: the subtypes of a sealed type, else that type itself.
+ * @property type The chosen type, `null` when the kind offers none.
  * @property prefill What the editor starts with, `null` when there is no [type] to key it on or no ViewModel.
  * @property signalNote For a Signal only: `null` for a known Event.
  */
@@ -78,7 +78,7 @@ fun composerBlock(session: SessionRecord?, vm: ViewModelRecord?): ComposerBlock?
 /**
  * The composer for [vm] of [session] and [kind].
  *
- * The type list and the fallback prefill key on the role's type info alone, whatever the kind: a
+ * The type list and the fallback prefill key on the kind's type info alone, whatever the kind: a
  * Model can be sealed, and an Intent or a Signal can be one plain class. That is the probe's own rule,
  * so the composer never offers a type the probe answers `UnknownType` to.
  *
@@ -96,8 +96,8 @@ fun composerTarget(
     val info = vm?.info
     if (vm == null || info == null) return ComposerTarget(block, kind, emptySet(), emptyList(), null, null, null)
 
-    val role = info.role(kind)
-    val types = role.sealedSubTypes ?: listOf(role.typeName)
+    val typeInfo = info.type(kind)
+    val types = typeInfo.sealedSubTypes ?: listOf(typeInfo.typeName)
     val type = chosenType?.takeIf { it in types }
         ?: selected?.takeIf { (selectedKind, selectedType) -> selectedKind == kind && selectedType in types }?.second
         ?: types.firstOrNull()
@@ -105,7 +105,7 @@ fun composerTarget(
     val prefill = type?.let {
         when {
             latest != null -> ComposerPrefill(latest.value.pretty(), PrefillSource.Observed(latest.sequence))
-            role.sealedSubTypes != null -> ComposerPrefill("{\"#type\": ${JsonPrimitive(it)}}", PrefillSource.SealedTemplate)
+            typeInfo.sealedSubTypes != null -> ComposerPrefill("{\"#type\": ${JsonPrimitive(it)}}", PrefillSource.SealedTemplate)
             else -> ComposerPrefill("{}", PrefillSource.EmptyObject)
         }
     }
@@ -117,7 +117,7 @@ fun composerTarget(
     return ComposerTarget(
         block = block,
         kind = kind,
-        enabledKinds = VIEObjectKind.entries.filterTo(mutableSetOf()) { info.role(it).isSerializable },
+        enabledKinds = VIEObjectKind.entries.filterTo(mutableSetOf()) { info.type(it).isSerializable },
         types = types,
         type = type,
         prefill = prefill,

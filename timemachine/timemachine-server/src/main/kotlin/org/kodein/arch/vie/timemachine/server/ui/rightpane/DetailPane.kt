@@ -12,7 +12,7 @@ import org.kodein.arch.vie.timemachine.server.ui.common.JsonPath
 import org.kodein.arch.vie.timemachine.server.ui.common.diffJson
 import org.kodein.arch.vie.timemachine.server.ui.common.interventionNumber
 import org.kodein.arch.vie.timemachine.server.ui.common.pretty
-import org.kodein.arch.vie.timemachine.server.ui.common.role
+import org.kodein.arch.vie.timemachine.server.ui.common.type
 import org.kodein.arch.vie.timemachine.server.ui.core.Inspector
 import org.kodein.arch.vie.timemachine.server.ui.core.Pane
 import org.kodein.arch.vie.timemachine.server.ui.core.PaneViewModel
@@ -82,7 +82,7 @@ internal fun detailProjection(state: TimeMachineState, selection: Selection, raw
         diff = previous?.let { ModelDiff(it.sequence, if (old != null && new != null) diffJson(old, new) else emptyList()) },
         interventionNumber = observation?.interventionId?.let { vm.interventionNumber(it) },
         interventionKind = observation?.interventionId?.let { vm.interventions[it]?.kind },
-        canIntervene = observation?.asJson != null && composerBlock(session, vm) == null && vm.info?.role(observation.kind)?.isSerializable == true,
+        canIntervene = observation?.asJson != null && composerBlock(session, vm) == null && vm.info?.type(observation.kind)?.isSerializable == true,
         rawText = if (raw) new?.pretty() else null,
     )
 }

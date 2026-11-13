@@ -47,8 +47,8 @@ internal fun InspectorColors.kindContainer(kind: VIEObjectKind): Color = when (k
     VIEObjectKind.Signal -> signalContainer
 }
 
-/** The type info of one of a ViewModel's three roles. */
-fun VIEViewModelInfo.role(kind: VIEObjectKind): VIETypeInfo = when (kind) {
+/** The type info of a ViewModel's objects of one [kind]. */
+fun VIEViewModelInfo.type(kind: VIEObjectKind): VIETypeInfo = when (kind) {
     VIEObjectKind.Model -> model
     VIEObjectKind.Intent -> intent
     VIEObjectKind.Signal -> signal

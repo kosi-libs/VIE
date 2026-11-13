@@ -19,7 +19,7 @@ import org.kodein.arch.vie.timemachine.server.store.TimeMachineState
 import org.kodein.arch.vie.timemachine.server.store.ViewModelRecord
 import org.kodein.arch.vie.timemachine.server.ui.common.clock
 import org.kodein.arch.vie.timemachine.server.ui.common.pretty
-import org.kodein.arch.vie.timemachine.server.ui.common.role
+import org.kodein.arch.vie.timemachine.server.ui.common.type
 import org.kodein.arch.vie.timemachine.server.ui.common.shortViewModelId
 import org.kodein.arch.vie.timemachine.server.ui.common.viewModelLabel
 import org.kodein.arch.vie.timemachine.server.ui.common.viewModelName
@@ -101,7 +101,7 @@ internal interface ComposerVIE : VIE<ComposerVIE.Model, ComposerVIE.Intent, VIE.
  * @property name The ViewModel as the Target line names it: its simple type name, else its short identifier.
  * @property shortId Its short identifier, `unknown` while no info describes it.
  * @property blockText Why the composer is disabled, in plain words; `null` when it is not.
- * @property unserializable The first role that is not `@Serializable`, with its type name.
+ * @property unserializable The first kind whose type is not `@Serializable`, with its type name.
  * @property timeout How long the store waits for an intervention's answer and row, as the result card says it.
  */
 internal data class ComposerProjection(
@@ -176,7 +176,7 @@ private fun composerProjection(
         name = vm?.let { viewModelName(it.info?.typeName, it.id) }.orEmpty(),
         shortId = if (vm?.info == null) "unknown" else shortViewModelId(vm.id),
         blockText = blockText(session, vm, target.block),
-        unserializable = vm?.info?.let { info -> VIEObjectKind.entries.firstOrNull { !info.role(it).isSerializable }?.let { it to info.role(it).typeName } },
+        unserializable = vm?.info?.let { info -> VIEObjectKind.entries.firstOrNull { !info.type(it).isSerializable }?.let { it to info.type(it).typeName } },
         target = target,
         parse = parse,
         canSend = target.canSend(parse),
