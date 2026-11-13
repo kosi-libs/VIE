@@ -12,11 +12,14 @@ import kotlin.time.Instant
 import kotlin.uuid.Uuid
 
 
+/** The default of [Limits.maxChars]: 32 Mi characters. */
+const val DefaultMaxChars: Long = 32L * 1024 * 1024
+
 /**
  * How much timeline each ViewModel keeps: [maxRows] rows or [maxChars] characters of frame
  * text, whichever comes first. A row weighs its frame's length in characters.
  */
-data class Limits(val maxRows: Int = 1_000, val maxChars: Long = 32L * 1024 * 1024)
+data class Limits(val maxRows: Int = 1_000, val maxChars: Long = DefaultMaxChars)
 
 /**
  * A timeline message placed in its ViewModel's timeline, and the length, in characters, of the

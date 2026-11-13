@@ -28,6 +28,7 @@ import org.kodein.arch.vie.timemachine.protocol.TimeMachineServerMessage
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineSession
 import org.kodein.arch.vie.timemachine.protocol.VIEInterventionResult
 import org.kodein.arch.vie.timemachine.protocol.VIEObjectKind
+import org.kodein.arch.vie.timemachine.server.store.DefaultMaxChars
 import org.kodein.arch.vie.timemachine.server.store.InterventionStatus
 import org.kodein.arch.vie.timemachine.server.store.ListenerState
 import org.kodein.arch.vie.timemachine.server.store.SequenceLedger
@@ -66,7 +67,7 @@ private val testPingTimeout = 10.seconds
 
 private fun inspector(
     port: Int,
-    maxFrameSize: Long = 32L * 1024 * 1024,
+    maxFrameSize: Long = DefaultMaxChars,
     pingPeriod: Duration = testPingPeriod,
     timeout: Duration = testPingTimeout,
     block: suspend (store: TimeMachineStore, server: TimeMachineServer) -> Unit,
@@ -88,7 +89,7 @@ private fun inspector(
 }
 
 private fun withInspector(
-    maxFrameSize: Long = 32L * 1024 * 1024,
+    maxFrameSize: Long = DefaultMaxChars,
     pingPeriod: Duration = testPingPeriod,
     timeout: Duration = testPingTimeout,
     block: suspend Inspector.() -> Unit,
