@@ -215,6 +215,15 @@ class TimeMachineStoreTest {
         assertEquals(InterventionStatus.TimedOut, store.state.value.vm(session.id, a).interventions.getValue(request).status)
     }
 
+    @Test
+    fun anEventIsSummarizedWithoutItsContent() {
+        val vm = Uuid.random()
+
+        assertEquals("Observed on connection 1 at sequence 7, acknowledged", receive(c1, observed(vm, 7)).summary())
+        assertEquals("ViewModelInfo on connection 1", receive(c1, vmInfo(vm)).summary())
+        assertEquals("Disconnected", TimeMachineEvent.Disconnected(c1, t0).summary())
+    }
+
     // Reached only by injection: the core, as it is, throws on no event outside a timeline.
     @Test
     fun aMessageOutsideTheTimelineTheCoreThrowsOnIsDroppedAndTheRestOfItsBatchApplied() = runTest {

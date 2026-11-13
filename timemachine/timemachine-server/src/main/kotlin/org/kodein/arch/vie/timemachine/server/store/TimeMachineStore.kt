@@ -100,8 +100,7 @@ class TimeMachineStore(
     private fun Transition.then(event: TimeMachineEvent): Transition? = try {
         state.reduce(listOf(event)).let { Transition(it.state, commands + it.commands) }
     } catch (e: Exception) {
-        // Only its type: a frame can be large.
-        report("skipped an event it failed to apply: ${event::class.simpleName}", e)
+        report("skipped an event it failed to apply: ${event.summary()}", e)
         null
     }
 
@@ -138,4 +137,18 @@ class TimeMachineStore(
         post(TimeMachineEvent.Intervene(sessionId, viewModelId, kind, typeName, asJson, requestId, Clock.System.now()))
         return requestId
     }
+}
+
+
+/**
+ * What this event is: for a frame, its message's class, its connection and, for a timeline frame,
+ * its sequence, acknowledged by a [TimeMachineEvent.Skipped] in its place. Never its content: a
+ * frame can be large.
+ */
+internal fun TimeMachineEvent.summary(): String = when (this) {
+    is TimeMachineEvent.MessageReceived -> {
+        val sequence = (message as? TimeMachineTimelineMessage)?.let { " at sequence ${it.sequence.value}, acknowledged" }.orEmpty()
+        "${message::class.simpleName} on connection ${connection.value}$sequence"
+    }
+    else -> this::class.simpleName.orEmpty()
 }
