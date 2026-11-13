@@ -61,7 +61,7 @@ internal fun observed(
 
 internal fun vmInfo(vm: Uuid, known: Boolean = true) = TimeMachineClientMessage.ViewModelInfo(vm, if (known) info(vm) else null)
 
-/** Applies [events] one by one, and returns the final state with every command, in order. */
+/** Applies [events] one by one, and returns the final state with every command, in order. Acknowledges nothing, as the single-event step does not. */
 internal fun TimeMachineState.after(vararg events: TimeMachineEvent): Transition =
     events.fold(Transition(this)) { (state, commands), event -> state.on(event).let { Transition(it.state, commands + it.commands) } }
 
