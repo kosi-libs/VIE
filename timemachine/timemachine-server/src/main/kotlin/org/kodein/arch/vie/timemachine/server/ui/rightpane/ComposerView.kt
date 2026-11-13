@@ -428,6 +428,7 @@ private fun VIEInterventionResult.Reason.plain(): String = when (this) {
     VIEInterventionResult.Reason.NotSerializable -> "Not serializable"
     VIEInterventionResult.Reason.UnknownType -> "Unknown type"
     VIEInterventionResult.Reason.BadJson -> "Bad JSON"
+    VIEInterventionResult.Reason.ProbeFailure -> "Probe failure"
 }
 
 @Composable
@@ -471,6 +472,7 @@ private fun ResultCard(view: InterventionView, projection: ComposerProjection, p
                 VIEInterventionResult.Reason.UnknownViewModel -> "$app no longer knows this ViewModel, so nothing was posted."
                 VIEInterventionResult.Reason.ClosedViewModel -> "The ViewModel closed before the request reached it."
                 VIEInterventionResult.Reason.NotSerializable -> "The ${view.kind.name} of this ViewModel isn’t serializable, so nothing was posted."
+                VIEInterventionResult.Reason.ProbeFailure -> "$app failed while handling this request. It may or may not have been applied; its output says why."
             }
             message = status.failure.message ?: view.typeName.takeIf { status.failure.reason == VIEInterventionResult.Reason.UnknownType }
         }
