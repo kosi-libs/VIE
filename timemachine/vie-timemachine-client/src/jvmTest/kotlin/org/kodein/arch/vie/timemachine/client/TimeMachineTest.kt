@@ -24,6 +24,14 @@ import kotlinx.serialization.encoding.Encoder
 import org.kodein.arch.vie.VIE
 import org.kodein.arch.vie.VIELoggingMiddleware
 import org.kodein.arch.vie.VIEViewModel
+import org.kodein.arch.vie.timemachine.client.fixtures.FakeInspector
+import org.kodein.arch.vie.timemachine.client.fixtures.role
+import org.kodein.arch.vie.timemachine.client.role.displayName
+import org.kodein.arch.vie.timemachine.client.viewmodel.StressIntent
+import org.kodein.arch.vie.timemachine.client.viewmodel.StressModel
+import org.kodein.arch.vie.timemachine.client.viewmodel.StressSignal
+import org.kodein.arch.vie.timemachine.client.viewmodel.StressVM
+import org.kodein.arch.vie.timemachine.client.viewmodel.TimeMachineMiddleware
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineClientMessage
 import org.kodein.arch.vie.timemachine.protocol.VIEViewModelInfo
 
