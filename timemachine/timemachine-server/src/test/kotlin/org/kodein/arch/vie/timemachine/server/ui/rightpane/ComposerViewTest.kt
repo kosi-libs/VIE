@@ -33,6 +33,7 @@ import org.kodein.arch.vie.timemachine.server.fixtures.paneTest
 import org.kodein.arch.vie.timemachine.server.fixtures.until
 import org.kodein.arch.vie.timemachine.server.ui.core.Inspector
 import org.kodein.arch.vie.timemachine.server.ui.core.viewModel
+import org.kodein.arch.vie.timemachine.server.ui.theme.Glyph
 
 
 /**
@@ -99,8 +100,8 @@ class ComposerViewTest {
         onNode(segment("Intent")).performClick()
         projected { runCatching { onNode(segment("Intent")).assertIsSelected() }.isSuccess }
         // The field ends with the arrow that opens its menu; an option of the menu starts with its check.
-        val field = hasClickAction() and hasText("arrow_drop_down")
-        val option = hasClickAction() and hasText("check") and SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Button)
+        val field = hasClickAction() and hasText(Glyph.ArrowDropDown.ligature)
+        val option = hasClickAction() and hasText(Glyph.Check.ligature) and SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Button)
         projected { onAllNodes(field).fetchSemanticsNodes().size == 1 }
         val width = onNode(field).fetchSemanticsNode().size.width
 

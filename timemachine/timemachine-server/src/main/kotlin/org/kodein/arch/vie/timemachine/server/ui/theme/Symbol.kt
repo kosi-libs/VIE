@@ -15,13 +15,12 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
 /**
- * A Material Symbols Rounded glyph, drawn by ligature: [name] is the symbol's name
- * (`inventory_2`, `history_toggle_off`). [mirrored] flips it horizontally, as the design does for
- * `logout` ("out of the ViewModel").
+ * A Material Symbols Rounded [glyph], drawn by its ligature. [mirrored] flips it horizontally, as the
+ * design does for [Glyph.Logout] ("out of the ViewModel").
  */
 @Composable
 fun Symbol(
-    name: String,
+    glyph: Glyph,
     modifier: Modifier = Modifier,
     size: Dp = 16.dp,
     tint: Color = LocalContentColor.current,
@@ -29,7 +28,7 @@ fun Symbol(
 ) {
     val fontSize = with(LocalDensity.current) { size.toSp() }
     Text(
-        text = name,
+        text = glyph.ligature,
         modifier = modifier
             .size(size)
             .clipToBounds()

@@ -41,6 +41,7 @@ import org.kodein.arch.vie.timemachine.server.fixtures.state
 import org.kodein.arch.vie.timemachine.server.ui.common.ModelDiffs
 import org.kodein.arch.vie.timemachine.server.ui.core.InspectorScope
 import org.kodein.arch.vie.timemachine.server.ui.core.Selection
+import org.kodein.arch.vie.timemachine.server.ui.theme.Glyph
 
 
 /**
@@ -53,7 +54,7 @@ class TimelineContentTest {
     private val session = InspectorScope.Session(Demo.session.id)
 
     /** The header's chip of the Model's type, which the glyph of a serializable type tells from the filter's chip. */
-    private val modelTypeChip = hasText("Model") and hasText("data_object")
+    private val modelTypeChip = hasText("Model") and hasText(Glyph.DataObject.ligature)
 
     /** The timeline of [scope] in [data], as its pane projects it under [controls]. */
     private fun timeline(

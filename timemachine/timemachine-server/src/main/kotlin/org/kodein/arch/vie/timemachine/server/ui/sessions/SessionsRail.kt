@@ -25,6 +25,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import org.kodein.arch.vie.timemachine.server.ui.common.action
+import org.kodein.arch.vie.timemachine.server.ui.theme.Glyph
 import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorTheme
 import org.kodein.arch.vie.timemachine.server.ui.theme.Symbol
 
@@ -51,7 +52,7 @@ internal fun SessionsRail(model: SessionsVIE.Model, modifier: Modifier = Modifie
                     .action(description = RailMenuDescription, onClick = onMenu),
                 contentAlignment = Alignment.Center,
             ) {
-                Symbol("menu", size = 20.dp, tint = scheme.onSurfaceVariant)
+                Symbol(Glyph.Menu, size = 20.dp, tint = scheme.onSurfaceVariant)
             }
             for (item in items) {
                 RailTile(item) { post(SessionsVIE.Intent.SelectScope(item.scope)) }

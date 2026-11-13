@@ -42,6 +42,7 @@ import org.kodein.arch.vie.timemachine.server.ui.common.rememberCopy
 import org.kodein.arch.vie.timemachine.server.ui.core.InspectorPane
 import org.kodein.arch.vie.timemachine.server.ui.core.LocalInspector
 import org.kodein.arch.vie.timemachine.server.ui.theme.AppLockup
+import org.kodein.arch.vie.timemachine.server.ui.theme.Glyph
 import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorColors
 import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorPillShape
 import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorTheme
@@ -67,7 +68,7 @@ internal fun EmptyContent(status: StatusBarVIE.Model) {
             }
             SnippetCard()
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Symbol("lock_open", size = 16.dp, tint = scheme.outline)
+                Symbol(Glyph.LockOpen, size = 16.dp, tint = scheme.outline)
                 Text(
                     "The connection is unencrypted and unauthenticated. The inspector listens on all network interfaces: anyone on the network path can read your app's state, and anything that reaches the port can pose as an app. Use it on trusted networks.",
                     style = InspectorTheme.text.body.copy(lineHeight = 16.sp), color = scheme.outline,
@@ -125,7 +126,7 @@ private fun CopyGlyph(text: String, description: String) {
         }
     }
     Symbol(
-        if (copied) "check" else "content_copy", size = 16.dp,
+        if (copied) Glyph.Check else Glyph.ContentCopy, size = 16.dp,
         tint = if (copied) InspectorTheme.colors.success else MaterialTheme.colorScheme.onSurfaceVariant,
         modifier = Modifier.action(description = description) { copy(text); copied = true; copies++ },
     )
@@ -175,7 +176,7 @@ private fun SnippetCard() {
     Column(Modifier.fillMaxWidth().background(scheme.surfaceContainer, shape).border(1.dp, scheme.outlineVariant, shape)) {
         Row(Modifier.fillMaxWidth().height(34.dp).padding(start = 14.dp, end = 8.dp), verticalAlignment = Alignment.CenterVertically) {
             Text("Add the probe to your app", style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Normal), color = scheme.onSurfaceVariant, modifier = Modifier.weight(1f))
-            TextAction("Copy", glyph = "content_copy") { copy(ProbeSnippet) }
+            TextAction("Copy", glyph = Glyph.ContentCopy) { copy(ProbeSnippet) }
         }
         HorizontalRule()
         Text(
@@ -200,7 +201,7 @@ internal fun CannotListenScreen(reason: ListenerState.Failed.Reason, message: St
     Box(Modifier.fillMaxSize().padding(40.dp), contentAlignment = Alignment.Center) {
         Column(Modifier.widthIn(max = 560.dp).fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(18.dp)) {
             Box(Modifier.size(48.dp).background(colors.errorContainer, RoundedCornerShape(14.dp)), contentAlignment = Alignment.Center) {
-                Symbol("portable_wifi_off", size = 26.dp, tint = colors.error)
+                Symbol(Glyph.PortableWifiOff, size = 26.dp, tint = colors.error)
             }
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
@@ -233,7 +234,7 @@ internal fun CannotListenScreen(reason: ListenerState.Failed.Reason, message: St
                     .action(onClick = onRetry).padding(start = 14.dp, end = 18.dp),
                 horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically,
             ) {
-                Symbol("refresh", size = 18.dp, tint = scheme.onPrimary)
+                Symbol(Glyph.Refresh, size = 18.dp, tint = scheme.onPrimary)
                 Text("Retry", style = InspectorTheme.text.actionLarge, color = scheme.onPrimary)
             }
             Text(if (inUse) "$message · 0.0.0.0:$port" else "0.0.0.0:$port", style = InspectorTheme.text.codeRow, color = scheme.outline)

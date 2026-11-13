@@ -20,6 +20,7 @@ import kotlin.test.assertTrue
 import org.kodein.arch.vie.timemachine.server.fixtures.contentTest
 import org.kodein.arch.vie.timemachine.server.fixtures.shown
 import org.kodein.arch.vie.timemachine.server.store.ListenerState
+import org.kodein.arch.vie.timemachine.server.ui.theme.Glyph
 
 
 /** What the screen says of a listener that did not start, by what stopped it. */
@@ -57,16 +58,16 @@ class CannotListenTest {
             }
         }) {
             waitForIdle()
-            onNodeWithContentDescription(CopyCommandDescription).assertTextEquals("content_copy")
+            onNodeWithContentDescription(CopyCommandDescription).assertTextEquals(Glyph.ContentCopy.ligature)
 
             onNodeWithContentDescription(CopyCommandDescription).performClick()
             waitForIdle()
 
             assertEquals("lsof -i :13229", clipboard.text)
-            onNodeWithContentDescription(CopyCommandDescription).assertTextEquals("check")
+            onNodeWithContentDescription(CopyCommandDescription).assertTextEquals(Glyph.Check.ligature)
 
             mainClock.advanceTimeBy(2_000)
-            onNodeWithContentDescription(CopyCommandDescription).assertTextEquals("content_copy")
+            onNodeWithContentDescription(CopyCommandDescription).assertTextEquals(Glyph.ContentCopy.ligature)
         }
     }
 }

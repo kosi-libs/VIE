@@ -55,6 +55,7 @@ import org.kodein.arch.vie.timemachine.server.ui.common.treeLines
 import org.kodein.arch.vie.timemachine.server.ui.common.verb
 import org.kodein.arch.vie.timemachine.server.ui.core.InspectorPane
 import org.kodein.arch.vie.timemachine.server.ui.core.LocalInspector
+import org.kodein.arch.vie.timemachine.server.ui.theme.Glyph
 import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorDimens
 import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorPillShape
 import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorTheme
@@ -149,7 +150,7 @@ private fun DetailHeader(observation: VIEObservation, sequence: TimeMachineSeque
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
             KindBadge(kind)
-            Symbol(if (kind == VIEObjectKind.Intent) "login" else "logout", size = 16.dp, tint = colors.kind(kind), mirrored = kind != VIEObjectKind.Intent)
+            Symbol(if (kind == VIEObjectKind.Intent) Glyph.Login else Glyph.Logout, size = 16.dp, tint = colors.kind(kind), mirrored = kind != VIEObjectKind.Intent)
             Text(
                 if (kind == VIEObjectKind.Intent) "into the ViewModel" else "out of the ViewModel",
                 style = InspectorTheme.text.body, color = scheme.onSurfaceVariant,
@@ -169,7 +170,7 @@ private fun DetailHeader(observation: VIEObservation, sequence: TimeMachineSeque
                 Modifier.fillMaxWidth().background(colors.intervenedContainer, RoundedCornerShape(8.dp)).padding(horizontal = 10.dp, vertical = 6.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically,
             ) {
-                Symbol("touch_app", size = 16.dp, tint = colors.intervened)
+                Symbol(Glyph.TouchApp, size = 16.dp, tint = colors.intervened)
                 Text(
                     buildAnnotatedString {
                         append("Sent by the inspector — ")
@@ -186,8 +187,8 @@ private fun DetailHeader(observation: VIEObservation, sequence: TimeMachineSeque
         }
         if (json != null) {
             Row(Modifier.padding(top = 2.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                if (projection.canIntervene) PillButton("Edit & intervene", "edit_note", filled = true) { post(DetailVIE.Intent.EditAndIntervene) }
-                PillButton("Copy JSON", "content_copy", filled = false) { copy(json.pretty()) }
+                if (projection.canIntervene) PillButton("Edit & intervene", Glyph.EditNote, filled = true) { post(DetailVIE.Intent.EditAndIntervene) }
+                PillButton("Copy JSON", Glyph.ContentCopy, filled = false) { copy(json.pretty()) }
             }
         }
     }
@@ -213,7 +214,7 @@ private fun DetailChanges(diff: ModelDiff, label: TextStyle, modifier: Modifier 
 private val SectionGap = 14.dp
 
 @Composable
-private fun PillButton(label: String, glyph: String, filled: Boolean, onClick: () -> Unit) {
+private fun PillButton(label: String, glyph: Glyph, filled: Boolean, onClick: () -> Unit) {
     val scheme = MaterialTheme.colorScheme
     val foreground = if (filled) scheme.onPrimaryContainer else scheme.onSurfaceVariant
     Row(

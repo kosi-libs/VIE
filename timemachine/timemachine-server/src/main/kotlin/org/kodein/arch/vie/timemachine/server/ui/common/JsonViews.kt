@@ -36,6 +36,7 @@ import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
+import org.kodein.arch.vie.timemachine.server.ui.theme.Glyph
 import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorColors
 import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorDimens
 import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorPillShape
@@ -167,7 +168,7 @@ private fun TreeLineRow(line: TreeLine, tinted: Boolean, highlight: () -> Float,
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Spacer(Modifier.width(InspectorDimens.treeIndent * line.depth))
-        if (line.openable) Symbol(if (line.open) "expand_more" else "chevron_right", size = 14.dp, tint = scheme.outline)
+        if (line.openable) Symbol(if (line.open) Glyph.ExpandMore else Glyph.ChevronRight, size = 14.dp, tint = scheme.outline)
         else Spacer(Modifier.width(14.dp))
         if (line.key != null) {
             Text(line.key, style = InspectorTheme.text.code, color = if (line.isIndex) scheme.outline else colors.jsonKey, maxLines = 1)
