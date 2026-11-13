@@ -25,11 +25,11 @@ import org.kodein.arch.vie.timemachine.protocol.TimeMachineSession
  * Never throws into the host app: every failure is printed and swallowed. An `Error` in the
  * connection loop — running out of memory while encoding a model, an engine class that fails to
  * link — is not retried: the outbound queue may have been left half-way through a message, and the
- * same `Error` may well come back on every attempt. It retires the probe instead: the probe is
- * [stop]ped, and `onRetired` is told, so that nothing keeps providing its middlewares.
+ * same `Error` may well come back on every attempt. It retires the probe instead: `onRetired` is
+ * told, so that nothing keeps providing its middlewares, and the probe is [stop]ped.
  *
  * @param notice Prints what the probe and its connection have to say.
- * @param onRetired Called with this probe once an `Error` stopped it for good. Must not throw.
+ * @param onRetired Called with this probe when an `Error` retires it, before it is stopped. Must not throw.
  * @param newConnection Builds the connection that reads this probe's session, sink and outbound queue.
  */
 internal class TimeMachineProbe(
@@ -76,21 +76,12 @@ internal class TimeMachineProbe(
 
     /** Stops this probe for good after [failure] ended its connection loop, rather than leave it
      *  started, buffering for a connection that will never come back. */
-    private fun retire(failure: Throwable) {
-        // Each step runs whatever the one before it throws, and nothing leaves: this is the scope's
-        // exception handler, past which lies the thread's uncaught-exception handler.
-        try {
-            try {
-                println("TimeMachine: the connection to the inspector stopped for good, and the probe with it: $failure")
-            } finally {
-                try {
-                    stop()
-                } finally {
-                    onRetired(this)
-                }
-            }
-        } catch (_: Throwable) {
-        }
+    // Nothing may leave: this is the scope's exception handler, past which lies the thread's
+    // uncaught-exception handler. onRetired is told first, so that it is told even if stopping fails.
+    private fun retire(failure: Throwable) = runCatching {
+        println("TimeMachine: the connection to the inspector stopped for good, and the probe with it: $failure")
+        onRetired(this)
+        stop()
     }
 
     private fun printBanner() {

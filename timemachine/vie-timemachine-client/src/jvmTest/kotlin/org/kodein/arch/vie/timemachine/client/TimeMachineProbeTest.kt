@@ -10,6 +10,7 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 import kotlin.uuid.Uuid
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.withTimeoutOrNull
@@ -71,7 +72,8 @@ class TimeMachineProbeTest {
             inspector.hellos.receive()
 
             assertSame(probe, retired.await())
-            assertTrue(sink.isClosed, "A retired probe must stop buffering what its middlewares report")
+            // The probe is told retired before it stops: give it the time to.
+            while (!sink.isClosed) delay(10.milliseconds)
             assertTrue(sink.liveViewModels.isEmpty(), "A retired probe must let go of its ViewModels")
             assertNull(withTimeoutOrNull(500.milliseconds) { inspector.hellos.receive() }, "A retired probe must not connect again")
         }
