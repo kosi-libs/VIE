@@ -3,16 +3,11 @@ package org.kodein.arch.vie.timemachine.client
 import kotlin.concurrent.atomics.AtomicInt
 import kotlin.concurrent.atomics.AtomicReference
 import kotlin.concurrent.atomics.update
-import kotlin.coroutines.cancellation.CancellationException
 import kotlin.time.Clock
 import kotlin.uuid.Uuid
-import kotlinx.coroutines.currentCoroutineContext
-import kotlinx.coroutines.ensureActive
 import org.kodein.arch.vie.VIE
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineClientMessage
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineSequence
-import org.kodein.arch.vie.timemachine.protocol.TimeMachineServerMessage
-import org.kodein.arch.vie.timemachine.protocol.VIEInterventionResult
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineTimelineMessage
 import org.kodein.arch.vie.timemachine.protocol.VIEObjectKind
 import org.kodein.arch.vie.timemachine.protocol.VIEObservation
@@ -173,51 +168,3 @@ private fun deliveryOf(kind: VIEObjectKind, value: Any): VIESignalDelivery? =
         else -> null
     }
 
-/** Runs [block], app code describing an object or one of its types, printing and swallowing anything
- *  it throws: unlike [guarded], errors and cancellation too, since they cannot come from the probe
- *  itself. */
-internal inline fun <R> describing(what: () -> String, block: () -> R): R? =
-    try {
-        block()
-    } catch (e: Throwable) {
-        println("TimeMachine: failed to ${what()}: $e")
-        null
-    }
-
-/**
- * Makes one live ViewModel emit or receive the object an intervention request describes.
- *
- * The sink's registry holds it for as long as its ViewModel is not cleared, so it must not keep that
- * ViewModel reachable: one that is never cleared would otherwise never be garbage-collected.
- */
-internal fun interface TimeMachineIntervener {
-    /** Places [request]'s object, or says why it cannot. Never throws nor suspends. */
-    fun intervene(request: TimeMachineServerMessage.Intervene): VIEInterventionResult
-
-    /** Whether the ViewModel was garbage-collected without ever being cleared: it then reports nothing
-     *  more, its close included, and nothing can be placed in it. */
-    val isViewModelCollected: Boolean get() = false
-}
-
-/** Runs [block], printing and swallowing any failure but cancellation: nothing the probe does may
- *  throw into the host app. For a [block] that suspends, use [guardedSuspending]. */
-internal inline fun <R> guarded(what: () -> String, block: () -> R): R? =
-    try {
-        block()
-    } catch (e: CancellationException) {
-        throw e
-    } catch (e: Exception) {
-        println("TimeMachine: failed to ${what()}: $e")
-        null
-    }
-
-/** Like [guarded] for a [block] that suspends: a `CancellationException` ends the caller only if the
- *  caller itself was cancelled, otherwise it is a failure of [block] like any other. */
-internal suspend inline fun <R> guardedSuspending(what: () -> String, block: () -> R): R? =
-    try {
-        block()
-    } catch (e: Exception) {
-        if (e is CancellationException) currentCoroutineContext().ensureActive()
-        println("TimeMachine: failed to ${what()}: $e")
-        null
-    }
