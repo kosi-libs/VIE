@@ -121,6 +121,40 @@ class TimeMachineSinkTest {
     }
 
     @Test
+    fun aLongToStringIsCutWithAMarkerAndTheObservationSaysSo() {
+        val entries = mutableListOf<TimeMachineSink.Entry>()
+        // The limit is on the whole observation: its toString() is cut at half of it.
+        TimeMachineSink(maxObservationLength = 200) { entries += it }
+            .observed(vmA, VIEObjectKind.Model, role<String>(), "x".repeat(1_000))
+
+        val observation = assertIs<TimeMachineClientMessage.Observed>(entries.single().describe(TimeMachineSequence(0))).observation
+        assertEquals("x".repeat(100) + "… (900 more characters)", observation.asString)
+        assertTrue(observation.truncated)
+    }
+
+    @Test
+    fun aToStringWithinTheLimitIsLeftAlone() {
+        val entries = mutableListOf<TimeMachineSink.Entry>()
+        TimeMachineSink(maxObservationLength = 200) { entries += it }
+            .observed(vmA, VIEObjectKind.Model, role<String>(), "x".repeat(100))
+
+        val observation = assertIs<TimeMachineClientMessage.Observed>(entries.single().describe(TimeMachineSequence(0))).observation
+        assertEquals("x".repeat(100), observation.asString)
+        assertEquals(false, observation.truncated)
+    }
+
+    @Test
+    fun aToStringIsNotCutInTheMiddleOfASurrogatePair() {
+        val entries = mutableListOf<TimeMachineSink.Entry>()
+        // Cut at 3 characters, the pair "😀" would be split after its first half.
+        TimeMachineSink(maxObservationLength = 6) { entries += it }
+            .observed(vmA, VIEObjectKind.Model, role<String>(), "ab😀cd")
+
+        val observation = assertIs<TimeMachineClientMessage.Observed>(entries.single().describe(TimeMachineSequence(0))).observation
+        assertEquals("ab… (4 more characters)", observation.asString)
+    }
+
+    @Test
     fun anErrorFromTheSerializerLeavesOnlyTheJsonOut() {
         val observed = describe(role<ErrorModel>(), ErrorModel(1))
         assertEquals("ErrorModel(count=1)", observed.observation.asString)

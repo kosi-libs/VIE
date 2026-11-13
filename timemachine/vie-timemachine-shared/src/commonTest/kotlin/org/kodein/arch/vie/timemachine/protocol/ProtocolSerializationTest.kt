@@ -94,6 +94,27 @@ class ProtocolSerializationTest {
     )
 
     @Test
+    fun observedRoundTripsWhenTruncated() = assertRoundTrip<TimeMachineClientMessage>(
+        TimeMachineClientMessage.Observed(
+            VIEObservation(
+                viewModelId = vmId,
+                at = now,
+                kind = VIEObjectKind.Model,
+                typeName = "org.example.TaskListVIE.Model",
+                asString = "Model(tasks=[… (4096 more characters)",
+                truncated = true,
+            ),
+            sequence = TimeMachineSequence(3),
+        )
+    )
+
+    @Test
+    fun anObservationIsNotTruncatedUnlessItSaysSo() {
+        val json = """{"viewModelId":"00000000-0000-0000-0000-000000000001","at":"2024-08-30T07:20:00Z","kind":"Model","typeName":"T","asString":"T"}"""
+        assertEquals(false, TimeMachineJson.decodeFromString(VIEObservation.serializer(), json).truncated)
+    }
+
+    @Test
     fun observedRoundTripsAsAnEffectSignal() = assertRoundTrip<TimeMachineClientMessage>(
         TimeMachineClientMessage.Observed(
             VIEObservation(

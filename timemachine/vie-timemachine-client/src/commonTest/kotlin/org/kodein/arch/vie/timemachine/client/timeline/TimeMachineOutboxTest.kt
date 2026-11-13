@@ -4,6 +4,9 @@ import org.kodein.arch.vie.timemachine.protocol.TimeMachineSequence
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
+import kotlin.test.assertNotNull
+import kotlin.test.assertNull
+import kotlin.test.assertTrue
 import kotlin.time.Clock
 import kotlin.uuid.Uuid
 import kotlinx.coroutines.CompletableDeferred
@@ -13,6 +16,8 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonPrimitive
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineClientMessage
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineJson
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineTimelineMessage
@@ -26,6 +31,15 @@ private fun entry(viewModelId: Uuid, text: String, onDescribe: () -> Unit = {}) 
     val observation = VIEObservation(viewModelId = viewModelId, at = Clock.System.now(), kind = VIEObjectKind.Model, typeName = "T", asString = text)
     TimeMachineClientMessage.Observed(observation = observation, sequence = sequence)
 }
+
+/** An entry about [viewModelId] that describes a model as [text], with [json] as its JSON. */
+private fun entryWithJson(viewModelId: Uuid, text: String, json: JsonElement) = TimeMachineSink.Entry(viewModelId) { sequence ->
+    val observation = VIEObservation(viewModelId = viewModelId, at = Clock.System.now(), kind = VIEObjectKind.Model, typeName = "T", asString = text, asJson = json)
+    TimeMachineClientMessage.Observed(observation = observation, sequence = sequence)
+}
+
+private val TimeMachineTimelineMessage.observation: VIEObservation?
+    get() = (this as? TimeMachineClientMessage.Observed)?.observation
 
 private val TimeMachineTimelineMessage.asString: String?
     get() = (this as? TimeMachineClientMessage.Observed)?.observation?.asString
@@ -217,5 +231,45 @@ class TimeMachineOutboxTest {
         outbox.close()
 
         outbox.offer(entry(vmA, "0"))
+    }
+
+    @Test
+    fun anObservationWhoseJsonOverrunsTheLimitIsSentWithoutItAndSaysSo() = runTest {
+        val outbox = TimeMachineOutbox(capacity = 8, maxObservationLength = 1_000)
+        outbox.offer(entryWithJson(vmA, "huge", JsonPrimitive("x".repeat(5_000))))
+        outbox.offer(entry(vmA, "next"))
+
+        draining(outbox) { sent ->
+            val huge = assertNotNull(sent[0].observation)
+            assertEquals("huge", huge.asString)
+            assertNull(huge.asJson)
+            assertTrue(huge.truncated)
+            // It keeps its place: no sequence is missing, and what follows is untouched.
+            assertEquals(listOf(0L, 1L), sent.map { it.sequence.value })
+            assertEquals(false, sent[1].observation?.truncated)
+        }
+    }
+
+    @Test
+    fun anObservationWhoseJsonFitsTheLimitIsSentWhole() = runTest {
+        val outbox = TimeMachineOutbox(capacity = 8, maxObservationLength = 1_000)
+        val json = JsonPrimitive("x".repeat(100))
+        outbox.offer(entryWithJson(vmA, "small", json))
+
+        draining(outbox) { sent ->
+            val observation = assertNotNull(sent.single().observation)
+            assertEquals(json, observation.asJson)
+            assertEquals(false, observation.truncated)
+        }
+    }
+
+    @Test
+    fun anObservationThatIsAlreadyWithoutJsonIsNotChanged() = runTest {
+        val outbox = TimeMachineOutbox(capacity = 8, maxObservationLength = 10)
+        outbox.offer(entry(vmA, "a text longer than the limit"))
+
+        draining(outbox) { sent ->
+            assertEquals(false, sent.single().observation?.truncated)
+        }
     }
 }

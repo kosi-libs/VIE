@@ -87,6 +87,7 @@ private fun withConnection(
     inspector: FakeInspector,
     bufferSize: Int = 1024,
     window: Int = 256 * 1024,
+    maxObservationLength: Int = TimeMachineConfig(appName = "", enabled = false).maxObservationLength,
     maxRetryDelay: Duration = 100.milliseconds,
     // Longer than any test: no connection holds unless the test asks for it.
     heldAfter: Duration = 10.seconds,
@@ -95,8 +96,8 @@ private fun withConnection(
 ) = runBlocking {
     val config = TimeMachineConfig(appName = "ConnectionTest", enabled = true, port = inspector.port)
     val session = TimeMachineSession(id = Uuid.random(), name = config.appName)
-    val outbox = TimeMachineOutbox(bufferSize, window)
-    val sink = TimeMachineSink(outbox::offer)
+    val outbox = TimeMachineOutbox(bufferSize, window, maxObservationLength)
+    val sink = TimeMachineSink(maxObservationLength, outbox::offer)
     val connection = InspectorConnection(
         config, session, sink, outbox,
         firstRetryDelay = 20.milliseconds,
@@ -228,6 +229,30 @@ class InspectorConnectionTest {
             assertEquals("during" to 3L, observed.observation.asString to observed.sequence.value)
             val closed = assertIs<TimeMachineClientMessage.ViewModelClosed>(inspector.received.receive())
             assertEquals(new to 4L, closed.viewModelId to closed.sequence.value)
+        }
+    }
+
+    @Test
+    fun anObservationTooBigForTheInspectorDoesNotKeepTheNextOnesFromArriving() {
+        // The inspector closes a connection on a frame over 64 KiB. The probe's limit keeps its frames
+        // under it: the huge model is sent without its JSON, instead of being sent again, and refused
+        // again, on every connection.
+        val inspector = FakeInspector(maxFrameSize = 64 * 1024)
+        withConnection(inspector, maxObservationLength = 16 * 1024) { probed ->
+            val vm = Uuid.random()
+            probed.sink.started(info(vm), noIntervention)
+            probed.sink.observed(vm, VIEObjectKind.Model, role<String>(), "x".repeat(200_000))
+            probed.sink.observed(vm, VIEObjectKind.Model, role<String>(), "after")
+            probed.start()
+
+            inspector.hellos.receive()
+            inspector.receiveAnnounce(vm)
+            assertIs<TimeMachineClientMessage.ViewModelStarted>(inspector.received.receive())
+            val huge = assertIs<TimeMachineClientMessage.Observed>(inspector.received.receive()).observation
+            assertNull(huge.asJson)
+            assertTrue(huge.truncated)
+            val after = assertIs<TimeMachineClientMessage.Observed>(inspector.received.receive()).observation
+            assertEquals("after", after.asString)
         }
     }
 

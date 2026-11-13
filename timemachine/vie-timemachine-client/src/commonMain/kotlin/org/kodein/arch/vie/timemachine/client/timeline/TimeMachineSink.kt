@@ -6,6 +6,7 @@ import kotlin.concurrent.atomics.update
 import kotlin.time.Clock
 import kotlin.uuid.Uuid
 import org.kodein.arch.vie.VIE
+import org.kodein.arch.vie.timemachine.client.defaultMaxObservationLength
 import org.kodein.arch.vie.timemachine.client.describing
 import org.kodein.arch.vie.timemachine.client.role.VIERole
 import org.kodein.arch.vie.timemachine.client.viewmodel.TimeMachineMiddleware
@@ -40,10 +41,20 @@ import org.kodein.arch.vie.timemachine.protocol.VIEViewModelInfo
  * Once [close]d, when its probe stops, the sink reports nothing and knows no ViewModel: a middleware
  * that outlives its probe then costs its ViewModel one check per object.
  *
+ * An observation's `toString()` is cut at half of [maxObservationLength], with a marker saying how much
+ * was left out, and the observation says it was [VIEObservation.truncated]: the other half is what
+ * its JSON may take, which [TimeMachineOutbox] enforces where it knows its length.
+ *
+ * @param maxObservationLength See [org.kodein.arch.vie.timemachine.client.TimeMachineConfig.maxObservationLength].
  * @param outlet Receives every entry, in report order for any single calling thread. Must not
  *   throw nor suspend.
  */
-internal class TimeMachineSink(private val outlet: (Entry) -> Unit) {
+internal class TimeMachineSink(
+    maxObservationLength: Int = defaultMaxObservationLength,
+    private val outlet: (Entry) -> Unit,
+) {
+
+    private val maxStringLength = maxObservationLength / 2
 
     /**
      * A timeline message whose content is only built by [describe].
@@ -107,11 +118,13 @@ internal class TimeMachineSink(private val outlet: (Entry) -> Unit) {
         if (isClosed) return
         val at = Clock.System.now()
         outlet(Entry(viewModelId) { sequence ->
-            val asString = try {
+            val rendered = try {
                 value.toString()
             } catch (e: Throwable) {
                 "<toString() failed: $e>"
             }
+            // What the failure messages below print, and what is sent: never the whole of a huge object.
+            val asString = rendered.cutAt(maxStringLength)
             val observation = VIEObservation(
                 viewModelId = viewModelId,
                 at = at,
@@ -121,6 +134,7 @@ internal class TimeMachineSink(private val outlet: (Entry) -> Unit) {
                 asJson = describing({ "encode $kind $asString" }) { role.encode(value) },
                 interventionId = interventionId,
                 delivery = deliveryOf(kind, value),
+                truncated = rendered.length > maxStringLength,
             )
             TimeMachineClientMessage.Observed(observation = observation, sequence = sequence)
         })
@@ -160,6 +174,17 @@ internal class TimeMachineSink(private val outlet: (Entry) -> Unit) {
     private companion object {
         const val minPruneFrom = 16
     }
+}
+
+/**
+ * This string cut to [length] characters, followed by a marker saying how many were left out; this
+ * string itself when it fits. Never cuts a surrogate pair in two.
+ */
+private fun String.cutAt(length: Int): String {
+    if (this.length <= length) return this
+    var end = length
+    if (end > 0 && this[end - 1].isHighSurrogate()) end--
+    return substring(0, end) + "… (${this.length - end} more characters)"
 }
 
 /** The delivery kind [value] picked, when it is a Signal. */

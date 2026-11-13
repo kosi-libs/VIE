@@ -55,6 +55,14 @@ class TimeMachineConfigTest {
     }
 
     @Test
+    fun aNonPositiveMaxObservationLengthIsAProblem() {
+        for (length in listOf(0, -1)) {
+            val problem = assertNotNull(TimeMachineConfig(appName = "Test", enabled = true, maxObservationLength = length).problem, "maxObservationLength $length")
+            assertTrue("maxObservationLength" in problem && length.toString() in problem, problem)
+        }
+    }
+
+    @Test
     fun aConfigurationLeftAtItsDefaultsHasNoProblem() {
         assertNull(TimeMachineConfig(appName = "Test", enabled = true).problem)
     }

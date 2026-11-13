@@ -29,6 +29,13 @@ import org.kodein.arch.vie.timemachine.protocol.TimeMachineConnection
  *   this many past models, intents and signals stay reachable. Successive models built with `copy()`
  *   share most of their content, so that usually costs little; lower it when models hold heavy objects
  *   that each model replaces, such as decoded images. Invalid unless positive.
+ * @property maxObservationLength How many characters one observation may take on the wire, counting
+ *   its `toString()` and its JSON together. A longer `toString()` is cut at half of it, with a marker
+ *   saying how much was left out; an observation that still overruns it is sent without its JSON,
+ *   and the inspector shows it as too large. Either way the observation says it was truncated. This
+ *   keeps an observation under the inspector's frame limit, which closes the connection on a larger
+ *   one. It does not spare the app the cost of rendering a heavy model, which is done before it is
+ *   measured: keep such models out of the observed ones. Invalid unless positive.
  */
 public class TimeMachineConfig(
     public val appName: String,
@@ -36,6 +43,7 @@ public class TimeMachineConfig(
     public val host: String = "localhost",
     public val port: Int = TimeMachineConnection.port,
     public val bufferSize: Int = 1024,
+    public val maxObservationLength: Int = defaultMaxObservationLength,
 ) {
     /** What makes this configuration invalid, i.e. what keeps a probe from starting with it, or
      *  `null` when nothing does. */
@@ -43,9 +51,13 @@ public class TimeMachineConfig(
         get() = when {
             port !in 1..65535 -> "port must be in 1..65535, was $port"
             bufferSize <= 0 -> "bufferSize must be positive, was $bufferSize"
+            maxObservationLength <= 0 -> "maxObservationLength must be positive, was $maxObservationLength"
             else -> null
         }
 
     /** The inspector's WebSocket, as the probe connects to it and prints it. */
     internal val inspectorAddress: String get() = "ws://$host:$port${TimeMachineConnection.path}"
 }
+
+/** [TimeMachineConfig.maxObservationLength] when the app does not choose: a megabyte of characters. */
+internal const val defaultMaxObservationLength: Int = 1024 * 1024

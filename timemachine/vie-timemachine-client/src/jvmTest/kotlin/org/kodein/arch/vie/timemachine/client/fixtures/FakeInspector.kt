@@ -8,6 +8,7 @@ import io.ktor.server.websocket.DefaultWebSocketServerSession
 import io.ktor.server.websocket.WebSockets
 import io.ktor.server.websocket.webSocket
 import io.ktor.websocket.Frame
+import io.ktor.websocket.FrameTooBigException
 import io.ktor.websocket.close
 import io.ktor.websocket.readText
 import java.util.concurrent.atomic.AtomicInteger
@@ -29,8 +30,11 @@ import org.kodein.arch.vie.timemachine.protocol.TimeMachineTimelineMessage
  * Each timeline message is acknowledged with a [TimeMachineServerMessage.Received] while
  * [acknowledge] is `true`, before it is recorded: a test that reacts to a message, by closing the
  * connection for example, does so after its acknowledgement was queued.
+ *
+ * A frame over [maxFrameSize] bytes closes its connection, as the real inspector's does.
  */
 internal class FakeInspector(
+    private val maxFrameSize: Long = Long.MAX_VALUE,
     private val answer: suspend (connection: Int) -> TimeMachineServerMessage = { TimeMachineServerMessage.Welcome },
 ) : AutoCloseable {
     val hellos = Channel<TimeMachineClientMessage.Hello>(Channel.UNLIMITED)
@@ -43,7 +47,7 @@ internal class FakeInspector(
     private val connections = AtomicInteger(0)
 
     private val server = embeddedServer(CIO, port = 0) {
-        install(WebSockets)
+        install(WebSockets) { maxFrameSize = this@FakeInspector.maxFrameSize }
         routing {
             webSocket(TimeMachineConnection.path) {
                 val hello = assertIs<TimeMachineClientMessage.Hello>(receiveMessage())
@@ -74,8 +78,12 @@ internal class FakeInspector(
 }
 
 internal suspend fun DefaultWebSocketServerSession.receiveMessage(): TimeMachineClientMessage? {
-    for (frame in incoming) {
-        if (frame is Frame.Text) return TimeMachineJson.decodeFromString(TimeMachineClientMessage.serializer(), frame.readText())
+    try {
+        for (frame in incoming) {
+            if (frame is Frame.Text) return TimeMachineJson.decodeFromString(TimeMachineClientMessage.serializer(), frame.readText())
+        }
+    } catch (_: FrameTooBigException) {
+        // Ktor already closed the connection.
     }
     return null
 }
