@@ -44,7 +44,7 @@ import org.kodein.arch.vie.VIEMiddleware
  */
 public object TimeMachine {
 
-    private val running = AtomicReference<TimeMachineClient?>(null)
+    private val running = AtomicReference<TimeMachineProbe?>(null)
 
     /** Whether the probe runs, i.e. whether [middleware] returns a middleware that observes. */
     @PublishedApi
@@ -60,33 +60,33 @@ public object TimeMachine {
      * and stopped, as by [stop], and can be started again.
      */
     public fun start(config: TimeMachineConfig) {
-        start(config) { onRetired -> TimeMachineClient(config, onRetired = onRetired) }
+        start(config) { onRetired -> TimeMachineProbe(config, onRetired = onRetired) }
     }
 
-    /** [start], with the probe built by [newClient], which hands it what to call once retired. */
-    internal fun start(config: TimeMachineConfig, newClient: (onRetired: (TimeMachineClient) -> Unit) -> TimeMachineClient) {
+    /** [start], with the probe built by [newProbe], which hands it what to call once retired. */
+    internal fun start(config: TimeMachineConfig, newProbe: (onRetired: (TimeMachineProbe) -> Unit) -> TimeMachineProbe) {
         if (!config.enabled) return
         // Only once enabled: a disabled probe must not even print about a configuration it never uses.
         config.problem?.let { return println("TimeMachine: the probe does not start: $it.") }
         // Checked before building a probe, which opens an HTTP client; compareAndSet still settles a race.
         if (running.load() != null) return printAlreadyRunning()
-        var client: TimeMachineClient? = null
+        var probe: TimeMachineProbe? = null
         try {
-            client = newClient { retired -> running.compareAndSet(retired, null) }
-            if (running.compareAndSet(null, client)) {
-                client.start()
+            probe = newProbe { retired -> running.compareAndSet(retired, null) }
+            if (running.compareAndSet(null, probe)) {
+                probe.start()
             } else {
-                client.stop()
+                probe.stop()
                 printAlreadyRunning()
             }
         } catch (e: Throwable) {
             // An Error too: building a probe loads the HTTP engine, and a class that fails to link there
             // must not reach the application's startup.
             println("TimeMachine: failed to start the probe: $e")
-            if (client != null) {
-                running.compareAndSet(client, null)
+            if (probe != null) {
+                running.compareAndSet(probe, null)
                 try {
-                    client.stop()
+                    probe.stop()
                 } catch (e: Throwable) {
                     println("TimeMachine: failed to stop the probe: $e")
                 }
@@ -104,8 +104,8 @@ public object TimeMachine {
      * ViewModels created from then on report to.
      */
     public fun stop() {
-        val client = running.exchange(null) ?: return
-        guarded({ "stop the probe" }) { client.stop() }
+        val probe = running.exchange(null) ?: return
+        guarded({ "stop the probe" }) { probe.stop() }
     }
 
     /**

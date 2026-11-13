@@ -45,4 +45,7 @@ public class TimeMachineConfig(
             bufferSize <= 0 -> "bufferSize must be positive, was $bufferSize"
             else -> null
         }
+
+    /** The inspector's WebSocket, as the probe connects to it and prints it. */
+    internal val inspectorAddress: String get() = "ws://$host:$port${TimeMachineConnection.path}"
 }
