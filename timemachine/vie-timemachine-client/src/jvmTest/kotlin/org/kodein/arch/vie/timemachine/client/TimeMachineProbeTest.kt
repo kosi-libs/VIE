@@ -2,6 +2,7 @@ package org.kodein.arch.vie.timemachine.client
 
 import io.ktor.websocket.close
 import kotlin.test.Test
+import kotlin.test.assertNotSame
 import kotlin.test.assertNull
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
@@ -10,6 +11,7 @@ import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 import kotlin.uuid.Uuid
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
@@ -21,7 +23,10 @@ import org.kodein.arch.vie.timemachine.client.fixtures.noIntervention
 import org.kodein.arch.vie.timemachine.client.timeline.TimeMachineSink
 
 
-/** Runs [block] with a probe that connects to [inspector], and with the sink that probe reports to. */
+/**
+ * Runs [block] with a probe that connects to [inspector], and with the sink that probe reports to:
+ * the probe builds its connection, and so reads that sink, once started.
+ */
 private fun withProbe(
     inspector: FakeInspector,
     // Longer than any test: no connection holds unless the test asks for it.
@@ -29,13 +34,16 @@ private fun withProbe(
     // Runs inside the probe, wherever it prints a notice: what it throws is thrown there.
     onNotice: (String) -> Unit = {},
     onRetired: (TimeMachineProbe) -> Unit = {},
-    block: suspend (TimeMachineProbe, TimeMachineSink) -> Unit,
+    // Runs when the probe builds its connection, where it builds it: what it throws is thrown there.
+    onNewConnection: () -> Unit = {},
+    block: suspend (TimeMachineProbe, Deferred<TimeMachineSink>) -> Unit,
 ) = runBlocking {
     val config = TimeMachineConfig(appName = "ProbeTest", enabled = true, port = inspector.port)
     val notice: (String) -> Unit = { println(it); onNotice(it) }
-    lateinit var probeSink: TimeMachineSink
+    val probeSink = CompletableDeferred<TimeMachineSink>()
     val probe = TimeMachineProbe(config, notice, onRetired) { session, sink, outbox ->
-        probeSink = sink
+        onNewConnection()
+        probeSink.complete(sink)
         InspectorConnection(
             config, session, sink, outbox,
             firstRetryDelay = 20.milliseconds,
@@ -65,10 +73,11 @@ class TimeMachineProbeTest {
             heldAfter = 50.milliseconds,
             onNotice = { if ("connected to the inspector" in it) throw LinkageError("from the test") },
             onRetired = { retired.complete(it) },
-        ) { probe, sink ->
+        ) { probe, sinkOnceStarted ->
+            probe.start()
+            val sink = sinkOnceStarted.await()
             val vm = Uuid.random()
             sink.started(info(vm), noIntervention)
-            probe.start()
             inspector.hellos.receive()
 
             assertSame(probe, retired.await())
@@ -76,6 +85,32 @@ class TimeMachineProbeTest {
             while (!sink.isClosed) delay(10.milliseconds)
             assertTrue(sink.liveViewModels.isEmpty(), "A retired probe must let go of its ViewModels")
             assertNull(withTimeoutOrNull(500.milliseconds) { inspector.hellos.receive() }, "A retired probe must not connect again")
+        }
+    }
+
+    @Test
+    fun theConnectionIsBuiltOnTheProbesCoroutineAndNotOnTheThreadThatStartsIt() {
+        val inspector = FakeInspector()
+        val builtOn = CompletableDeferred<Thread>()
+        withProbe(inspector, onNewConnection = { builtOn.complete(Thread.currentThread()) }) { probe, _ ->
+            probe.start()
+            assertNotSame(Thread.currentThread(), builtOn.await(), "Building the HTTP client must not take the starter's time")
+            inspector.hellos.receive()
+        }
+    }
+
+    @Test
+    fun anErrorWhileBuildingTheConnectionRetiresTheProbe() {
+        val inspector = FakeInspector()
+        val retired = CompletableDeferred<TimeMachineProbe>()
+        withProbe(
+            inspector,
+            onRetired = { retired.complete(it) },
+            onNewConnection = { throw LinkageError("from the test") },
+        ) { probe, _ ->
+            probe.start()
+            assertSame(probe, retired.await())
+            assertNull(withTimeoutOrNull(500.milliseconds) { inspector.hellos.receive() }, "A retired probe must not connect")
         }
     }
 

@@ -68,7 +68,7 @@ public object TimeMachine {
         if (!config.enabled) return
         // Only once enabled: a disabled probe must not even print about a configuration it never uses.
         config.problem?.let { return println("TimeMachine: the probe does not start: $it.") }
-        // Checked before building a probe, which opens an HTTP client; compareAndSet still settles a race.
+        // Checked before building a probe; compareAndSet still settles a race.
         if (running.load() != null) return printAlreadyRunning()
         var probe: TimeMachineProbe? = null
         try {
@@ -80,8 +80,8 @@ public object TimeMachine {
                 printAlreadyRunning()
             }
         } catch (e: Throwable) {
-            // An Error too: building a probe loads the HTTP engine, and a class that fails to link there
-            // must not reach the application's startup.
+            // An Error too: it must not reach the application's startup. The HTTP engine is not loaded
+            // here but on the probe's own coroutine, where an Error retires the probe.
             println("TimeMachine: failed to start the probe: $e")
             if (probe != null) {
                 running.compareAndSet(probe, null)
