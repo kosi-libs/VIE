@@ -35,6 +35,7 @@ import org.kodein.arch.vie.timemachine.server.fixtures.until
 import org.kodein.arch.vie.timemachine.server.ui.core.Inspector
 import org.kodein.arch.vie.timemachine.server.ui.core.InspectorScope
 import org.kodein.arch.vie.timemachine.server.ui.core.viewModel
+import org.kodein.arch.vie.timemachine.server.ui.theme.Glyph
 
 
 /**
@@ -52,7 +53,7 @@ class TimelineViewTest {
     private val sessionTitle = "Session · 4 ViewModels"
 
     /** The header's chip of the Model's type, which the glyph of a serializable type tells from the filter's chip. */
-    private val modelTypeChip = hasText("Model") and hasText("data_object")
+    private val modelTypeChip = hasText("Model") and hasText(Glyph.DataObject.ligature)
 
     private fun Inspector.follow(scope: InspectorScope): FollowState = viewModel(timelinePane(scope)).modelFlow.value.controls.follow
 

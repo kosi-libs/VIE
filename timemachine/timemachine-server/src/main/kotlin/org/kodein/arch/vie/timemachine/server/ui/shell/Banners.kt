@@ -22,6 +22,7 @@ import org.kodein.arch.vie.timemachine.server.ui.common.HorizontalRule
 import org.kodein.arch.vie.timemachine.server.ui.common.TextAction
 import org.kodein.arch.vie.timemachine.server.ui.common.clock
 import org.kodein.arch.vie.timemachine.server.ui.common.shortSessionId
+import org.kodein.arch.vie.timemachine.server.ui.theme.Glyph
 import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorDimens
 import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorTheme
 import org.kodein.arch.vie.timemachine.server.ui.theme.Symbol
@@ -39,7 +40,7 @@ internal fun RejectionBanner(notice: RejectionNotice, onDismiss: () -> Unit) {
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Symbol("block", size = 20.dp, tint = colors.error)
+            Symbol(Glyph.Block, size = 20.dp, tint = colors.error)
             FlowRow(
                 Modifier.weight(1f),
                 horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -86,7 +87,7 @@ internal fun DisconnectedBanner(notice: DisconnectedNotice, modifier: Modifier =
             horizontalArrangement = Arrangement.spacedBy(10.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Symbol("power_off", size = 18.dp, tint = scheme.outline)
+            Symbol(Glyph.PowerOff, size = 18.dp, tint = scheme.outline)
             Text(
                 buildAnnotatedString {
                     withStyle(SpanStyle(fontWeight = FontWeight.SemiBold, color = scheme.onSurface)) {

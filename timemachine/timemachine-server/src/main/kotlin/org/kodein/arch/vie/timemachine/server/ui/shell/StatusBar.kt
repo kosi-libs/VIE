@@ -25,6 +25,7 @@ import org.kodein.arch.vie.timemachine.server.ui.common.action
 import org.kodein.arch.vie.timemachine.server.ui.core.InspectorPane
 import org.kodein.arch.vie.timemachine.server.ui.core.LocalInspector
 import org.kodein.arch.vie.timemachine.server.ui.core.LocalInspectorViewState
+import org.kodein.arch.vie.timemachine.server.ui.theme.Glyph
 import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorDimens
 import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorTheme
 import org.kodein.arch.vie.timemachine.server.ui.theme.Symbol
@@ -60,7 +61,7 @@ internal fun StatusBarContent(status: StatusBarVIE.Model, dark: Boolean, onToggl
         ) {
             Listening(status)
             Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
-                Symbol("lock_open", size = 14.dp, tint = scheme.outline)
+                Symbol(Glyph.LockOpen, size = 14.dp, tint = scheme.outline)
                 Text(if (compact) CompactSecurityReminder else SecurityReminder, style = StatusText, color = scheme.outline, maxLines = 1)
             }
             Box(Modifier.weight(1f))
@@ -72,7 +73,7 @@ internal fun StatusBarContent(status: StatusBarVIE.Model, dark: Boolean, onToggl
                 style = StatusText, color = scheme.onSurfaceVariant, maxLines = 1,
             )
             Symbol(
-                if (dark) "dark_mode" else "light_mode", size = 15.dp, tint = scheme.outline,
+                if (dark) Glyph.DarkMode else Glyph.LightMode, size = 15.dp, tint = scheme.outline,
                 modifier = Modifier.action(description = if (dark) LightThemeDescription else DarkThemeDescription, onClick = onToggleTheme),
             )
         }

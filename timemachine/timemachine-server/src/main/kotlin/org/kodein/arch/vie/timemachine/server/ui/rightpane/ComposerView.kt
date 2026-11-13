@@ -74,6 +74,7 @@ import org.kodein.arch.vie.timemachine.server.ui.common.splitSerialName
 import org.kodein.arch.vie.timemachine.server.ui.common.verb
 import org.kodein.arch.vie.timemachine.server.ui.core.InspectorPane
 import org.kodein.arch.vie.timemachine.server.ui.core.LocalInspector
+import org.kodein.arch.vie.timemachine.server.ui.theme.Glyph
 import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorColors
 import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorDimens
 import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorPillShape
@@ -114,7 +115,7 @@ internal fun VIEViewScope<ComposerVIE.Intent, NoSignal>.ComposerContent(model: C
                     Modifier.fillMaxWidth().background(scheme.surfaceContainerHigh, RoundedCornerShape(8.dp)).padding(horizontal = 12.dp, vertical = 10.dp),
                     horizontalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
-                    Symbol("do_not_disturb_on", size = 18.dp, tint = scheme.outline)
+                    Symbol(Glyph.DoNotDisturbOn, size = 18.dp, tint = scheme.outline)
                     Text(text, style = InspectorTheme.text.bodyEmphasis, color = scheme.onSurface, modifier = Modifier.weight(1f))
                 }
             }
@@ -161,7 +162,7 @@ private fun KindSegments(kind: VIEObjectKind, enabled: Set<VIEObjectKind>, block
                     .action(enabled = ok && !blocked, role = Role.RadioButton, selected = on) { onSelect(entry) },
                 horizontalArrangement = Arrangement.spacedBy(4.dp, Alignment.CenterHorizontally), verticalAlignment = Alignment.CenterVertically,
             ) {
-                if (on) Symbol("check", size = 15.dp, tint = foreground) else if (!ok) Symbol("block", size = 15.dp, tint = foreground)
+                if (on) Symbol(Glyph.Check, size = 15.dp, tint = foreground) else if (!ok) Symbol(Glyph.Block, size = 15.dp, tint = foreground)
                 Text(entry.name, style = InspectorTheme.text.label, color = foreground, maxLines = 1)
             }
         }
@@ -177,7 +178,7 @@ private fun KindReason(kind: VIEObjectKind, typeName: String) {
         VIEObjectKind.Signal -> "emitted"
     }
     Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-        Symbol("info", size = 15.dp, tint = scheme.outline)
+        Symbol(Glyph.Info, size = 15.dp, tint = scheme.outline)
         Text(
             buildAnnotatedString {
                 withStyle(SpanStyle(color = scheme.onSurface, fontFamily = InspectorTheme.fonts.mono)) { append(typeName) }
@@ -208,7 +209,7 @@ private fun TypeField(type: String, types: List<String>, open: Boolean, blocked:
                 Text(name.prefix, style = InspectorTheme.text.code, color = scheme.outline, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
                 Text(name.last, style = InspectorTheme.text.code, color = scheme.onSurface, fontWeight = FontWeight.SemiBold, maxLines = 1)
             }
-            Symbol(if (open) "arrow_drop_up" else "arrow_drop_down", size = 18.dp, tint = scheme.onSurfaceVariant)
+            Symbol(if (open) Glyph.ArrowDropUp else Glyph.ArrowDropDown, size = 18.dp, tint = scheme.onSurfaceVariant)
         }
         Text(
             "Type", style = MaterialTheme.typography.labelSmall, color = if (open) scheme.primary else scheme.onSurfaceVariant,
@@ -232,7 +233,7 @@ private fun TypeField(type: String, types: List<String>, open: Boolean, blocked:
                         .action { post(ComposerVIE.Intent.SetType(option)) }.padding(horizontal = 12.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Symbol("check", size = 15.dp, tint = if (option == type) scheme.primary else Color.Transparent)
+                    Symbol(Glyph.Check, size = 15.dp, tint = if (option == type) scheme.primary else Color.Transparent)
                     Text(parts.prefix, style = InspectorTheme.text.code, color = scheme.outline, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
                     Text(parts.last, style = InspectorTheme.text.code, color = scheme.onSurface, fontWeight = FontWeight.SemiBold, maxLines = 1)
                 }
@@ -267,7 +268,7 @@ private fun JsonSection(model: ComposerVIE.Model, editorHeight: Dp, blocked: Boo
         JsonEditorBox(model.editorText, invalid, !blocked, editorHeight) { post(ComposerVIE.Intent.SetText(it)) }
         target.signalNote?.let { note ->
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                Symbol("warning", size = 15.dp, tint = colors.timeout)
+                Symbol(Glyph.Warning, size = 15.dp, tint = colors.timeout)
                 Text(note.text, style = InspectorTheme.text.note, color = scheme.onSurfaceVariant)
             }
         }
@@ -289,7 +290,7 @@ private fun JsonEditorBox(text: String, invalid: JsonParse.Invalid?, enabled: Bo
                 Modifier.fillMaxWidth().background(colors.errorContainer).border(1.dp, colors.error).padding(horizontal = 10.dp, vertical = 6.dp),
                 horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.Top,
             ) {
-                Symbol("error", size = 15.dp, tint = colors.error)
+                Symbol(Glyph.Error, size = 15.dp, tint = colors.error)
                 Text("Line ${it.line}, col ${it.column}: ${it.message}. Fix it to send.", style = InspectorTheme.text.codeRow, color = scheme.onSurface)
             }
         }
@@ -380,9 +381,9 @@ private fun JsonEditor(text: String, errorLine: Int?, enabled: Boolean, modifier
 private fun SendRow(kind: VIEObjectKind, enabled: Boolean, onSend: () -> Unit) {
     val scheme = MaterialTheme.colorScheme
     val glyph = when (kind) {
-        VIEObjectKind.Model -> "swap_horiz"
-        VIEObjectKind.Intent -> "login"
-        VIEObjectKind.Signal -> "campaign"
+        VIEObjectKind.Model -> Glyph.SwapHoriz
+        VIEObjectKind.Intent -> Glyph.Login
+        VIEObjectKind.Signal -> Glyph.Campaign
     }
     val effect = when (kind) {
         VIEObjectKind.Model -> "Replaces the ViewModel’s current state. The app’s next update computes from it."
@@ -406,7 +407,7 @@ private fun SendRow(kind: VIEObjectKind, enabled: Boolean, onSend: () -> Unit) {
 }
 
 /** How an intervention's outcome looks: the card tint, the title colour, and its glyph. */
-private data class Tone(val background: Color, val title: Color, val glyph: String?, val glyphColor: Color)
+private data class Tone(val background: Color, val title: Color, val glyph: Glyph?, val glyphColor: Color)
 
 @Composable
 private fun toneOf(status: InterventionStatus): Tone {
@@ -414,11 +415,11 @@ private fun toneOf(status: InterventionStatus): Tone {
     val colors = InspectorTheme.colors
     return when (status) {
         InterventionStatus.Pending -> Tone(scheme.surfaceContainerHigh, scheme.onSurface, null, scheme.primary)
-        is InterventionStatus.Succeeded -> Tone(colors.successContainer, colors.success, "check_circle", colors.success)
-        InterventionStatus.AcceptedNotObserved -> Tone(colors.notObserved, scheme.onSurface, "visibility_off", colors.success)
-        is InterventionStatus.Failed -> Tone(colors.errorContainer, colors.error, "error", colors.error)
-        InterventionStatus.TimedOut -> Tone(colors.timeoutContainer, colors.timeout, "hourglass_bottom", colors.timeout)
-        InterventionStatus.NotSent -> Tone(scheme.surfaceContainerHigh, scheme.onSurface, "cancel_schedule_send", colors.notSent)
+        is InterventionStatus.Succeeded -> Tone(colors.successContainer, colors.success, Glyph.CheckCircle, colors.success)
+        InterventionStatus.AcceptedNotObserved -> Tone(colors.notObserved, scheme.onSurface, Glyph.VisibilityOff, colors.success)
+        is InterventionStatus.Failed -> Tone(colors.errorContainer, colors.error, Glyph.Error, colors.error)
+        InterventionStatus.TimedOut -> Tone(colors.timeoutContainer, colors.timeout, Glyph.HourglassBottom, colors.timeout)
+        InterventionStatus.NotSent -> Tone(scheme.surfaceContainerHigh, scheme.onSurface, Glyph.CancelScheduleSend, colors.notSent)
     }
 }
 
@@ -511,7 +512,7 @@ private fun ResultCard(view: InterventionView, projection: ComposerProjection, p
                     horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text("Jump to #${status.sequence}", style = InspectorTheme.text.label, color = scheme.primary)
-                    Symbol("arrow_forward", size = 15.dp, tint = scheme.primary)
+                    Symbol(Glyph.ArrowForward, size = 15.dp, tint = scheme.primary)
                 } else Text("Row #${status.sequence} is evicted", style = InspectorTheme.text.note, color = scheme.outline)
             }
             message?.let {
@@ -564,7 +565,7 @@ private fun RecentInterventions(history: List<InterventionView>, older: Int, pos
                     )
                 }
                 Symbol(
-                    "edit_note", size = 17.dp, tint = scheme.onSurfaceVariant,
+                    Glyph.EditNote, size = 17.dp, tint = scheme.onSurfaceVariant,
                     modifier = Modifier.action(description = "Put this intervention in the editor") { post(ComposerVIE.Intent.LoadFromHistory(view.requestId)) },
                 )
             }

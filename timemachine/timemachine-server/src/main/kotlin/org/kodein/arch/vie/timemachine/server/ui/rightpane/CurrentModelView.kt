@@ -47,6 +47,7 @@ import org.kodein.arch.vie.timemachine.server.ui.common.treeLines
 import org.kodein.arch.vie.timemachine.server.ui.core.InspectorPane
 import org.kodein.arch.vie.timemachine.server.ui.core.LocalInspector
 import org.kodein.arch.vie.timemachine.server.ui.core.LocalInspectorViewState
+import org.kodein.arch.vie.timemachine.server.ui.theme.Glyph
 import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorDimens
 import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorPillShape
 import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorTheme
@@ -87,7 +88,7 @@ internal fun VIEViewScope<CurrentModelVIE.Intent, NoSignal>.CurrentModelContent(
             Modifier.fillMaxWidth().height(InspectorDimens.paneHeader).padding(start = InspectorDimens.paneHorizontalPadding, end = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically,
         ) {
-            Symbol("push_pin", size = 16.dp, tint = InspectorTheme.colors.model)
+            Symbol(Glyph.PushPin, size = 16.dp, tint = InspectorTheme.colors.model)
             Text("Current model", style = MaterialTheme.typography.titleSmall, color = scheme.onSurface, maxLines = 1)
             projection.sequence?.let {
                 Text(
@@ -99,7 +100,7 @@ internal fun VIEViewScope<CurrentModelVIE.Intent, NoSignal>.CurrentModelContent(
             if (projection.json != null) {
                 TreeRawSwitch(model.controls.raw) { post(CurrentModelVIE.Intent.SetRaw(it)) }
                 Symbol(
-                    "content_copy", size = 16.dp, tint = scheme.onSurfaceVariant,
+                    Glyph.ContentCopy, size = 16.dp, tint = scheme.onSurfaceVariant,
                     modifier = Modifier.action(description = CopyModelDescription) { copy(projection.json.pretty()) }.padding(5.dp),
                 )
                 EditButton(if (compact) "Edit" else "Edit & replace", projection.canReplace) { post(CurrentModelVIE.Intent.EditAndReplace) }
@@ -107,7 +108,7 @@ internal fun VIEViewScope<CurrentModelVIE.Intent, NoSignal>.CurrentModelContent(
             if (compact) {
                 val viewState = LocalInspectorViewState.current
                 Symbol(
-                    "right_panel_close", size = 18.dp, tint = scheme.onSurfaceVariant,
+                    Glyph.RightPanelClose, size = 18.dp, tint = scheme.onSurfaceVariant,
                     modifier = Modifier.action(description = HideRightPaneDescription) { viewState.rightCollapsed = true }.padding(4.dp),
                 )
             }
@@ -172,7 +173,7 @@ private fun EditButton(label: String, enabled: Boolean, onClick: () -> Unit) {
             .padding(start = 8.dp, end = 10.dp),
         horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically,
     ) {
-        Symbol("edit", size = 14.dp, tint = foreground)
+        Symbol(Glyph.Edit, size = 14.dp, tint = foreground)
         Text(label, style = InspectorTheme.text.action, color = foreground, maxLines = 1)
     }
 }

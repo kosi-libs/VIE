@@ -32,6 +32,7 @@ import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
+import org.kodein.arch.vie.timemachine.server.ui.theme.Glyph
 import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorPillShape
 import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorTheme
 import org.kodein.arch.vie.timemachine.server.ui.theme.Symbol
@@ -103,7 +104,7 @@ internal fun LiveDot(live: Boolean, modifier: Modifier = Modifier) {
 internal fun TextAction(
     label: String,
     modifier: Modifier = Modifier,
-    glyph: String? = null,
+    glyph: Glyph? = null,
     color: Color = MaterialTheme.colorScheme.primary,
     enabled: Boolean = true,
     height: Dp = 26.dp,

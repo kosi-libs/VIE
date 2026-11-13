@@ -43,6 +43,7 @@ import org.kodein.arch.vie.timemachine.server.ui.core.InspectorScope
 import org.kodein.arch.vie.timemachine.server.ui.core.LocalInspector
 import org.kodein.arch.vie.timemachine.server.ui.core.LocalInspectorViewState
 import org.kodein.arch.vie.timemachine.server.ui.core.ViewModelStatus
+import org.kodein.arch.vie.timemachine.server.ui.theme.Glyph
 import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorDimens
 import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorTheme
 import org.kodein.arch.vie.timemachine.server.ui.theme.Symbol
@@ -93,7 +94,7 @@ internal fun VIEViewScope<SessionsVIE.Intent, NoSignal>.SessionsContent(model: S
             Text(model.sessions.size.toString(), style = InspectorTheme.text.monoSecondary, color = MaterialTheme.colorScheme.outline)
             Box(Modifier.weight(1f))
             TextAction(
-                "Clear disconnected", glyph = "delete_sweep", enabled = model.disconnectedSessions > 0,
+                "Clear disconnected", glyph = Glyph.DeleteSweep, enabled = model.disconnectedSessions > 0,
             ) { post(SessionsVIE.Intent.ClearDisconnected) }
         }
         val list = rememberLazyListState()
@@ -136,7 +137,7 @@ private fun SessionBlock(session: SessionItem, selected: InspectorScope?, collap
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Symbol(
-                if (collapsed) "chevron_right" else "expand_more", size = 18.dp, tint = scheme.outline,
+                if (collapsed) Glyph.ChevronRight else Glyph.ExpandMore, size = 18.dp, tint = scheme.outline,
                 modifier = Modifier.action(description = if (collapsed) ExpandSessionDescription else CollapseSessionDescription) {
                     post(SessionsVIE.Intent.ToggleSession(session.id))
                 },
@@ -173,7 +174,7 @@ private fun SessionBlock(session: SessionItem, selected: InspectorScope?, collap
             TextAction(
                 session.clearLabel,
                 modifier = Modifier.padding(start = 16.dp).align(Alignment.Start),
-                glyph = if (session.connected) "clear_all" else "delete_sweep",
+                glyph = if (session.connected) Glyph.ClearAll else Glyph.DeleteSweep,
                 enabled = session.clearEnabled,
                 height = 24.dp,
             ) { post(SessionsVIE.Intent.ClearSession(session.id)) }

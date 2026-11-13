@@ -97,6 +97,7 @@ import org.kodein.arch.vie.timemachine.server.ui.core.InspectorPane
 import org.kodein.arch.vie.timemachine.server.ui.core.InspectorScope
 import org.kodein.arch.vie.timemachine.server.ui.core.LocalInspector
 import org.kodein.arch.vie.timemachine.server.ui.core.ViewModelStatus
+import org.kodein.arch.vie.timemachine.server.ui.theme.Glyph
 import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorDimens
 import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorPillShape
 import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorTheme
@@ -298,7 +299,7 @@ private fun TypeChip(kind: VIEObjectKind, typeInfo: VIETypeInfo, open: Boolean, 
             ),
             color = if (typeInfo.isSerializable) scheme.onSurfaceVariant else scheme.outline,
         )
-        Symbol(if (typeInfo.isSerializable) "data_object" else "text_fields", size = 14.dp, tint = if (typeInfo.isSerializable) colors.success else colors.error)
+        Symbol(if (typeInfo.isSerializable) Glyph.DataObject else Glyph.TextFields, size = 14.dp, tint = if (typeInfo.isSerializable) colors.success else colors.error)
         typeInfo.sealedSubTypes?.let { Text(it.size.toString(), style = InspectorTheme.text.monoMeta, color = scheme.outline) }
     }
 }
@@ -359,7 +360,7 @@ private fun SessionHeader(header: TimelineHeader.Session) {
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Symbol("lan", size = 22.dp, tint = scheme.onSurfaceVariant)
+        Symbol(Glyph.Lan, size = 22.dp, tint = scheme.onSurfaceVariant)
         Text(header.name, style = MaterialTheme.typography.titleMedium.copy(fontFamily = InspectorTheme.fonts.plex), color = scheme.onSurface, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
         IdChip(header.shortId)
         if (header.connected) StatusPill("connected", colors.success, colors.successContainer)
@@ -407,7 +408,7 @@ private fun KindFilterChip(kind: VIEObjectKind, on: Boolean, count: Int, onClick
     val scheme = MaterialTheme.colorScheme
     val colors = InspectorTheme.colors
     FilterChip(
-        kind.name, count, glyph = if (on) "check" else null,
+        kind.name, count, glyph = if (on) Glyph.Check else null,
         fg = if (on) colors.kind(kind) else scheme.onSurfaceVariant,
         container = if (on) colors.kindContainer(kind) else Color.Transparent,
         outlined = !on, onClick = onClick,
@@ -420,7 +421,7 @@ private fun IntervenedFilterChip(on: Boolean, count: Int, onClick: () -> Unit) {
     val scheme = MaterialTheme.colorScheme
     val colors = InspectorTheme.colors
     FilterChip(
-        "Intervened only", count, glyph = if (on) "check" else "touch_app", glyphColor = colors.intervened,
+        "Intervened only", count, glyph = if (on) Glyph.Check else Glyph.TouchApp, glyphColor = colors.intervened,
         fg = if (on) colors.intervened else scheme.onSurfaceVariant,
         container = if (on) colors.intervenedContainer else Color.Transparent,
         outlined = !on, onClick = onClick,
@@ -433,7 +434,7 @@ private fun FilterSummary(hidden: Int, onClear: () -> Unit) {
     val scheme = MaterialTheme.colorScheme
     Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
         Row(horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically) {
-            Symbol("filter_alt", size = 15.dp, tint = InspectorTheme.colors.intent)
+            Symbol(Glyph.FilterAlt, size = 15.dp, tint = InspectorTheme.colors.intent)
             Text(
                 "$hidden ${if (hidden == 1) "entry" else "entries"} hidden",
                 style = InspectorTheme.text.note, color = scheme.onSurfaceVariant,
@@ -447,7 +448,7 @@ private fun FilterSummary(hidden: Int, onClear: () -> Unit) {
 private fun FilterChip(
     label: String,
     count: Int,
-    glyph: String?,
+    glyph: Glyph?,
     fg: Color,
     container: Color,
     outlined: Boolean,
@@ -485,7 +486,7 @@ private fun SearchField(query: String, onFocus: (Boolean) -> Unit, onChange: (St
         horizontalArrangement = Arrangement.spacedBy(6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Symbol("search", size = 16.dp, tint = scheme.outline)
+        Symbol(Glyph.Search, size = 16.dp, tint = scheme.outline)
         Box(Modifier.weight(1f)) {
             if (query.isEmpty()) Text("Search type, toString, JSON", style = InspectorTheme.text.code, color = scheme.outline, maxLines = 1)
             BasicTextField(
@@ -495,7 +496,7 @@ private fun SearchField(query: String, onFocus: (Boolean) -> Unit, onChange: (St
             )
         }
         if (query.isNotEmpty()) {
-            Symbol("close", size = 16.dp, tint = scheme.outline, modifier = Modifier.action(description = ClearSearchDescription) { onChange("") })
+            Symbol(Glyph.Close, size = 16.dp, tint = scheme.outline, modifier = Modifier.action(description = ClearSearchDescription) { onChange("") })
         }
     }
 }
@@ -514,7 +515,7 @@ private fun FollowToggle(follow: FollowState, newCount: Int, onClick: () -> Unit
         verticalAlignment = Alignment.CenterVertically,
     ) {
         val color = if (following) scheme.onPrimaryContainer else scheme.onSurfaceVariant
-        Symbol(if (following) "vertical_align_bottom" else "pause", size = 15.dp, tint = color)
+        Symbol(if (following) Glyph.VerticalAlignBottom else Glyph.Pause, size = 15.dp, tint = color)
         Text(
             if (follow is FollowState.Paused) "Paused · $newCount new" else "Following",
             style = InspectorTheme.text.action, color = color, maxLines = 1,
@@ -628,7 +629,7 @@ private fun Rows(
                     .padding(horizontal = 12.dp, vertical = 6.dp),
                 horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically,
             ) {
-                Symbol("filter_alt_off", size = 15.dp, tint = scheme.onSurfaceVariant)
+                Symbol(Glyph.FilterAltOff, size = 15.dp, tint = scheme.onSurfaceVariant)
                 Text("selected row is hidden by filters — ", style = InspectorTheme.text.body, color = scheme.onSurfaceVariant)
                 Text("show", style = InspectorTheme.text.label, color = scheme.primary)
             }
@@ -641,7 +642,7 @@ private fun Rows(
                     .padding(start = 10.dp, end = 14.dp),
                 horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically,
             ) {
-                Symbol("arrow_downward", size = 18.dp, tint = scheme.onPrimaryContainer)
+                Symbol(Glyph.ArrowDownward, size = 18.dp, tint = scheme.onPrimaryContainer)
                 Text("${projection.newCount} new", style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold), color = scheme.onPrimaryContainer)
             }
         }
@@ -652,7 +653,7 @@ private fun Rows(
 private fun NoMatch(hidden: Int, onClear: () -> Unit) {
     val scheme = MaterialTheme.colorScheme
     Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 48.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Symbol("filter_alt_off", size = 26.dp, tint = scheme.outline)
+        Symbol(Glyph.FilterAltOff, size = 26.dp, tint = scheme.outline)
         Text("No entry matches the filters", style = InspectorTheme.text.emptyTitle, color = scheme.onSurfaceVariant)
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text("$hidden ${if (hidden == 1) "entry" else "entries"} hidden · ", style = InspectorTheme.text.body, color = scheme.outline)
@@ -700,7 +701,7 @@ private fun ObservationRow(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Symbol(
-                if (expanded) "expand_more" else "chevron_right", size = 16.dp, tint = scheme.outline,
+                if (expanded) Glyph.ExpandMore else Glyph.ChevronRight, size = 16.dp, tint = scheme.outline,
                 modifier = Modifier.action(description = if (expanded) CollapseRowDescription else ExpandRowDescription) { post(TimelineVIE.Intent.ToggleExpanded(sequence)) },
             )
             Text(
@@ -708,7 +709,7 @@ private fun ObservationRow(
                 style = InspectorTheme.text.codeRow, color = if (intervened) colors.intervened else if (selected) scheme.onSurface else scheme.outline, fontWeight = if (intervened) FontWeight.SemiBold else FontWeight.Normal,
             )
             Text(formatTime(observation.at), style = InspectorTheme.text.codeRow, color = scheme.outline, maxLines = 1, modifier = Modifier.width(TimeWidth))
-            Symbol(if (observation.kind == VIEObjectKind.Intent) "login" else "logout", size = 16.dp, tint = kindColor, mirrored = observation.kind != VIEObjectKind.Intent)
+            Symbol(if (observation.kind == VIEObjectKind.Intent) Glyph.Login else Glyph.Logout, size = 16.dp, tint = kindColor, mirrored = observation.kind != VIEObjectKind.Intent)
             KindBadge(observation.kind)
             if (merged) {
                 item.source?.let { source ->
@@ -785,7 +786,7 @@ private fun InterventionChip(number: Int) {
         Modifier.height(18.dp).background(colors.intervenedContainer, RoundedCornerShape(9.dp)).padding(start = 4.dp, end = 6.dp),
         horizontalArrangement = Arrangement.spacedBy(3.dp), verticalAlignment = Alignment.CenterVertically,
     ) {
-        Symbol("touch_app", size = 13.dp, tint = colors.intervened)
+        Symbol(Glyph.TouchApp, size = 13.dp, tint = colors.intervened)
         Text("intervened #$number", style = MaterialTheme.typography.labelSmall.copy(letterSpacing = 0.sp), color = colors.intervened, maxLines = 1)
     }
 }
@@ -800,11 +801,11 @@ private fun RowActions(observation: VIEObservation, onEdit: () -> Unit) {
                 .action(onClick = onEdit).padding(start = 6.dp, end = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically,
         ) {
-            Symbol("edit_note", size = 14.dp, tint = scheme.onPrimary)
+            Symbol(Glyph.EditNote, size = 14.dp, tint = scheme.onPrimary)
             Text("Edit & intervene", style = InspectorTheme.text.actionSmall, color = scheme.onPrimary, maxLines = 1)
         }
         observation.asJson?.let { json ->
-            Symbol("content_copy", size = 16.dp, tint = scheme.onSurfaceVariant, modifier = Modifier.action(description = CopyRowDescription) { copy(json.pretty()) })
+            Symbol(Glyph.ContentCopy, size = 16.dp, tint = scheme.onSurfaceVariant, modifier = Modifier.action(description = CopyRowDescription) { copy(json.pretty()) })
         }
     }
 }
@@ -900,7 +901,7 @@ private fun Bookend(sequence: TimeMachineSequence, at: Instant, started: Boolean
             Box(Modifier.width(16.dp))
             Text("#$sequence", style = InspectorTheme.text.codeRow, color = scheme.outline, textAlign = TextAlign.End, maxLines = 1, modifier = Modifier.width(SeqWidth))
             Text(formatTime(at), style = InspectorTheme.text.codeRow, color = scheme.outline, maxLines = 1, modifier = Modifier.width(TimeWidth))
-            Symbol(if (started) "play_circle" else "stop_circle", size = 16.dp, tint = if (started) colors.success else scheme.outline)
+            Symbol(if (started) Glyph.PlayCircle else Glyph.StopCircle, size = 16.dp, tint = if (started) colors.success else scheme.outline)
             Text(
                 "${label ?: "ViewModel"} ${if (started) "started" else "closed"}",
                 style = InspectorTheme.text.label, color = scheme.onSurfaceVariant, maxLines = 1,
@@ -915,9 +916,9 @@ private fun Bookend(sequence: TimeMachineSequence, at: Instant, started: Boolean
 private fun DividerRow(divider: SessionTimelineEntry.Divider) {
     val scheme = MaterialTheme.colorScheme
     val (glyph, text) = when (divider.kind) {
-        SessionTimelineEntry.Divider.Kind.Connected -> "link" to "connected"
-        SessionTimelineEntry.Divider.Kind.Reconnected -> "sync" to "reconnected"
-        SessionTimelineEntry.Divider.Kind.Disconnected -> "power_off" to "disconnected"
+        SessionTimelineEntry.Divider.Kind.Connected -> Glyph.Link to "connected"
+        SessionTimelineEntry.Divider.Kind.Reconnected -> Glyph.Sync to "reconnected"
+        SessionTimelineEntry.Divider.Kind.Disconnected -> Glyph.PowerOff to "disconnected"
     }
     Column(Modifier.fillMaxWidth().background(scheme.surfaceContainerLowest)) {
         HorizontalRule()
@@ -952,7 +953,7 @@ private fun GapRow(count: Int, sequence: TimeMachineSequence, label: String?) {
             Modifier.fillMaxWidth().height(InspectorDimens.topMarker).padding(start = 28.dp, end = 12.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically,
         ) {
-            Symbol("link_off", size = 17.dp, tint = colors.gap)
+            Symbol(Glyph.LinkOff, size = 17.dp, tint = colors.gap)
             Text("Gap", style = InspectorTheme.text.label.copy(fontWeight = FontWeight.SemiBold), color = colors.gap)
             Text(
                 "$count ${if (count == 1) "entry" else "entries"} dropped${label?.let { " · $it" }.orEmpty()}",
@@ -982,7 +983,7 @@ private fun PossiblyIncompleteRow(range: ClosedRange<TimeMachineSequence>, share
             .padding(start = 28.dp, end = 12.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically,
     ) {
-        Symbol("help", size = 16.dp, tint = colors.possiblyIncomplete)
+        Symbol(Glyph.Help, size = 16.dp, tint = colors.possiblyIncomplete)
         Text("Possibly incomplete", style = InspectorTheme.text.label.copy(fontWeight = FontWeight.SemiBold), color = colors.possiblyIncomplete)
         Text(
             if (shared) "entries were lost in this session here; they may belong to any of its ViewModels"
@@ -1007,7 +1008,7 @@ private fun EvictedRow(count: Int) {
             Modifier.height(22.dp).background(scheme.surfaceContainerHigh, InspectorPillShape).padding(horizontal = 10.dp),
             horizontalArrangement = Arrangement.spacedBy(5.dp), verticalAlignment = Alignment.CenterVertically,
         ) {
-            Symbol("inventory_2", size = 15.dp, tint = colors.evicted)
+            Symbol(Glyph.Inventory2, size = 15.dp, tint = colors.evicted)
             Text(
                 buildAnnotatedString {
                     withStyle(SpanStyle(fontFamily = InspectorTheme.fonts.mono, fontWeight = FontWeight.Medium)) { append(count.toString()) }
@@ -1028,7 +1029,7 @@ private fun HistoryUnavailableRow() {
             Modifier.fillMaxWidth().height(InspectorDimens.topMarker).padding(start = 28.dp, end = 12.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically,
         ) {
-            Symbol("history_toggle_off", size = 17.dp, tint = colors.historyUnavailable)
+            Symbol(Glyph.HistoryToggleOff, size = 17.dp, tint = colors.historyUnavailable)
             Text("Earlier history unavailable", style = InspectorTheme.text.label.copy(fontWeight = FontWeight.SemiBold), color = colors.historyUnavailable, maxLines = 1)
             Text(
                 "— the inspector was restarted while the app kept running",

@@ -45,6 +45,7 @@ import org.kodein.arch.vie.timemachine.server.ui.sessions.SessionsPresentation
 import org.kodein.arch.vie.timemachine.server.ui.sessions.SessionsVIE
 import org.kodein.arch.vie.timemachine.server.ui.sessions.SessionsView
 import org.kodein.arch.vie.timemachine.server.ui.sessions.sessionsPane
+import org.kodein.arch.vie.timemachine.server.ui.theme.Glyph
 import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorDimens
 import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorTheme
 import org.kodein.arch.vie.timemachine.server.ui.theme.Symbol
@@ -206,7 +207,7 @@ private fun CollapsedRightPane(onOpen: () -> Unit) {
                     .action(description = ShowRightPaneDescription, onClick = onOpen),
                 contentAlignment = Alignment.Center,
             ) {
-                Symbol("right_panel_open", size = 18.dp, tint = scheme.onSurfaceVariant)
+                Symbol(Glyph.RightPanelOpen, size = 18.dp, tint = scheme.onSurfaceVariant)
             }
         }
     }
@@ -261,7 +262,7 @@ internal fun NoViewModelContent(model: SessionsVIE.Model, modifier: Modifier) {
     val scheme = MaterialTheme.colorScheme
     val session = model.sessions.firstOrNull { it.connected } ?: model.sessions.firstOrNull()
     Column(modifier, horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterVertically)) {
-        Symbol("view_timeline", size = 28.dp, tint = scheme.outline)
+        Symbol(Glyph.ViewTimeline, size = 28.dp, tint = scheme.outline)
         Text("Select a ViewModel to see its timeline", style = InspectorTheme.text.emptyTitle, color = scheme.onSurfaceVariant)
         session?.let {
             val count = it.viewModels.size
