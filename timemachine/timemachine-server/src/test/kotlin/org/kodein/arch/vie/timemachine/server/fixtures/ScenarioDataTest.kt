@@ -67,11 +67,11 @@ class ScenarioDataTest {
 
     @Test
     fun `scenario data is the same every time, sparklines included`() {
-        val once = ScenarioData.of("main").state().sessions.mapValues { it.value.sparkline(Demo.now) }
-        val again = ScenarioData.of("main").state().sessions.mapValues { it.value.sparkline(Demo.now) }
+        val once = ScenarioData.of("main").state().sessions.mapValues { (_, session) -> session.viewModels.mapValues { it.value.sparkline(Demo.now) } }
+        val again = ScenarioData.of("main").state().sessions.mapValues { (_, session) -> session.viewModels.mapValues { it.value.sparkline(Demo.now) } }
 
         assertEquals(once, again)
-        assertTrue(once.getValue(Demo.session.id).sum() > 0)
+        assertTrue(once.getValue(Demo.session.id).values.sumOf { it.sum() } > 0)
     }
 
     @Test
