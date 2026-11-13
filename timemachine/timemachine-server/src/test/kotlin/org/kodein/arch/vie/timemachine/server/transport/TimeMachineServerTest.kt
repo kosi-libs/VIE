@@ -183,15 +183,25 @@ class TimeMachineServerTest {
     fun aReconnectEvictsThePriorConnectionAndRevivesTheSessionWithoutDuplicates() = withInspector {
         val first = probe.welcomed(session)
         first.send(started(vm, 0))
-        assertEquals(TimeMachineServerMessage.Received(seq(0)), first.receive())
+        first.send(observed(vm, 1))
+        var received = first.receive()
+        while (received != TimeMachineServerMessage.Received(seq(1))) received = first.receive()
 
         val second = probe.welcomed(session)
         assertNull(first.receive()) // closed by the inspector
         second.send(vmInfo(vm)) // the probe's re-announce: nothing is asked of a ViewModel that is not awaited
+        second.send(observed(vm, 1)) // resent: the probe never saw the acknowledgement
+        second.send(observed(vm, 2))
+        // Anything else than an acknowledgement before the last one would be a request nobody should make.
+        var last: TimeMachineServerMessage
+        do last = assertIs<TimeMachineServerMessage.Received>(second.receive()) while (last.sequence != seq(2))
 
-        val state = until { it.connections.size == 1 && it.sessions[session.id]?.viewModels?.get(vm)?.info != null }
+        val state = until { it.connections.size == 1 }
         assertEquals(1, state.sessions.size)
-        assertEquals(listOf(vm), state.sessions.getValue(session.id).viewModels.keys.toList())
+        val record = state.sessions.getValue(session.id).viewModels
+        assertEquals(listOf(vm), record.keys.toList())
+        assertEquals(listOf(0L, 1L, 2L), record.getValue(vm).rows.map { it.sequence.value })
+        assertEquals(3, record.getValue(vm).rowCount)
     }
 
     @Test

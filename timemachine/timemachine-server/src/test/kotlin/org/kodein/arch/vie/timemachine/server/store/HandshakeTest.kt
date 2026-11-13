@@ -126,6 +126,32 @@ class HandshakeTest {
     }
 
     @Test
+    fun framesResentOnTheNextConnectionArePlacedOnce() {
+        val (revivable) = TimeMachineState().after(
+            hello(c1, session, now = at(1)),
+            receive(c1, started(vm, 0)),
+            receive(c1, observed(vm, 1)),
+            TimeMachineEvent.Disconnected(c1, at(2)),
+        )
+
+        // The probe resends what the inspector had not acknowledged, then goes on with a new frame.
+        val (state, commands) = revivable.on(
+            listOf(
+                hello(c2, session, now = at(3)),
+                receive(c2, started(vm, 0)),
+                receive(c2, observed(vm, 1)),
+                receive(c2, observed(vm, 2)),
+            ),
+        )
+
+        val record = state.vm(session.id, vm)
+        assertEquals(listOf(0L, 1L, 2L), record.rows.map { it.sequence.value })
+        assertEquals(3, record.rowCount)
+        assertEquals(SequenceLedger(floor = seq(0), highest = seq(2)), state.session(session.id).sequences)
+        assertEquals(Command.Send(c2, TimeMachineServerMessage.Received(seq(2))), commands.last())
+    }
+
+    @Test
     fun anEvictedConnectionsSpanHasNoDisconnect() {
         val (state) = TimeMachineState().after(
             hello(c1, session, now = at(1)),
