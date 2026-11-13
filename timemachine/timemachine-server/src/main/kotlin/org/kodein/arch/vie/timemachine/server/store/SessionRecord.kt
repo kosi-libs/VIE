@@ -53,6 +53,8 @@ data class SessionRecord(
 data class ConnectionSpan(val connected: Edge, val disconnected: Edge? = null) {
 
     /**
+     * @property at When the inspector accepted or lost the connection, on its own clock: not
+     *   comparable with the display time of a row, read on the device's clock.
      * @property after The session's highest sequence at that moment, `null` before the first. Sequence
      *   is the only order: the rows above it were received after this point, on either connection, so
      *   a divider sorts right after it.
