@@ -115,6 +115,14 @@ private fun DetailContent(model: DetailVIE.Model, observation: VIEObservation, s
                     Text(observation.asString, style = InspectorTheme.text.codeRow.copy(lineHeight = 17.sp), color = scheme.onSurface)
                 }
             }
+            if (json == null && observation.truncated) {
+                item(key = "too-large", contentType = "too-large") {
+                    Text(
+                        TooLargeNote, style = InspectorTheme.text.note, color = scheme.outline,
+                        modifier = Modifier.padding(top = SectionGap),
+                    )
+                }
+            }
             if (json != null) {
                 item(key = "json-title", contentType = "json-title") {
                     Row(Modifier.padding(top = SectionGap, bottom = 6.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -218,3 +226,8 @@ private fun PillButton(label: String, glyph: String, filled: Boolean, onClick: (
         Text(label, style = InspectorTheme.text.label, color = foreground, maxLines = 1)
     }
 }
+
+/** What the Detail tab and the pinned model say of an observation the app sent without its JSON because it was too large. */
+internal const val TooLargeNote: String =
+    "Too large — the app sent this without its JSON, so it can't be shown as a tree or replaced. " +
+        "Its toString may be cut too. The limit is TimeMachineConfig.maxObservationLength."

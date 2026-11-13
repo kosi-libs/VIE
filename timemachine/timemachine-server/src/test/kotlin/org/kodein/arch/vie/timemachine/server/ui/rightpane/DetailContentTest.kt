@@ -8,12 +8,16 @@ import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 import org.kodein.arch.vie.VIE.NoSignal
 import org.kodein.arch.vie.test.MockVIE
 import org.kodein.arch.vie.test.pendingIntents
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineSequence
+import org.kodein.arch.vie.timemachine.protocol.VIEObjectKind
+import org.kodein.arch.vie.timemachine.server.fixtures.Demo
+import org.kodein.arch.vie.timemachine.server.fixtures.SampleWorld
 import org.kodein.arch.vie.timemachine.server.fixtures.Rendered
 import org.kodein.arch.vie.timemachine.server.fixtures.ScenarioData
 import org.kodein.arch.vie.timemachine.server.fixtures.contentTest
@@ -30,6 +34,27 @@ class DetailContentTest {
     private fun detail(sequence: Long): MockVIE<DetailVIE.Model, DetailVIE.Intent, NoSignal> {
         val selection = Selection(scope = taskListScope, row = TimeMachineSequence(sequence))
         return MockVIE(DetailVIE.Model(projection = detailProjection(ScenarioData.of("main").state(), selection, raw = false)))
+    }
+
+    @Test
+    fun `a row sent without its JSON because it was too large says so, and has nothing to intervene on`() {
+        val b = Demo.Builder(Demo.connection)
+        b.hello(Demo.session, Demo.at(0))
+        b.started(Demo.taskListInfo, 0, Demo.at(10))
+        b.observed(
+            Demo.taskList, 1, Demo.at(20), VIEObjectKind.Model, Demo.TaskListModel, json = null,
+            asString = "TaskListModel(tasks=[… (900 more characters)", truncated = true,
+        )
+        val selection = Selection(scope = taskListScope, row = TimeMachineSequence(1))
+        val vie = MockVIE<DetailVIE.Model, DetailVIE.Intent, NoSignal>(
+            DetailVIE.Model(projection = detailProjection(SampleWorld.state(b.events), selection, raw = false)),
+        )
+        assertFalse(vie.model.projection.canIntervene)
+        contentTest(width = 420, height = 900, content = { vie.Rendered { DetailPaneContent(it) } }) {
+            assertTrue(shown("TOSTRING"))
+            assertTrue(shown(TooLargeNote))
+            assertFalse(shown("FULL MODEL"))
+        }
     }
 
     @Test
