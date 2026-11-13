@@ -143,11 +143,11 @@ class SessionTest {
     }
 
     @Test
-    fun aSkippedFrameIsAcknowledgedWithTheBatchAndLeftMissing() {
+    fun aSkippedFrameIsAcknowledgedWithTheBatchAndStaysMissing() {
         val (state, commands) = populated.on(listOf(receive(c1, observed(alive, 3)), TimeMachineEvent.Skipped(c1, seq(5))))
 
         assertEquals(listOf(Command.Send(c1, TimeMachineServerMessage.Received(seq(5)))), commands)
-        assertEquals(populated.session(session.id).sequences.receive(seq(3)), state.session(session.id).sequences)
+        assertEquals(SequenceLedger(floor = seq(0), highest = seq(5), missing = listOf(seqs(4, 5))), state.session(session.id).sequences)
     }
 
     @Test
