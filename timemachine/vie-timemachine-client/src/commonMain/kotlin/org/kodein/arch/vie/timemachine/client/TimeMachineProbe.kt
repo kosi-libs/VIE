@@ -22,7 +22,8 @@ import org.kodein.arch.vie.timemachine.protocol.TimeMachineSession
  * and outbound queue, the roles of the types it observes, and its [InspectorConnection], which it
  * runs for as long as it runs itself.
  *
- * Never throws into the host app: every failure is printed and swallowed. An `Error` in the
+ * Never throws into the host app: every failure is printed and swallowed, an `Error` on a thread of
+ * the application included (see [ProbeLog] for the three guards that see to it). An `Error` in the
  * connection loop — running out of memory while encoding a model, an engine class that fails to
  * link — is not retried: the outbound queue may have been left half-way through a message, and the
  * same `Error` may well come back on every attempt. It retires the probe instead: `onRetired` is

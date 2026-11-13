@@ -440,10 +440,15 @@ class TimeMachineMiddlewareTest {
     }
 
     @Test
-    fun aThrowingOutletNeverReachesTheApp() = runTest {
+    fun aThrowingOutletNeverReachesTheApp() = assertAFailingOutletNeverReachesTheApp { IllegalStateException("boom") }
+
+    @Test
+    fun anOutletThatThrowsAnErrorNeverReachesTheApp() = assertAFailingOutletNeverReachesTheApp { Error("out of memory") }
+
+    private fun assertAFailingOutletNeverReachesTheApp(failure: () -> Throwable) = runTest {
         val messages = mutableListOf<TimeMachineTimelineMessage>()
         // Records, then throws: every report fails, and what was recorded shows later ones still run.
-        val sink = TimeMachineSink(testLog) { messages += it.describe(TimeMachineSequence(messages.size.toLong())); error("boom") }
+        val sink = TimeMachineSink(testLog) { messages += it.describe(TimeMachineSequence(messages.size.toLong())); throw failure() }
         withoutView({ ProbeVM(CountModel(0), { copy(count = count + 1) }, listOf(probe<CountModel>(sink))) }) { vm ->
             vm.post(ProbeIntent.Increment)
             advanceUntilIdle()
