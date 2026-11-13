@@ -212,7 +212,8 @@ An `observed` message carries one object seen in one ViewModel:
       "work": []
     },
     "interventionId": null,
-    "delivery": null
+    "delivery": null,
+    "truncated": false
   },
   "sequence": 2
 }
@@ -224,6 +225,7 @@ For a sealed role, that is the serial name its JSON discriminator carries, which
 For a Signal, `delivery` says whether it is an `Event` or an `Effect`: the serial descriptor of a type cannot tell, only the instance can.
 `interventionId` is explained under <<intervention,Intervention>>.
 `at` is when the probe saw the object, for display only.
+`truncated` is `true` when the probe sent less of the object than it had, as explained under <<truncated,Large observations>>.
 
 What the probe observes, and when:
 
@@ -237,6 +239,24 @@ A probe installed last in `middlewares` reports intents as the view posted them,
 
 The probe never throws into the application.
 An object it fails to describe is still reported, without its JSON.
+
+
+[#truncated]
+== Large observations
+
+An inspector closes a connection on a frame larger than it accepts, and a probe sends again what it has not seen acknowledged.
+An observation that large would then be sent and refused on every connection, and nothing behind it would get through.
+The probe therefore bounds each observation to `maxObservationLength` characters, 1,048,576 unless its configuration says otherwise.
+
+* `asString` is cut at half of that, and ends with `… (N more characters)`, `N` being what was left out.
+* When the encoded observation is still longer, the probe sends it without `asJson`, in the place its sequence gave it.
+* Either way, `truncated` is `true`.
+
+On a `@Serializable` type, `asJson` absent with `truncated` set means that the object was too large, not that it cannot be encoded.
+The inspector labels such a row "too large", where it labels a type that cannot be encoded "toString only", and it offers no intervention on it, since there is no JSON to edit.
+
+The limit bounds what is sent, not what is rendered: the probe still describes the object in full before it measures it.
+A model that holds a decoded image or a file's bytes is better kept out of the observed models, or its content out of its `toString()`.
 
 
 [#sequence]
