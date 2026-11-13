@@ -63,6 +63,15 @@ import kotlin.time.Duration.Companion.seconds
  * hold: a frame of multi-byte characters can be refused though a timeline would keep it, such as
  * 12 Mi characters of three bytes each. Only the defaults are tied: the server does not know the
  * limits its store was given.
+ *
+ * @param pingPeriod How often each connection is pinged.
+ * @param timeout How long a pong may take before its connection is closed. An application a debugger
+ *   suspends whole, as IDEs do by default on a breakpoint, answers no ping: its connection is closed
+ *   within [pingPeriod] + [timeout], and its session shows as disconnected while the developer looks
+ *   at it. Nothing is lost: once resumed, the probe reconnects and sends again what was not
+ *   acknowledged, which the session's sequences deduplicate. Each such pause leaves a reconnect
+ *   divider, and an intervention asked during it ends `NotSent`, or `TimedOut` when asked before the
+ *   connection was closed.
  */
 class TimeMachineServer(
     private val store: TimeMachineStore,
