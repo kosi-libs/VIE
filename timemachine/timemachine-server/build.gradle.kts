@@ -79,6 +79,18 @@ tasks.register<JavaExec>("exportShellRenders") {
     outputs.dir(out)
 }
 
+// The design system's components in every variant, as images, to look at while the views move onto them:
+// nothing compares them, and no build needs them. The exporter lives in the test source set, beside the scenes.
+tasks.register<JavaExec>("exportGalleryRenders") {
+    group = "verification"
+    description = "Renders the design system's gallery, in both themes, to build/gallery-render/."
+    val out = layout.buildDirectory.dir("gallery-render")
+    classpath = sourceSets["test"].runtimeClasspath
+    mainClass = "org.kodein.arch.vie.timemachine.server.ui.designsystem.GalleryRenderExporterKt"
+    args(out.get().asFile.absolutePath)
+    outputs.dir(out)
+}
+
 // One of the files `exportAppIcon` writes. It is derived with `map`, which keeps the dependency on the
 // task for whatever reads it: `flatMap` would drop it, and the packaging would find no icon.
 fun appIcon(name: String): Provider<File> = exportAppIcon.map { File(it.outputs.files.singleFile, name) }
