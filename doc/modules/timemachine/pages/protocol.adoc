@@ -378,7 +378,8 @@ What an accepted request does depends on the kind, and uses the ViewModel's own 
 With a counter at 5, injecting a model at 100 and tapping `+` gives 101.
 * *Intent*: it is posted, as a view would, and goes through `process`.
 * *Signal*: it is emitted, as the ViewModel would.
-An Effect is delivered to exactly one collector, so injecting one into a ViewModel that no view collects blocks that ViewModel's signals, then its intents.
+An Effect is delivered to exactly one collector, and waits for one when there is none.
+Injected into a ViewModel that no view collects, it is delivered later, to the next view that collects that ViewModel's signals: a navigation Effect can fire long after the intervention.
 Nothing on the probe's side can prevent that, so the inspector warns the developer.
 
 That the object really entered the ViewModel is shown by an observation: the probe tags it with the `requestId`, as its `interventionId`.

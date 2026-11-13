@@ -34,7 +34,8 @@ It goes in through the ViewModel's own API:
 Only a `@Serializable` type can be sent, since the inspector sends it as JSON (see xref:setup.adoc#serializable[Serializable contracts]).
 The object then shows in the ViewModel's timeline, tagged as the one you sent.
 
-WARNING: An Effect is delivered to exactly one collector, so sending one into a ViewModel that no view collects blocks its signals, and then its intents.
+WARNING: An Effect is delivered to exactly one collector, and waits for one when there is none.
+Sent into a ViewModel that no view collects, it is delivered later, to the next view that collects that ViewModel's signals: a navigation Effect can fire long after you sent it.
 Nothing on the probe's side can prevent that, so the inspector warns you before it sends one.
 
 TIP: How the probe and the inspector talk, and how the inspector settles what it sent, is described in xref:protocol.adoc[].
