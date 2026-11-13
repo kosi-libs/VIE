@@ -77,6 +77,55 @@ class SessionTimelineTest {
     }
 
     @Test
+    fun aRangeNoKnownViewModelWasAliveForIsShown() {
+        val (state) = connected().after(
+            receive(c1, started(a, 0)),
+            receive(c1, closed(a, 1)),
+            TimeMachineEvent.Skipped(c1, seq(2)),
+            TimeMachineEvent.Skipped(c1, seq(3)),
+            receive(c1, started(b, 4)),
+        )
+
+        assertEquals(listOf(seqs(2, 3)), state.sessions.getValue(session.id).sequences.missing)
+        assertEquals(
+            listOf<Any>(SessionTimelineEntry.Divider.Kind.Connected, 0L, 1L, TimelineEntry.PossiblyIncomplete(seqs(2, 3)), 4L),
+            state.shape(),
+        )
+        assertEquals(0, state.timeline(session.id, a).count { it is TimelineEntry.PossiblyIncomplete })
+        assertEquals(0, state.timeline(session.id, b).count { it is TimelineEntry.PossiblyIncomplete })
+    }
+
+    @Test
+    fun aRangeBelowTheOldestRowIsShownWhenAViewModelsTimelineShowsIt() {
+        val (state) = connected().after(
+            TimeMachineEvent.Skipped(c1, seq(0)),
+            receive(c1, observed(a, 1)),
+            receive(c1, vmInfo(a)),
+        )
+
+        assertEquals(
+            listOf<Any>(SessionTimelineEntry.Divider.Kind.Connected, TimelineEntry.PossiblyIncomplete(seqs(0, 0)), 1L),
+            state.shape(),
+        )
+    }
+
+    @Test
+    fun aRangeAmongEvictedRowsIsNotShown() {
+        val (state) = connected(Limits(maxRows = 1)).after(
+            receive(c1, observed(a, 0)),
+            receive(c1, observed(a, 3)),
+            receive(c1, observed(a, 4)),
+        )
+
+        // 1..2 lies between the evicted row 0 and the retained row 4: Evicted covers it.
+        assertEquals(listOf(seqs(1, 2)), state.sessions.getValue(session.id).sequences.missing)
+        assertEquals(
+            listOf<Any>(a to TimelineEntry.Evicted(2), SessionTimelineEntry.Divider.Kind.Connected, 4L),
+            state.shape(),
+        )
+    }
+
+    @Test
     fun topMarkersAreOnePerAffectedViewModelAndNameIt() {
         val (state) = connected(Limits(maxRows = 1)).after(
             receive(c1, observed(a, 5)),

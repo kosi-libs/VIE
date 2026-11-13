@@ -11,7 +11,7 @@ sealed interface SessionTimelineEntry {
     /** An entry of ViewModel [viewModelId]'s own timeline: a row, or one of its top markers. */
     data class Scoped(val viewModelId: Uuid, val entry: TimelineEntry) : SessionTimelineEntry
 
-    /** A [TimelineEntry.PossiblyIncomplete] some ViewModels share: one per range, naming none. */
+    /** A missing range of the session: one per range, naming no ViewModel. */
     data class Shared(val entry: TimelineEntry.PossiblyIncomplete) : SessionTimelineEntry
 
     /**
@@ -38,10 +38,13 @@ val SessionTimelineEntry.timelineEntry: TimelineEntry?
  *
  * At the top, one [TimelineEntry.HistoryUnavailable] and one [TimelineEntry.Evicted] per affected
  * ViewModel, each naming it: a summed count could not say whose history is incomplete. Then the rows,
- * a [TimelineEntry.PossiblyIncomplete] once per range whichever ViewModels it concerns, and a
- * divider per edge of [SessionRecord.connections]: right after the row whose sequence is the edge's
- * `after`, at the top of the rows when it is `null`. A span is "connected" for the first, "reconnected"
- * for each later one, and has a "disconnected" divider where it has that edge. Empty for an unknown session.
+ * a [SessionTimelineEntry.Shared] per missing range of the session above its oldest retained row, even
+ * one no known ViewModel was alive for, since a whole ViewModel may have vanished in it, and per range
+ * below it that a ViewModel's timeline shows. A range among evicted rows is covered by the
+ * [TimelineEntry.Evicted] markers. Then a divider per edge of [SessionRecord.connections]: right after
+ * the row whose sequence is the edge's `after`, at the top of the rows when it is `null`. A span is
+ * "connected" for the first, "reconnected" for each later one, and has a "disconnected" divider where
+ * it has that edge. Empty for an unknown session.
  */
 fun TimeMachineState.sessionTimeline(sessionId: Uuid): List<SessionTimelineEntry> {
     val session = sessions[sessionId] ?: return emptyList()
@@ -55,11 +58,17 @@ fun TimeMachineState.sessionTimeline(sessionId: Uuid): List<SessionTimelineEntry
     // divider right after its row.
     class Placed(val position: Long, val rank: Int, val entry: SessionTimelineEntry)
     val placed = mutableListOf<Placed>()
-    val ranges = LinkedHashSet<ClosedRange<TimeMachineSequence>>()
     for ((id, entries) in timelines) for (entry in entries) when (entry) {
         is TimelineEntry.Message -> placed += Placed(entry.row.sequence.value, 0, SessionTimelineEntry.Scoped(id, entry))
-        is TimelineEntry.PossiblyIncomplete -> if (ranges.add(entry.range)) placed += Placed(entry.range.start.value, 0, SessionTimelineEntry.Shared(entry))
         else -> Unit
+    }
+    // Walking `missing` once yields one entry per range, whatever the ViewModels' own timelines hold.
+    val shown = timelines.values.flatten().filterIsInstance<TimelineEntry.PossiblyIncomplete>().map { it.range }.toSet()
+    val oldest = session.viewModels.values.mapNotNull { it.rows.firstOrNull()?.sequence }.minOrNull()
+    for (range in session.sequences.missing) {
+        if (range in shown || (oldest != null && range.start > oldest)) {
+            placed += Placed(range.start.value, 0, SessionTimelineEntry.Shared(TimelineEntry.PossiblyIncomplete(range)))
+        }
     }
     session.connections.forEachIndexed { index, span ->
         val kind = if (index == 0) SessionTimelineEntry.Divider.Kind.Connected else SessionTimelineEntry.Divider.Kind.Reconnected
