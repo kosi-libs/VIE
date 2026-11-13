@@ -75,10 +75,7 @@ kotlin {
     }
 
     compilerOptions {
-        freeCompilerArgs.add("-Xwarning-level=ERROR_SUPPRESSION:disabled")
         optIn.addAll(
-            "kotlin.uuid.ExperimentalUuidApi",
-            "kotlin.time.ExperimentalTime",
             "kotlinx.serialization.ExperimentalSerializationApi",
             "kotlin.concurrent.atomics.ExperimentalAtomicApi",
         )
