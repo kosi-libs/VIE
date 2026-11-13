@@ -128,6 +128,14 @@ class InterventionTest {
         assertEquals(InterventionStatus.AcceptedNotObserved, state.status())
     }
 
+    // Defensive: the real probe tags one row per request, so only a non-conforming peer gets here.
+    @Test
+    fun onlyTheFirstTaggedRowCounts() {
+        val (state) = connected.after(intervene(), tagged(1), tagged(2))
+
+        assertEquals(InterventionStatus.Succeeded(seq(1)), state.status())
+    }
+
     @Test
     fun aResultLostWithItsConnectionWhileItsRowArrivesOnTheNextIsASuccess() {
         val (state) = connected.after(

@@ -148,4 +148,13 @@ class SessionTimelineTest {
     fun theEntryOfADividerIsNull() {
         assertNull(SessionTimelineEntry.Divider(SessionTimelineEntry.Divider.Kind.Connected, t0, null).timelineEntry)
     }
+
+    @Test
+    fun theEntryOfARowOrARangeIsTheOneItCarries() {
+        val row = TimelineEntry.Message(Row(observed(a, 0), 10))
+        val range = TimelineEntry.PossiblyIncomplete(seqs(1, 2))
+
+        assertEquals(row, SessionTimelineEntry.Scoped(a, row).timelineEntry)
+        assertEquals(range, SessionTimelineEntry.Shared(range).timelineEntry)
+    }
 }

@@ -22,6 +22,7 @@ import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.json.JsonPrimitive
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineClientMessage
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineConnection
+import org.kodein.arch.vie.timemachine.protocol.TimeMachineJson
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineServerMessage
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineSession
 import org.kodein.arch.vie.timemachine.protocol.VIEInterventionResult
@@ -140,6 +141,17 @@ class TimeMachineServerTest {
         assertEquals("Expected a hello within 500ms", probe.connect().closeReason())
     }
 
+    // Weak: no regression of that branch changes what the state shows, it only guards a connection nobody handles.
+    @Test
+    fun aProbeThatLeavesBeforeItsHelloLeavesNothingBehind() = withInspector {
+        probe.connect().close()
+        probe.welcomed(session)
+
+        val state = until { it.sessions[session.id]?.isConnected == true }
+        assertEquals(1, state.sessions.size)
+        assertEquals(emptyMap(), state.rejections)
+    }
+
     @Test
     fun anUndecodableFrameAndASecondHelloAreSkipped() = withInspector {
         val connection = probe.welcomed(session)
@@ -149,6 +161,20 @@ class TimeMachineServerTest {
 
         val state = until { it.sessions[session.id]?.viewModels?.containsKey(vm) == true }
         assertEquals(listOf(session.id), state.sessions.keys.toList())
+    }
+
+    // Defensive: the real probe sends only text frames.
+    @Test
+    fun aNonTextFrameAfterTheHelloIsIgnored() = withInspector {
+        val connection = probe.welcomed(session)
+        // The bytes of a valid message: read as text, it would be applied, so only the frame type tells it apart.
+        connection.sendBinary(TimeMachineJson.encodeToString(TimeMachineClientMessage.serializer(), started(vm, 0)).encodeToByteArray())
+        connection.send(observed(vm, 1))
+
+        assertEquals(TimeMachineServerMessage.RequestViewModelInfo(vm), connection.receive())
+        assertEquals(TimeMachineServerMessage.Received(seq(1)), connection.receive())
+        val ledger = until { it.sessions[session.id]?.sequences?.highest == seq(1) }.sessions.getValue(session.id).sequences
+        assertEquals(SequenceLedger(floor = seq(1), highest = seq(1)), ledger)
     }
 
     @Test

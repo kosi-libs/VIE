@@ -105,6 +105,19 @@ class HandshakeTest {
         assertEquals(listOf(vm), record.viewModels.keys.toList())
     }
 
+    // Defensive: the real probe's session identifier and name are fixed, so a revival never changes them.
+    @Test
+    fun aRevivalTakesTheSessionAsItsNewHelloDescribesIt() {
+        val renamed = session.copy(name = "Renamed")
+        val (state) = TimeMachineState().after(
+            hello(c1, session),
+            TimeMachineEvent.Disconnected(c1, t0),
+            hello(c2, renamed),
+        )
+
+        assertEquals(renamed, state.session(session.id).session)
+    }
+
     @Test
     fun aRevivalKeepsEveryConnectionEachPlacedBySequence() {
         val (state) = TimeMachineState().after(

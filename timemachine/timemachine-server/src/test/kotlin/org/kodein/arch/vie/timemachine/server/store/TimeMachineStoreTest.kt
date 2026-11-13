@@ -3,6 +3,7 @@ package org.kodein.arch.vie.timemachine.server.store
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.seconds
 import kotlin.uuid.Uuid
 import kotlinx.coroutines.CoroutineScope
@@ -143,5 +144,72 @@ class TimeMachineStoreTest {
         val record = store.state.value.session(session.id)
         assertEquals(listOf(a), record.viewModels.keys.toList())
         assertEquals(SequenceLedger(floor = seq(0), highest = seq(0)), record.sequences)
+    }
+
+    // Reached only by injection: the core, as it is, throws on no event outside a timeline.
+    @Test
+    fun aMessageOutsideTheTimelineTheCoreThrowsOnIsDroppedAndTheRestOfItsBatchApplied() = runTest {
+        val executed = mutableListOf<TransportCommand>()
+        val store = TimeMachineStore(
+            backgroundScope,
+            reduce = { events ->
+                if (events.any { ((it as? TimeMachineEvent.MessageReceived)?.message) is TimeMachineClientMessage.ViewModelInfo }) error("injected")
+                on(events)
+            },
+        ) { executed += it }
+        val a = Uuid.random()
+        val b = Uuid.random()
+        store.post(hello(c1, session))
+        store.post(receive(c1, observed(a, 0)))
+        runCurrent()
+        executed.clear()
+        // Not a timeline frame: with no sequence, there is nothing to skip nor to acknowledge for it.
+        store.post(receive(c1, vmInfo(a)))
+        store.post(receive(c1, observed(b, 1)))
+        runCurrent()
+
+        val record = store.state.value.session(session.id)
+        assertTrue(record.viewModels.getValue(a).isUnknown)
+        assertTrue(record.viewModels.getValue(a).awaitingInfo)
+        assertTrue(b in record.viewModels)
+        assertEquals(SequenceLedger(floor = seq(0), highest = seq(1)), record.sequences)
+        assertEquals(
+            listOf<TransportCommand>(Command.Send(c1, TimeMachineServerMessage.RequestViewModelInfo(b)), Command.Send(c1, TimeMachineServerMessage.Received(seq(1)))),
+            executed,
+        )
+    }
+
+    // Reached only by injection, and it freezes that a frame whose Skipped fails too is not acknowledged.
+    @Test
+    fun aTimelineFrameWhoseSkipTheCoreAlsoThrowsOnIsDroppedAndTheRestOfItsBatchApplied() = runTest {
+        val poison = Uuid.random()
+        val executed = mutableListOf<TransportCommand>()
+        val store = TimeMachineStore(
+            backgroundScope,
+            reduce = { events ->
+                if (events.any {
+                        it is TimeMachineEvent.Skipped ||
+                            ((it as? TimeMachineEvent.MessageReceived)?.message as? TimeMachineClientMessage.Observed)?.observation?.viewModelId == poison
+                    }) error("injected")
+                on(events)
+            },
+        ) { executed += it }
+        val b = Uuid.random()
+        store.post(hello(c1, session))
+        store.post(receive(c1, observed(Uuid.random(), 0)))
+        runCurrent()
+        executed.clear()
+        store.post(receive(c1, observed(poison, 1)))
+        store.post(receive(c1, observed(b, 2)))
+        runCurrent()
+
+        // Nothing for frame 1: its acknowledgement is lost, and the probe's cumulative one for 2 covers it.
+        assertEquals(
+            listOf<TransportCommand>(Command.Send(c1, TimeMachineServerMessage.RequestViewModelInfo(b)), Command.Send(c1, TimeMachineServerMessage.Received(seq(2)))),
+            executed,
+        )
+        val record = store.state.value.session(session.id)
+        assertEquals(SequenceLedger(floor = seq(0), highest = seq(2), missing = listOf(seqs(1, 1))), record.sequences)
+        assertFalse(poison in record.viewModels)
     }
 }
