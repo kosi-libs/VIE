@@ -2,9 +2,8 @@ plugins {
     alias(libs.plugins.kotlin.multiplatform)
     alias(libs.plugins.android.kotlin.multiplatform.library)
     alias(libs.plugins.kotlin.plugin.serialization)
-    // TimeMachine is still in development: these modules keep the published-module naming and
-    // will be published once they are ready.
-//    alias(libs.plugins.mavenPublish)
+    // Not published yet: see mavenPublishing at the end of this file.
+    // alias(libs.plugins.mavenPublish)
 }
 
 kotlin {
@@ -40,15 +39,13 @@ kotlin {
             // public signatures.
             api(projects.vieMvi)
 
-            // The WebSockets plugin and the Js engine both live in core: ktor-client-websockets and
-            // ktor-client-js are empty shims. Each platform names its engine (timeMachineEngine) rather
-            // than letting ktor discover one, which would pick the host app's own engine whatever its
-            // WebSocket support. An engine dependency also registers itself for the host app's own
-            // HttpClient(), so each platform gets the one least likely to change that app's default:
-            // - jvm and android: CIO, whose priority (0.0) is below every other engine's;
-            // - iOS: Darwin, which an iOS app most likely ships already. Every native engine registers
-            //   at the same priority, so any other one would tie with the app's;
-            // - web: the Js engine, from core.
+            // Core holds the WebSockets plugin and the Js engine, which the web targets use:
+            // ktor-client-websockets and ktor-client-js are empty shims.
+            //
+            // The other platforms each add an engine below, and every platform names its own
+            // (timeMachineEngine): ktor would otherwise discover the host app's, whatever its WebSocket
+            // support. An engine dependency also registers itself for the host app's own HttpClient(),
+            // so each platform takes the one least likely to change that app's default.
             implementation(libs.ktor.client.core)
 
             implementation(libs.kotlinx.serialization.json)
@@ -60,6 +57,7 @@ kotlin {
             implementation(projects.vieTest)
         }
         jvmMain.dependencies {
+            // CIO's priority (0.0) is below every other engine's.
             implementation(libs.ktor.client.cio)
         }
         jvmTest.dependencies {
@@ -67,9 +65,12 @@ kotlin {
             implementation(libs.ktor.server.websockets)
         }
         androidMain.dependencies {
+            // CIO, as on the jvm.
             implementation(libs.ktor.client.cio)
         }
         iosMain.dependencies {
+            // Darwin, which an iOS app most likely ships already: every native engine registers at
+            // the same priority, so any other one would tie with the app's.
             implementation(libs.ktor.client.darwin)
         }
     }
@@ -82,11 +83,11 @@ kotlin {
     }
 }
 
-// TimeMachine is still in development: these modules keep the published-module naming and
-// will be published once they are ready.
-//mavenPublishing {
-//    pom {
-//        name = "vie-timemachine-client"
-//        description = "VIE TimeMachine client"
-//    }
-//}
+// TimeMachine is still in development: this module keeps its published name, and will be
+// published, with the plugin commented out above, once it is ready.
+// mavenPublishing {
+//     pom {
+//         name = "vie-timemachine-client"
+//         description = "VIE TimeMachine client"
+//     }
+// }
