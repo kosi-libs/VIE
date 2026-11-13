@@ -4,8 +4,11 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import kotlin.uuid.Uuid
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineSequence
 import org.kodein.arch.vie.timemachine.protocol.VIEObjectKind
+import org.kodein.arch.vie.timemachine.protocol.VIEObservation
 import org.kodein.arch.vie.timemachine.server.fixtures.Demo
 import org.kodein.arch.vie.timemachine.server.fixtures.ScenarioData
 import org.kodein.arch.vie.timemachine.server.fixtures.demoSession
@@ -97,6 +100,29 @@ class InspectorSelectionTest {
 
         assertEquals(RightTab.Composer, selection.state.value.tab)
         assertEquals(ComposerRequest(Demo.taskList, VIEObjectKind.Intent, Demo.DeleteTask, "{\"a\":1}"), selection.state.value.composerRequest)
+    }
+
+    @Test
+    fun `composeFrom an observation records its kind, its type and its JSON as the editor shows it`() {
+        val selection = InspectorSelection()
+        val observation = VIEObservation(
+            Demo.taskList, Demo.now, VIEObjectKind.Intent, Demo.DeleteTask, "DeleteTask(id=1)", JsonObject(mapOf("id" to JsonPrimitive(1))),
+        )
+
+        selection.composeFrom(Demo.taskList, observation)
+
+        assertEquals(RightTab.Composer, selection.state.value.tab)
+        assertEquals(ComposerRequest(Demo.taskList, VIEObjectKind.Intent, Demo.DeleteTask, "{\n    \"id\": 1\n}"), selection.state.value.composerRequest)
+    }
+
+    @Test
+    fun `composeFrom an observation without JSON does nothing`() {
+        val selection = InspectorSelection()
+        val tooLarge = VIEObservation(Demo.taskList, Demo.now, VIEObjectKind.Model, Demo.TaskListModel, "TaskListModel(…)", asJson = null, truncated = true)
+
+        selection.composeFrom(Demo.taskList, tooLarge)
+
+        assertEquals(Selection(), selection.state.value)
     }
 
     @Test

@@ -6,6 +6,7 @@ import kotlinx.coroutines.flow.map
 import org.kodein.arch.vie.VIE
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineClientMessage
 import org.kodein.arch.vie.timemachine.protocol.VIEObjectKind
+import org.kodein.arch.vie.timemachine.protocol.VIEObservation
 import org.kodein.arch.vie.timemachine.server.store.Row
 import org.kodein.arch.vie.timemachine.server.store.TimeMachineState
 import org.kodein.arch.vie.timemachine.server.ui.common.JsonPath
@@ -64,7 +65,11 @@ internal data class DetailProjection(
     val interventionKind: VIEObjectKind? = null,
     val canIntervene: Boolean = false,
     val rawText: String? = null,
-)
+) {
+
+    /** The row's observation: `null` for a bookend or a drop report. */
+    val observation: VIEObservation? get() = (row?.message as? TimeMachineClientMessage.Observed)?.observation
+}
 
 /** The selected row of [selection] in [state], with what Detail says of it; its JSON as text when [raw]. Nothing when none is selected or the store no longer retains it. */
 internal fun detailProjection(state: TimeMachineState, selection: Selection, raw: Boolean): DetailProjection {
@@ -108,9 +113,7 @@ internal class DetailVM(
             is DetailVIE.Intent.ToggleNode -> update { copy(controls = controls.copy(expanded = controls.expanded.toggled(intent.path))) }
             DetailVIE.Intent.EditAndIntervene -> {
                 val projection = model.projection
-                val observation = (projection.row?.message as? TimeMachineClientMessage.Observed)?.observation ?: return
-                val json = observation.asJson ?: return
-                if (projection.canIntervene) inspector.selection.composeFrom(projection.viewModelId ?: return, observation.kind, observation.typeName, json.pretty())
+                if (projection.canIntervene) inspector.selection.composeFrom(projection.viewModelId ?: return, projection.observation ?: return)
             }
             DetailVIE.Intent.ShowInterventions -> inspector.selection.selectTab(RightTab.Composer)
         }
