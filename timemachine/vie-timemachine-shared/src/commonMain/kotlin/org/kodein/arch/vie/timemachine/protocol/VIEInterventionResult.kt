@@ -48,5 +48,12 @@ public sealed interface VIEInterventionResult {
 
         /** The given JSON representation could not be decoded. */
         BadJson,
+
+        /**
+         * The probe failed while handling the request, whatever the request was: a defect of the probe,
+         * not a refusal. Whether the object reached the ViewModel is unknown; the failure itself is
+         * printed in the application's output.
+         */
+        ProbeFailure,
     }
 }
