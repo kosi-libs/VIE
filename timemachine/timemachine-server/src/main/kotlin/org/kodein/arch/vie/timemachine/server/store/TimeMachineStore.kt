@@ -25,8 +25,9 @@ import kotlin.uuid.Uuid
  * store runs each [Command.StartDeadline] itself, so the core stays free of clocks.
  *
  * A bug must not stop the writer: no `Received` would be sent again, and every probe would stall. A
- * batch the core throws on is applied again event by event, without the events it throws on; a
- * command [execute] throws on is skipped. Each failure is reported, and the writer goes on.
+ * batch the core throws on is applied again event by event, each acknowledged on its own, without
+ * the events it throws on; a command [execute] throws on is skipped. Each failure is reported, and
+ * the writer goes on.
  *
  * @param limits How much timeline each ViewModel keeps.
  * @param interventionTimeout How long an intervention waits for its result or its tagged row before
@@ -78,6 +79,11 @@ class TimeMachineStore(
      * those it throws on. A timeline frame it throws on is applied as a [TimeMachineEvent.Skipped]
      * instead: not held, its sequence stays missing, but acknowledged, so that its probe forgets it.
      * Waiting on it, the probe could stall for good, once the frames it waits on fill its window.
+     *
+     * Each event is then a batch of its own: a timeline frame gets its own `Received`, right after
+     * its commands, not one per connection at the end as [TimeMachineState.on] gives a whole batch.
+     * Every sequence is still acknowledged, in order, the highest last; the probe keeps only the
+     * highest.
      */
     private fun apply(state: TimeMachineState, batch: List<TimeMachineEvent>): Transition = try {
         state.reduce(batch)

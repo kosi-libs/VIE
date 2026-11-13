@@ -14,13 +14,16 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.yield
+import kotlinx.serialization.json.JsonPrimitive
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineClientMessage
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineServerMessage
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineSession
+import org.kodein.arch.vie.timemachine.protocol.VIEObjectKind
 
 
 @OptIn(ExperimentalCoroutinesApi::class)
@@ -28,6 +31,13 @@ class TimeMachineStoreTest {
 
     private val c1 = ConnectionId(1)
     private val session = TimeMachineSession(Uuid.random(), "App")
+
+    /** A core that throws on any batch holding a frame observed on [poison], and otherwise applies it as it is. */
+    private fun throwingOn(poison: Uuid, failure: () -> Throwable = { IllegalStateException("injected") }): TimeMachineState.(List<TimeMachineEvent>) -> Transition =
+        { events ->
+            if (events.any { ((it as? TimeMachineEvent.MessageReceived)?.message as? TimeMachineClientMessage.Observed)?.observation?.viewModelId == poison }) throw failure()
+            on(events)
+        }
 
     @Test
     fun eventsPostedConcurrentlyAreAllAppliedEachSendersInItsOwnOrder() = runBlocking {
@@ -96,10 +106,7 @@ class TimeMachineStoreTest {
         val executed = mutableListOf<TransportCommand>()
         val store = TimeMachineStore(
             backgroundScope,
-            reduce = { events ->
-                if (events.any { ((it as? TimeMachineEvent.MessageReceived)?.message as? TimeMachineClientMessage.Observed)?.observation?.viewModelId == poison }) error("injected")
-                on(events)
-            },
+            reduce = throwingOn(poison),
         ) { executed += it }
         val a = Uuid.random()
         val b = Uuid.random()
@@ -113,12 +120,29 @@ class TimeMachineStoreTest {
         val record = store.state.value.session(session.id)
         assertEquals(listOf(a, b), record.viewModels.keys.toList())
         assertEquals(SequenceLedger(floor = seq(0), highest = seq(2), missing = listOf(seqs(1, 1))), record.sequences)
-        assertEquals(TimeMachineServerMessage.Received(seq(2)), (executed.last() as Command.Send).message)
+        // Each frame is acknowledged on its own, right after its commands.
+        assertSends(
+            c1,
+            listOf(
+                TimeMachineServerMessage.Welcome,
+                TimeMachineServerMessage.RequestViewModelInfo(a),
+                TimeMachineServerMessage.Received(seq(0)),
+                TimeMachineServerMessage.Received(seq(1)),
+                TimeMachineServerMessage.RequestViewModelInfo(b),
+                TimeMachineServerMessage.Received(seq(2)),
+            ),
+            executed,
+        )
 
         store.post(receive(c1, observed(c, 3)))
         runCurrent()
         assertEquals(listOf(a, b, c), store.state.value.session(session.id).viewModels.keys.toList())
         assertFalse(poison in store.state.value.session(session.id).viewModels)
+        assertSends(
+            c1,
+            listOf(TimeMachineServerMessage.RequestViewModelInfo(c), TimeMachineServerMessage.Received(seq(3))),
+            executed.drop(6),
+        )
     }
 
     @Test
@@ -127,10 +151,7 @@ class TimeMachineStoreTest {
         val executed = mutableListOf<TransportCommand>()
         val store = TimeMachineStore(
             backgroundScope,
-            reduce = { events ->
-                if (events.any { ((it as? TimeMachineEvent.MessageReceived)?.message as? TimeMachineClientMessage.Observed)?.observation?.viewModelId == poison }) error("injected")
-                on(events)
-            },
+            reduce = throwingOn(poison),
         ) { executed += it }
         val a = Uuid.random()
         store.post(hello(c1, session))
@@ -140,10 +161,58 @@ class TimeMachineStoreTest {
         store.post(receive(c1, observed(poison, 1)))
         runCurrent()
 
-        assertEquals(Command.Send(c1, TimeMachineServerMessage.Received(seq(1))), executed.last())
+        assertSends(
+            c1,
+            listOf(TimeMachineServerMessage.Welcome, TimeMachineServerMessage.RequestViewModelInfo(a), TimeMachineServerMessage.Received(seq(0)), TimeMachineServerMessage.Received(seq(1))),
+            executed,
+        )
         val record = store.state.value.session(session.id)
         assertEquals(listOf(a), record.viewModels.keys.toList())
         assertEquals(SequenceLedger(floor = seq(0), highest = seq(0)), record.sequences)
+    }
+
+    @Test
+    fun anInterventionInABatchTheCoreThrowsOnIsSentAndTimedOnce() = runTest {
+        val poison = Uuid.random()
+        val a = Uuid.random()
+        val executed = mutableListOf<TransportCommand>()
+        val deadlines = mutableListOf<Uuid>()
+        val throwing = throwingOn(poison)
+        val store = TimeMachineStore(
+            backgroundScope,
+            interventionTimeout = 5.seconds,
+            reduce = { events ->
+                deadlines += events.filterIsInstance<TimeMachineEvent.DeadlinePassed>().map { it.requestId }
+                throwing(events)
+            },
+        ) { executed += it }
+        store.post(hello(c1, session))
+        store.post(receive(c1, started(a, 0)))
+        runCurrent()
+        // The batch is replayed event by event: the intervention must be sent, and its deadline started, once.
+        store.post(receive(c1, observed(poison, 1)))
+        val request = store.intervene(session.id, a, VIEObjectKind.Intent, "I", JsonPrimitive(1))
+        store.post(receive(c1, observed(a, 2)))
+        runCurrent()
+
+        assertSends(
+            c1,
+            listOf(
+                TimeMachineServerMessage.Welcome,
+                TimeMachineServerMessage.Received(seq(0)),
+                TimeMachineServerMessage.Received(seq(1)),
+                TimeMachineServerMessage.Intervene(request, a, VIEObjectKind.Intent, "I", JsonPrimitive(1)),
+                TimeMachineServerMessage.Received(seq(2)),
+            ),
+            executed,
+        )
+        assertEquals(InterventionStatus.Pending, store.state.value.vm(session.id, a).interventions.getValue(request).status)
+
+        advanceTimeBy(5.seconds)
+        runCurrent()
+
+        assertEquals(listOf(request), deadlines)
+        assertEquals(InterventionStatus.TimedOut, store.state.value.vm(session.id, a).interventions.getValue(request).status)
     }
 
     // Reached only by injection: the core, as it is, throws on no event outside a timeline.
