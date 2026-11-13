@@ -26,8 +26,12 @@ data class TimeMachineState(
     val rejections: Map<Uuid, Rejection> = emptyMap(),
 ) {
 
-    /** The state after [event], and the commands it calls for. */
-    fun on(event: TimeMachineEvent): Transition = when (event) {
+    /**
+     * The state after [event] and the commands it calls for, without acknowledging it: only the
+     * overload on a batch adds the `Received` that keep the probe's window open. Internal so that
+     * nothing outside calls it in place of that one; tests apply a lone event through it.
+     */
+    internal fun on(event: TimeMachineEvent): Transition = when (event) {
         is TimeMachineEvent.HelloReceived -> onHello(event)
         is TimeMachineEvent.MessageReceived -> onMessage(event)
         is TimeMachineEvent.Disconnected -> onDisconnected(event)
