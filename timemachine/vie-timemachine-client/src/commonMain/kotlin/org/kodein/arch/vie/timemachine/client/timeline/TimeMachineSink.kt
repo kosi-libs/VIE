@@ -7,6 +7,7 @@ import kotlin.time.Clock
 import kotlin.uuid.Uuid
 import org.kodein.arch.vie.VIE
 import org.kodein.arch.vie.timemachine.client.ProbeLog
+import org.kodein.arch.vie.timemachine.client.callingApp
 import org.kodein.arch.vie.timemachine.client.defaultMaxObservationLength
 import org.kodein.arch.vie.timemachine.client.role.VIERole
 import org.kodein.arch.vie.timemachine.client.viewmodel.TimeMachineMiddleware
@@ -121,20 +122,17 @@ internal class TimeMachineSink(
         if (isClosed) return
         val at = Clock.System.now()
         outlet(Entry(viewModelId) { sequence ->
-            val rendered = try {
-                value.toString()
-            } catch (e: Throwable) {
-                "<toString() failed: $e>"
-            }
+            // Not printed: the failure takes the place of the string, where the inspector shows it.
+            val rendered = callingApp(onFailure = { "<toString() failed: $it>" }) { value.toString() }
             // What the failure messages below print, and what is sent: never the whole of a huge object.
             val asString = rendered.cutAt(maxStringLength)
             val observation = VIEObservation(
                 viewModelId = viewModelId,
                 at = at,
                 kind = kind,
-                typeName = log.describing({ "name $kind $asString" }) { role.typeNameOf(value) } ?: role.typeName,
+                typeName = log.callingApp({ "name $kind $asString" }) { role.typeNameOf(value) } ?: role.typeName,
                 asString = asString,
-                asJson = log.describing({ "encode $kind $asString" }) { role.encode(value) },
+                asJson = log.callingApp({ "encode $kind $asString" }) { role.encode(value) },
                 interventionId = interventionId,
                 delivery = deliveryOf(kind, value),
                 truncated = rendered.length > maxStringLength,

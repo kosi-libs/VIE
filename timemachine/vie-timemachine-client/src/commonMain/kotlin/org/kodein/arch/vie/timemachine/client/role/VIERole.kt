@@ -18,6 +18,7 @@ import kotlinx.serialization.json.encodeToJsonElement
 import kotlinx.serialization.modules.SerializersModule
 import kotlinx.serialization.serializerOrNull
 import org.kodein.arch.vie.timemachine.client.ProbeLog
+import org.kodein.arch.vie.timemachine.client.callingApp
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineJson
 import org.kodein.arch.vie.timemachine.protocol.VIEInterventionResult
 import org.kodein.arch.vie.timemachine.protocol.VIEInterventionResult.Reason
@@ -123,14 +124,11 @@ internal class VIERole<T> private constructor(
         if (!isKnown(typeName)) return Decoded.Refused(Reason.UnknownType, unknownTypeMessage(typeName))
         val actualType = concreteTypeNameIn(json)
         if (actualType != null && actualType != typeName) return Decoded.Refused(Reason.BadJson, mismatchMessage(typeName, actualType))
-        return try {
+        // A SerializationException, or whatever app code throws: a custom serializer rejecting the
+        // payload, or one left as `TODO()`, a class's `init`… Not printed: the inspector, which sent
+        // the payload, is told.
+        return callingApp(onFailure = { Decoded.Refused(Reason.BadJson, it.message ?: it.toString()) }) {
             Decoded.Value(StrictJson.decodeFromJsonElement(s, json))
-        } catch (e: Throwable) {
-            // A SerializationException, or whatever app code throws: a custom serializer rejecting the
-            // payload, or one left as `TODO()`, a class's `init`… Errors and cancellation included, like
-            // `describing` on the encoding side: this runs on the probe's own coroutine, which must not
-            // end because of the app's code.
-            Decoded.Refused(Reason.BadJson, e.message ?: e.toString())
         }
     }
 
@@ -166,11 +164,10 @@ internal class VIERole<T> private constructor(
     private fun serialNameOf(value: T): String? {
         val s = serializer ?: return null
         val capture = SerialNameCapture(s.descriptor)
-        return try {
+        // Not printed: the caller falls back on the name of the value's class.
+        return callingApp(onFailure = { null }) {
             s.serialize(capture, value)
             capture.serialName
-        } catch (e: Exception) {
-            null
         }
     }
 
@@ -196,7 +193,7 @@ internal class VIERole<T> private constructor(
          * star projection.
          */
         fun <T> of(type: KType, log: ProbeLog): VIERole<T> =
-            log.describing({ "introspect $type, reported without JSON" }) { introspect<T>(type) } ?: notSerializable(type)
+            log.callingApp({ "introspect $type, reported without JSON" }) { introspect<T>(type) } ?: notSerializable(type)
 
         /** The role of [type], or `null` if it has no serializer the probe can use. Runs app code, and
          *  throws whatever it throws. */

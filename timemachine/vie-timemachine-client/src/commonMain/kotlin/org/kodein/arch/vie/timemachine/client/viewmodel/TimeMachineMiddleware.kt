@@ -65,7 +65,8 @@ import org.kodein.arch.vie.timemachine.protocol.VIEViewModelInfo
  * ViewModels built concurrently can call any intercept in either order. The second ViewModel's
  * objects are then reported under the first one's identifier, in place of the first one's.
  *
- * Never throws into the host app: a failure to report an object is printed and swallowed. Nor does
+ * Never throws into the host app: a failure to report an object is printed and swallowed, an `Error`
+ * included. Nor does
  * it describe objects on the ViewModel's dispatcher: [sink] defers that (see [TimeMachineSink]).
  *
  * It outlives its probe, since it stays installed in its ViewModel: once the probe stops, [sink] is
@@ -121,10 +122,10 @@ internal class TimeMachineMiddleware<Model : VIE.Model, Intent : VIE.Intent, Sig
         if (sink.isClosed) return
         // Before any model is observed: the ViewModel starts its model flow only once every
         // middleware is attached.
-        sink.log.guarded({ "report ViewModel start" }) { sink.started(infoOf(vm), intervenerOf(weakReference(vm))) }
+        sink.log.onAppThread({ "report ViewModel start" }) { sink.started(infoOf(vm), intervenerOf(weakReference(vm))) }
         vm.addCloseable(AutoCloseable {
             closed.store(true)
-            sink.log.guarded({ "report ViewModel close" }) { sink.closed(viewModelId) }
+            sink.log.onAppThread({ "report ViewModel close" }) { sink.closed(viewModelId) }
         })
     }
 
@@ -185,7 +186,7 @@ internal class TimeMachineMiddleware<Model : VIE.Model, Intent : VIE.Intent, Sig
     private fun <T : Any> observe(kind: VIEObjectKind, role: VIERole<T>, value: T, interventionId: Uuid?) {
         // Only narrows the race with the close: a report already past this check can still follow it.
         if (closed.load()) return
-        sink.log.guarded({ "report $kind" }) { sink.observed(viewModelId, kind, role, value, interventionId) }
+        sink.log.onAppThread({ "report $kind" }) { sink.observed(viewModelId, kind, role, value, interventionId) }
     }
 }
 

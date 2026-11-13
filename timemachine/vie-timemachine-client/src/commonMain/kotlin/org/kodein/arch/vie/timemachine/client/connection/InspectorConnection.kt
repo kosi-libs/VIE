@@ -181,7 +181,7 @@ internal class InspectorConnection(
             }
             while (true) {
                 val message = receiveMessage() ?: break
-                log.guardedSuspending({ "answer ${message.summary}" }) { answer(message) }
+                log.onProbeCoroutine({ "answer ${message.summary}" }) { answer(message) }
             }
             drain.cancel()
             holding.cancel()
@@ -207,8 +207,9 @@ internal class InspectorConnection(
                 val result = if (live == null) {
                     VIEInterventionResult.Failure(VIEInterventionResult.Reason.UnknownViewModel, "No live ViewModel ${message.viewModelId}")
                 } else {
-                    // An intervener never throws, but it runs app code: a failure still gets its answer.
-                    log.guardedSuspending({ "intervene with ${message.summary}" }) { live.intervener.intervene(message) }
+                    // An intervener never throws, but it runs app code: whatever that throws still
+                    // gets its answer.
+                    log.callingApp({ "intervene with ${message.summary}" }) { live.intervener.intervene(message) }
                         ?: VIEInterventionResult.Failure(VIEInterventionResult.Reason.ProbeFailure, "The probe failed to handle the request ${message.requestId}")
                 }
                 sendMessage(TimeMachineClientMessage.InterventionResult(message.requestId, result))
@@ -228,7 +229,7 @@ internal class InspectorConnection(
         for (frame in incoming) {
             if (frame !is Frame.Text) continue
             val text = frame.readText()
-            return log.guarded({ "decode a ${text.length}-character frame: ${text.excerpt()}" }) { TimeMachineJson.decodeFromString(TimeMachineServerMessage.serializer(), text) } ?: continue
+            return log.onProbeCoroutine({ "decode a ${text.length}-character frame: ${text.excerpt()}" }) { TimeMachineJson.decodeFromString(TimeMachineServerMessage.serializer(), text) } ?: continue
         }
         return null
     }

@@ -502,6 +502,30 @@ class InspectorConnectionTest {
     }
 
     @Test
+    fun anErrorOfAnIntervenerIsAnsweredWithAProbeFailureAndDoesNotRetireTheProbe() {
+        val inspector = FakeInspector()
+        withConnection(inspector) { probed ->
+            val vm = Uuid.random()
+            // The application's code, wherever it fails: not an Error of the probe's own.
+            probed.sink.started(info(vm)) { throw LinkageError("from the test") }
+            probed.start()
+            val connection = inspector.welcomed.receive()
+            inspector.receiveAnnounce(vm)
+            assertIs<TimeMachineClientMessage.ViewModelStarted>(inspector.received.receive())
+
+            val request = TimeMachineServerMessage.Intervene(Uuid.random(), vm, VIEObjectKind.Intent, "T", JsonNull)
+            connection.send(TimeMachineServerMessage.serializer(), request)
+            val answer = assertIs<TimeMachineClientMessage.InterventionResult>(inspector.received.receive())
+            assertEquals(request.requestId, answer.requestId)
+            assertEquals(VIEInterventionResult.Reason.ProbeFailure, assertIs<VIEInterventionResult.Failure>(answer.result).reason)
+
+            // Still streaming: the next request is answered.
+            connection.send(TimeMachineServerMessage.serializer(), TimeMachineServerMessage.RequestViewModelInfo(vm))
+            assertEquals(TimeMachineClientMessage.ViewModelInfo(vm, info(vm)), inspector.received.receive())
+        }
+    }
+
+    @Test
     fun anErrorWhileDecodingAnInterventionIsRefusedAndTheConnectionLoopGoesOn() {
         val inspector = FakeInspector()
         withConnection(inspector) { probed ->

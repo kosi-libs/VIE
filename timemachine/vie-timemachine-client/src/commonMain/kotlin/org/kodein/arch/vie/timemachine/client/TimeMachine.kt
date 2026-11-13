@@ -73,26 +73,22 @@ public object TimeMachine {
         // Checked before building a probe; compareAndSet still settles a race.
         if (running.load() != null) return log.alreadyRunning()
         var probe: TimeMachineProbe? = null
-        try {
-            probe = newProbe { retired -> running.compareAndSet(retired, null) }
-            if (running.compareAndSet(null, probe)) {
-                probe.start()
+        // An Error too must not reach the application's startup. The HTTP engine is not loaded here
+        // but on the probe's own coroutine, where an Error retires the probe.
+        val started = log.onAppThread({ "start the probe" }) {
+            val built = newProbe { retired -> running.compareAndSet(retired, null) }
+            probe = built
+            if (running.compareAndSet(null, built)) {
+                built.start()
             } else {
-                probe.stop()
+                built.stop()
                 log.alreadyRunning()
             }
-        } catch (e: Throwable) {
-            // An Error too: it must not reach the application's startup. The HTTP engine is not loaded
-            // here but on the probe's own coroutine, where an Error retires the probe.
-            log.notice("TimeMachine: failed to start the probe: $e")
-            if (probe != null) {
-                running.compareAndSet(probe, null)
-                try {
-                    probe.stop()
-                } catch (e: Throwable) {
-                    log.notice("TimeMachine: failed to stop the probe: $e")
-                }
-            }
+        }
+        // Built, then failed: it must neither stay registered nor keep what it started.
+        if (started == null) probe?.let { failed ->
+            running.compareAndSet(failed, null)
+            log.onAppThread({ "stop the probe" }) { failed.stop() }
         }
     }
 
@@ -107,7 +103,7 @@ public object TimeMachine {
      */
     public fun stop() {
         val probe = running.exchange(null) ?: return
-        probe.log.guarded({ "stop the probe" }) { probe.stop() }
+        probe.log.onAppThread({ "stop the probe" }) { probe.stop() }
     }
 
     /**
@@ -149,6 +145,6 @@ public object TimeMachine {
         // Stopped since isStarted was checked: the no-op, as if it had been checked a moment later.
         // So is a middleware that fails to build: this runs inside a ViewModel's constructor.
         running.load()?.let { probe ->
-            probe.log.guarded({ "provide a middleware" }) { probe.middleware<Model, Intent, Signal>(model, intent, signal) }
+            probe.log.onAppThread({ "provide a middleware" }) { probe.middleware<Model, Intent, Signal>(model, intent, signal) }
         } ?: NoOpMiddleware.typed()
 }
