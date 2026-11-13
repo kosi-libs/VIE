@@ -1,11 +1,13 @@
 package org.kodein.arch.vie.timemachine.server.store
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.JsonElement
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineTimelineMessage
@@ -27,7 +29,11 @@ import kotlin.uuid.Uuid
  * A bug must not stop the writer: no `Received` would be sent again, and every probe would stall. A
  * batch the core throws on is applied again event by event, each acknowledged on its own, without
  * the events it throws on; a command [execute] throws on is skipped. Each failure is reported, and
- * the writer goes on.
+ * the writer goes on, whatever they throw, an `Error` included.
+ *
+ * Should the writer stop all the same, on a failure outside those guards or because [scope] was
+ * cancelled, [state] says so in [TimeMachineState.writer], and [post] drops every later event: no
+ * probe is acknowledged any more, but nothing piles up either.
  *
  * @param limits How much timeline each ViewModel keeps.
  * @param interventionTimeout How long an intervention waits for its result or its tagged row before
@@ -61,7 +67,7 @@ class TimeMachineStore(
                     when (command) {
                         is TransportCommand -> try {
                             execute(command)
-                        } catch (e: Exception) {
+                        } catch (e: Throwable) { // execute does not suspend: no cancellation to preserve
                             report("skipped a command it failed to execute: ${command.summary()}", e)
                         }
                         is Command.StartDeadline -> scope.launch {
@@ -71,7 +77,19 @@ class TimeMachineStore(
                     }
                 }
             }
-        }
+        }.invokeOnCompletion(::stopped)
+    }
+
+    /**
+     * Records that the writer stopped, and closes [events]. Runs on whichever thread the writer ended
+     * on, and must not throw. The failure is not swallowed: it goes on to [scope]'s handler.
+     */
+    private fun stopped(cause: Throwable?) {
+        // Closes the channel and frees its backlog; close() would keep the unbounded queue nobody reads.
+        events.cancel()
+        val writer = if (cause == null || cause is CancellationException) WriterState.Stopped else WriterState.Failed(cause.message ?: cause.toString())
+        mutableState.update { it.copy(writer = writer) }
+        if (writer is WriterState.Failed) println("TimeMachine: the store stopped on a failure, and applies no event any more: ${writer.message}")
     }
 
     /**
@@ -87,7 +105,7 @@ class TimeMachineStore(
      */
     private fun apply(state: TimeMachineState, batch: List<TimeMachineEvent>): Transition = try {
         state.reduce(batch)
-    } catch (_: Exception) {
+    } catch (_: Throwable) { // reduce does not suspend: no cancellation to preserve
         batch.fold(Transition(state)) { transition, event ->
             transition.then(event) ?: run {
                 val skipped = event.skipped() ?: return@run transition
@@ -99,7 +117,7 @@ class TimeMachineStore(
     /** This transition followed by [event], or `null`, reported, when the core throws on it. */
     private fun Transition.then(event: TimeMachineEvent): Transition? = try {
         state.reduce(listOf(event)).let { Transition(it.state, commands + it.commands) }
-    } catch (e: Exception) {
+    } catch (e: Throwable) { // reduce does not suspend: no cancellation to preserve
         report("skipped an event it failed to apply: ${event.summary()}", e)
         null
     }
@@ -116,12 +134,15 @@ class TimeMachineStore(
         is Command.Close -> "Close of $connection"
     }
 
-    private fun report(message: String, e: Exception) {
+    private fun report(message: String, e: Throwable) {
         println("TimeMachine: $message")
         e.printStackTrace()
     }
 
-    /** Queues [event]. Never suspends: events from any thread are applied in the order posted. */
+    /**
+     * Queues [event]. Never suspends: events from any thread are applied in the order posted. Dropped
+     * once the writer stopped.
+     */
     fun post(event: TimeMachineEvent) {
         events.trySend(event)
     }
@@ -129,8 +150,8 @@ class TimeMachineStore(
     /**
      * Asks ViewModel [viewModelId] of session [sessionId] to emit or receive the object [asJson], and
      * returns the request's identifier, under which [state] records the intervention. When the store no
-     * longer holds that session or ViewModel by the time the request is applied, nothing is recorded,
-     * and the identifier never appears in [state].
+     * longer holds that session or ViewModel by the time the request is applied, nor once the writer
+     * stopped, nothing is recorded, and the identifier never appears in [state].
      */
     fun intervene(sessionId: Uuid, viewModelId: Uuid, kind: VIEObjectKind, typeName: String, asJson: JsonElement): Uuid {
         val requestId = Uuid.random()

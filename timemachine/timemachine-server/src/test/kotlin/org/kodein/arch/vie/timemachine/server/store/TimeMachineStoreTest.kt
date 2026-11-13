@@ -6,14 +6,17 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.seconds
 import kotlin.uuid.Uuid
+import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.joinAll
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
@@ -213,6 +216,122 @@ class TimeMachineStoreTest {
 
         assertEquals(listOf(request), deadlines)
         assertEquals(InterventionStatus.TimedOut, store.state.value.vm(session.id, a).interventions.getValue(request).status)
+    }
+
+    @Test
+    fun anErrorTheCoreThrowsStopsNeitherItsBatchNorTheWriter() = runTest {
+        val poison = Uuid.random()
+        val executed = mutableListOf<TransportCommand>()
+        val store = TimeMachineStore(
+            backgroundScope,
+            reduce = throwingOn(poison) { NotImplementedError("injected") },
+        ) { executed += it }
+        val a = Uuid.random()
+        val b = Uuid.random()
+        store.post(hello(c1, session))
+        store.post(receive(c1, observed(a, 0)))
+        store.post(receive(c1, observed(poison, 1)))
+        store.post(receive(c1, observed(b, 2)))
+        runCurrent()
+
+        val record = store.state.value.session(session.id)
+        assertEquals(listOf(a, b), record.viewModels.keys.toList())
+        assertEquals(SequenceLedger(floor = seq(0), highest = seq(2), missing = listOf(seqs(1, 1))), record.sequences)
+        assertSends(
+            c1,
+            listOf(
+                TimeMachineServerMessage.Welcome,
+                TimeMachineServerMessage.RequestViewModelInfo(a),
+                TimeMachineServerMessage.Received(seq(0)),
+                TimeMachineServerMessage.Received(seq(1)),
+                TimeMachineServerMessage.RequestViewModelInfo(b),
+                TimeMachineServerMessage.Received(seq(2)),
+            ),
+            executed,
+        )
+        assertEquals(WriterState.Running, store.state.value.writer)
+    }
+
+    @Test
+    fun anErrorExecuteThrowsStopsNeitherItsBatchNorTheWriter() = runTest {
+        val executed = mutableListOf<TransportCommand>()
+        val store = TimeMachineStore(backgroundScope) { command ->
+            if (command is Command.Send && command.message == TimeMachineServerMessage.Welcome) throw AssertionError("injected")
+            executed += command
+        }
+        val a = Uuid.random()
+        val b = Uuid.random()
+        store.post(hello(c1, session))
+        store.post(receive(c1, observed(a, 0)))
+        runCurrent()
+        store.post(receive(c1, observed(b, 1)))
+        runCurrent()
+
+        assertEquals(listOf(a, b), store.state.value.session(session.id).viewModels.keys.toList())
+        assertEquals(
+            listOf(TimeMachineServerMessage.Received(seq(0)), TimeMachineServerMessage.Received(seq(1))),
+            executed.filterIsInstance<Command.Send>().map { it.message }.filterIsInstance<TimeMachineServerMessage.Received>(),
+        )
+        assertEquals(WriterState.Running, store.state.value.writer)
+    }
+
+    // backgroundScope would fail the test on the failure of any child: the scope is a dedicated one, as the application's.
+    @Test
+    fun aFailureThatStopsTheWriterIsPublishedAndLeftToItsScope() = runTest {
+        val uncaught = mutableListOf<Throwable>()
+        val scope = CoroutineScope(SupervisorJob() + StandardTestDispatcher(testScheduler) + CoroutineExceptionHandler { _, e -> uncaught += e })
+        try {
+            // Its commands throw when read, outside the guards: the only way to fail the writer without a new API.
+            val unreadable = object : AbstractList<Command>() {
+                override val size: Int get() = throw NotImplementedError("injected")
+                override fun get(index: Int): Command = throw NotImplementedError("injected")
+            }
+            val executed = mutableListOf<TransportCommand>()
+            val store = TimeMachineStore(scope, reduce = { events -> Transition(on(events).state, unreadable) }) { executed += it }
+            val a = Uuid.random()
+            store.post(hello(c1, session))
+            runCurrent()
+
+            assertEquals(WriterState.Failed("injected"), store.state.value.writer)
+            // Left to the scope's handler, not swallowed.
+            assertEquals("injected", uncaught.single().message)
+            assertTrue(store.state.value.session(session.id).isConnected)
+
+            store.post(receive(c1, observed(a, 0)))
+            runCurrent()
+
+            assertEquals(emptyMap(), store.state.value.session(session.id).viewModels)
+            assertEquals(emptyList(), executed)
+        } finally {
+            scope.cancel()
+        }
+    }
+
+    @Test
+    fun aCancelledScopeLeavesTheStoreVisiblyStopped() = runTest {
+        val scope = CoroutineScope(StandardTestDispatcher(testScheduler))
+        try {
+            val executed = mutableListOf<TransportCommand>()
+            val store = TimeMachineStore(scope) { executed += it }
+            val a = Uuid.random()
+            store.post(hello(c1, session))
+            store.post(receive(c1, started(a, 0)))
+            runCurrent()
+            assertEquals(WriterState.Running, store.state.value.writer)
+
+            scope.cancel()
+            runCurrent()
+            assertEquals(WriterState.Stopped, store.state.value.writer)
+
+            val sent = executed.size
+            val request = store.intervene(session.id, a, VIEObjectKind.Intent, "I", JsonPrimitive(1))
+            runCurrent()
+
+            assertFalse(request in store.state.value.vm(session.id, a).interventions)
+            assertEquals(sent, executed.size)
+        } finally {
+            scope.cancel()
+        }
     }
 
     @Test

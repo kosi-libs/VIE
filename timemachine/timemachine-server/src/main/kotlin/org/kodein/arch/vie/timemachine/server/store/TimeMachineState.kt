@@ -10,13 +10,16 @@ import kotlin.uuid.Uuid
 
 
 /**
- * Everything the inspector knows: immutable, and changed only by [on], a pure function.
+ * Everything the inspector knows: immutable, and changed only by [on], a pure function, but for [writer].
  *
  * @property sessions The sessions, in the order they first connected.
  * @property connections The connections whose `Hello` was accepted, to their session. A connection
  *   another one evicted stays mapped until its own disconnect, so the frames already received on it
  *   are still placed. Messages from a connection not in it are ignored.
  * @property rejections The rejected probes, by session identifier.
+ * @property writer Whether the store's writer still applies events. The one property [on] never
+ *   changes: the store sets it once, when its writer stops. A separate type from [listener], whose
+ *   cases are the transport's.
  */
 data class TimeMachineState(
     val limits: Limits = Limits(),
@@ -24,6 +27,7 @@ data class TimeMachineState(
     val sessions: Map<Uuid, SessionRecord> = emptyMap(),
     val connections: Map<ConnectionId, Uuid> = emptyMap(),
     val rejections: Map<Uuid, Rejection> = emptyMap(),
+    val writer: WriterState = WriterState.Running,
 ) {
 
     /**
@@ -277,4 +281,20 @@ private fun SessionRecord.updateIntervention(requestId: Uuid, transform: Interve
     val vm = interventionIndex[requestId]?.let { viewModels[it] } ?: return this
     val intervention = vm.interventions[requestId] ?: return this
     return copy(viewModels = viewModels + (vm.id to vm.copy(interventions = vm.interventions + (requestId to intervention.transform()))))
+}
+
+/** Whether the store's writer still applies events: see [TimeMachineStore]. */
+sealed interface WriterState {
+    data object Running : WriterState
+
+    /** Its scope was cancelled: no event is applied any more; [TimeMachineStore.post] drops them. */
+    data object Stopped : WriterState
+
+    /**
+     * A failure it does not catch stopped it, as [Stopped]: the state stays the last one, no probe is
+     * acknowledged, no intervention sent.
+     *
+     * @property message What the failure says of itself.
+     */
+    data class Failed(val message: String) : WriterState
 }
