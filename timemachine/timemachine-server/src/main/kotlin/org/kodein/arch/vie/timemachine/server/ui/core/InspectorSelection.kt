@@ -6,9 +6,11 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineSequence
 import org.kodein.arch.vie.timemachine.protocol.VIEObjectKind
+import org.kodein.arch.vie.timemachine.protocol.VIEObservation
 import org.kodein.arch.vie.timemachine.server.store.SessionRecord
 import org.kodein.arch.vie.timemachine.server.store.TimeMachineState
 import org.kodein.arch.vie.timemachine.server.store.ViewModelRecord
+import org.kodein.arch.vie.timemachine.server.ui.common.pretty
 import kotlin.uuid.Uuid
 
 
@@ -128,6 +130,15 @@ internal class InspectorSelection(initial: Selection = Selection()) {
     /** Opens the Composer tab and records the request. */
     fun composeFrom(viewModelId: Uuid, kind: VIEObjectKind, type: String, json: String) {
         mutable.update { it.copy(tab = RightTab.Composer, composerRequest = ComposerRequest(viewModelId, kind, type, json)) }
+    }
+
+    /**
+     * Edit & intervene on [observation] of ViewModel [viewModelId]: the Composer, on its kind, its type and
+     * its JSON, pretty-printed as the editor shows it. Nothing happens for an observation without JSON.
+     */
+    fun composeFrom(viewModelId: Uuid, observation: VIEObservation) {
+        val json = observation.asJson ?: return
+        composeFrom(viewModelId, observation.kind, observation.typeName, json.pretty())
     }
 
     /**

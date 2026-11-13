@@ -20,7 +20,6 @@ import org.kodein.arch.vie.timemachine.server.store.timelineEntry
 import org.kodein.arch.vie.timemachine.server.ui.common.DiffOp
 import org.kodein.arch.vie.timemachine.server.ui.common.diffJson
 import org.kodein.arch.vie.timemachine.server.ui.common.interventionNumber
-import org.kodein.arch.vie.timemachine.server.ui.common.pretty
 import org.kodein.arch.vie.timemachine.server.ui.common.shortSessionId
 import org.kodein.arch.vie.timemachine.server.ui.common.shortViewModelId
 import org.kodein.arch.vie.timemachine.server.ui.common.viewModelLabel
@@ -349,10 +348,9 @@ internal class TimelineVM(
     private fun composeFrom(sequence: TimeMachineSequence) {
         val item = model.projection.items.firstOrNull { it.sequence == sequence }?.takeIf { it.canIntervene } ?: return
         val observation = item.observation ?: return
-        val json = observation.asJson ?: return
         val viewModelId = (item.entry as? SessionTimelineEntry.Scoped)?.viewModelId ?: return
         inspector.selection.selectRow(sequence)
-        inspector.selection.composeFrom(viewModelId, observation.kind, observation.typeName, json.pretty())
+        inspector.selection.composeFrom(viewModelId, observation)
     }
 
     private suspend fun showSelectedRow() {

@@ -7,7 +7,6 @@ import kotlinx.serialization.json.JsonElement
 import org.kodein.arch.vie.VIE
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineClientMessage
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineSequence
-import org.kodein.arch.vie.timemachine.protocol.VIEObjectKind
 import org.kodein.arch.vie.timemachine.server.store.TimeMachineState
 import org.kodein.arch.vie.timemachine.server.ui.common.JsonPath
 import org.kodein.arch.vie.timemachine.server.ui.common.diffJson
@@ -144,8 +143,7 @@ internal class CurrentModelVM(
                 update { copy(controls = controls.copy(expanded = controls.expanded.toggled(intent.path))) }
             CurrentModelVIE.Intent.EditAndReplace -> {
                 val current = inspector.store.state.value.sessions[sessionId]?.viewModels?.get(viewModelId)?.currentModel ?: return
-                val json = current.value.asJson ?: return
-                inspector.selection.composeFrom(viewModelId, VIEObjectKind.Model, current.value.typeName, json.pretty())
+                inspector.selection.composeFrom(viewModelId, current.value)
             }
         }
     }
