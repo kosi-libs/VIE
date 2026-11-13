@@ -61,6 +61,7 @@ class SessionsPaneTest {
         assertEquals(ViewModelStatus.Closed, closed.status)
         assertTrue(closed.startSeen)
         assertEquals(false, live.viewModels.first { it.id == Demo.taskList }.startSeen, "first seen, not started")
+        assertEquals(ViewModelStatus.SessionDisconnected, gone.viewModels.single { it.id == Demo.oldTaskList }.status)
     }
 
     @Test

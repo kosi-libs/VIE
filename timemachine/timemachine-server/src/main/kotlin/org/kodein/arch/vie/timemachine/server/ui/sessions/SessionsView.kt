@@ -180,7 +180,6 @@ private fun SessionBlock(session: SessionItem, selected: InspectorScope?, collap
 private fun ViewModelRow(vm: ViewModelItem, session: SessionItem, selected: Boolean, onClick: () -> Unit) {
     val scheme = MaterialTheme.colorScheme
     val closed = vm.status == ViewModelStatus.Closed
-    val dead = closed || !session.connected
     val name = viewModelName(vm.typeName, vm.id)
     Row(
         Modifier
@@ -203,20 +202,20 @@ private fun ViewModelRow(vm: ViewModelItem, session: SessionItem, selected: Bool
             Text(vm.meta(session), style = MaterialTheme.typography.bodySmall, color = scheme.outline, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
         Column(horizontalAlignment = Alignment.End, verticalArrangement = Arrangement.spacedBy(3.dp)) {
-            Sparkline(vm.sparkline, dead)
+            Sparkline(vm.sparkline, dead = vm.status.gone)
             Text(if (vm.rowCount == 1) "1 entry" else "${vm.rowCount} entries", style = InspectorTheme.text.monoMeta, color = scheme.outline, maxLines = 1)
         }
     }
 }
 
+/**
+ * What the row says under the name: the status and, for an alive ViewModel, when it started or was first
+ * seen. A ViewModel being identified says who is asked for its type, rather than the status's own label.
+ */
 private fun ViewModelItem.meta(session: SessionItem): String {
     val unknown = if (typeName == null) "Unknown · " else ""
-    val state = when {
-        status == ViewModelStatus.Closed -> closedAt?.let { "closed ${clock(it)}" } ?: "closed · time unknown"
-        !session.connected -> "session disconnected"
-        status == ViewModelStatus.Identifying -> "asking ${session.name} for its type…"
-        else -> "alive · ${if (startSeen) "started" else "first seen"} ${clock(since)}"
-    }
+    val started = if (status == ViewModelStatus.Alive) " · ${if (startSeen) "started" else "first seen"} ${clock(since)}" else ""
+    val state = if (status == ViewModelStatus.Identifying) "asking ${session.name} for its type…" else status.label(closedAt) + started
     return unknown + state
 }
 

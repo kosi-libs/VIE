@@ -228,6 +228,21 @@ class TimelineContentTest {
     }
 
     @Test
+    fun `a ViewModel's header says whether it is alive, its session disconnected, or it is being identified`() {
+        val unknown = InspectorScope.ViewModel(Demo.session.id, Demo.unknown)
+        for ((scope, data, status) in listOf(
+            Triple(taskList, ScenarioData.of("main"), "alive"),
+            Triple(taskList, ScenarioData.of("disconnected"), "session disconnected"),
+            Triple(unknown, ScenarioData.of("unknownVM"), "identifying…"),
+        )) {
+            val vie = mock(timeline(scope, data))
+            contentTest(content = { vie.Rendered { TimelineContent(scope, it, selectedRow = { null }) } }) {
+                assertTrue(shown(status), "\"$status\" in the header of ${data.id}")
+            }
+        }
+    }
+
+    @Test
     fun `one evicted entry is counted in the singular`() {
         // The earlier session's TaskListVM had three rows: a bound of two evicts one.
         val earlierTaskList = InspectorScope.ViewModel(Demo.oldSession.id, Demo.oldTaskList)

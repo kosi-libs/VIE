@@ -72,4 +72,12 @@ class SessionsViewTest {
             assertFalse(shown("d4c8…0006"), "the session's form of an identifier")
         }
     }
+
+    @Test
+    fun `a ViewModel nobody described yet says its session is being asked for its type`() {
+        val vie = sessions("unknownVM")
+        contentTest(content = { vie.Rendered { SessionsContent(it) } }) {
+            assertTrue(shown("Unknown · asking Demo for its type…"))
+        }
+    }
 }
