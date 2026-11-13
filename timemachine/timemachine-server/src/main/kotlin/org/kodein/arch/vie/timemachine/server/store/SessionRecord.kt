@@ -101,8 +101,9 @@ sealed interface TimelineEntry {
     data class Message(val row: Row) : TimelineEntry
 
     /**
-     * The session's sequences [range] were not received while the ViewModel was alive: some may be
-     * this ViewModel's. Softer than a drop report, which names its ViewModel.
+     * The session's sequences [range] were not received: in a ViewModel's timeline, while the ViewModel
+     * was alive, so some may be its own; in the session's, whichever ViewModels were. Softer than a drop
+     * report, which names its ViewModel.
      */
     data class PossiblyIncomplete(val range: ClosedRange<TimeMachineSequence>) : TimelineEntry
 }
