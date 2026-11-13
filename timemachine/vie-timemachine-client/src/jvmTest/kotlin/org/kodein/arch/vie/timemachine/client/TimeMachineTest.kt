@@ -135,7 +135,7 @@ class TimeMachineTest {
             val config = TimeMachineConfig(appName = "Retired", enabled = true, port = inspector.port)
             val retired = CompletableDeferred<Unit>()
             TimeMachine.start(config) { onRetired ->
-                TimeMachineClient(
+                TimeMachineProbe(
                     config,
                     notice = { if ("connected to the inspector" in it) throw LinkageError("from the test") },
                     onRetired = {
@@ -162,7 +162,7 @@ class TimeMachineTest {
     fun anErrorWhileStartingTheProbeLeavesNoProbeRunning() {
         val config = config("Unstartable")
         TimeMachine.start(config) { onRetired ->
-            TimeMachineClient(config, notice = { throw LinkageError("from the test") }, onRetired = onRetired)
+            TimeMachineProbe(config, notice = { throw LinkageError("from the test") }, onRetired = onRetired)
         }
         assertSame<Any>(NoOpMiddleware, middleware())
     }
