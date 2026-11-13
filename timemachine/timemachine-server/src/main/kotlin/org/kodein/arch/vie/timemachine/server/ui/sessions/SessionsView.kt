@@ -1,5 +1,6 @@
 package org.kodein.arch.vie.timemachine.server.ui.sessions
 
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -9,7 +10,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -21,9 +21,14 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Constraints
 import androidx.compose.ui.unit.dp
 import org.kodein.arch.vie.VIE.NoSignal
 import org.kodein.arch.vie.VIEViewScope
@@ -219,15 +224,39 @@ private fun ViewModelItem.meta(session: SessionItem): String {
     return unknown + state
 }
 
-/** Ten bars of 3 s, oldest first: dim when the ViewModel or its session is gone. */
+/** The activity sparkline: bars of [SparklineBar] apart by [SparklineGap], at most [SparklineHeight] high. */
+private val SparklineBar = 2.dp
+private val SparklineGap = 1.dp
+private val SparklineHeight = 12.dp
+private val SparklineCorner = 1.dp
+
+/**
+ * Ten bars of 3 s, oldest first: dim when the ViewModel or its session is gone. One node draws them all,
+ * each bar and gap rounded to whole pixels as a row of boxes would place them, under one layer for their
+ * opacity.
+ */
 @Composable
 private fun Sparkline(counts: List<Int>, dead: Boolean) {
     val color = if (dead) MaterialTheme.colorScheme.outline else MaterialTheme.colorScheme.primary
-    Row(Modifier.height(12.dp), horizontalArrangement = Arrangement.spacedBy(1.dp), verticalAlignment = Alignment.Bottom) {
-        counts.forEach { count ->
-            Box(
-                Modifier.width(2.dp).height((2 + minOf(count, 6) * 1.6f).dp)
-                    .alpha(if (dead) 0.5f else 0.9f).background(color, RoundedCornerShape(1.dp)),
+    Canvas(
+        Modifier
+            .layout { measurable, _ ->
+                val width = counts.size * SparklineBar.roundToPx() + (counts.size - 1).coerceAtLeast(0) * SparklineGap.roundToPx()
+                val placeable = measurable.measure(Constraints.fixed(width, SparklineHeight.roundToPx()))
+                layout(placeable.width, placeable.height) { placeable.place(0, 0) }
+            }
+            .alpha(if (dead) 0.5f else 0.9f),
+    ) {
+        val bar = SparklineBar.roundToPx()
+        val step = bar + SparklineGap.roundToPx()
+        val corner = CornerRadius(SparklineCorner.toPx())
+        counts.forEachIndexed { index, count ->
+            val height = (2 + minOf(count, 6) * 1.6f).dp.roundToPx()
+            drawRoundRect(
+                color,
+                topLeft = Offset((index * step).toFloat(), size.height - height),
+                size = Size(bar.toFloat(), height.toFloat()),
+                cornerRadius = corner,
             )
         }
     }
