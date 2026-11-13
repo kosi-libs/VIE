@@ -169,7 +169,7 @@ class TimeMachineServer(
                 val text = frame.readText()
                 when (val message = decode(text)) {
                     null -> {
-                        val sequence = sequenceOf(text)
+                        val sequence = sequenceIn(text)
                         val acknowledged = if (sequence == null) "" else " at sequence ${sequence.value}, acknowledged"
                         println("TimeMachine: skipped an undecodable ${text.length}-character frame on connection ${id.value}$acknowledged: ${text.excerpt()}")
                         sequence?.let { store.post(TimeMachineEvent.Skipped(id, it)) }
@@ -230,7 +230,7 @@ class TimeMachineServer(
      * The `sequence` of a frame that does not decode, read leniently: `null` unless it is a JSON
      * object holding a whole number there.
      */
-    private fun sequenceOf(text: String): TimeMachineSequence? =
+    private fun sequenceIn(text: String): TimeMachineSequence? =
         try {
             ((TimeMachineJson.parseToJsonElement(text) as? JsonObject)?.get("sequence") as? JsonPrimitive)
                 ?.takeUnless { it.isString }?.longOrNull?.let(::TimeMachineSequence)
