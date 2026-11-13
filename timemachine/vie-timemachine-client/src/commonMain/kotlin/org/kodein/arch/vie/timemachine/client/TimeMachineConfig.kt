@@ -38,7 +38,7 @@ import org.kodein.arch.vie.timemachine.protocol.TimeMachineConnection
  *   measured: keep such models out of the observed ones. Invalid unless positive.
  * @property logger Receives everything the probe has to say: the banner it starts with, the state of
  *   its connection to the inspector, and each failure it survives. Every call hands it one message,
- *   ready to print, that starts with `TimeMachine:`; only the banner spans several lines. The
+ *   ready to print: a line that starts with `TimeMachine:`, or the banner, a box of several lines. The
  *   `println` default prints them on the standard output; pass the application's own logger to route
  *   them, or `{}` to silence the probe. It is called from whichever thread has something to say, a
  *   ViewModel's included, so it must be thread-safe and should not block. A logger that throws does
