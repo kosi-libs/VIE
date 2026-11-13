@@ -37,10 +37,10 @@ data class ComposerPrefill(val json: String, val source: PrefillSource)
  */
 enum class SignalNote(val text: String) {
     /** The type is known to be an Effect. */
-    Effect("Delivered to one collector: with no view collecting, it blocks this ViewModel's signals, then its intents"),
+    Effect("Delivered to one collector: with no view collecting, it waits and fires on the next view that collects this ViewModel's signals"),
 
     /** The type was never observed as a Signal, or is untyped. */
-    Unknown("If this is an Effect, it is delivered to one collector: with no view collecting, it blocks this ViewModel's signals, then its intents"),
+    Unknown("If this is an Effect, it is delivered to one collector: with no view collecting, it waits and fires on the next view that collects this ViewModel's signals"),
 }
 
 /**
