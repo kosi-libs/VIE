@@ -34,6 +34,23 @@ The probe looks for the inspector at `localhost:13229`, and keeps trying for as 
 * A physical device needs the address of the machine the inspector runs on, as `host`.
 
 
+[#large-models]
+== Large models
+
+The probe bounds what it sends of one observation to `maxObservationLength` characters, a million by default.
+Past it, the observation is sent cut, and without its JSON, and the inspector shows it as too large (see xref:protocol.adoc#truncated[Large observations]).
+
+[source,kotlin]
+----
+TimeMachine.start(TimeMachineConfig(appName = "Counter", enabled = isDebugBuild, maxObservationLength = 200_000))
+----
+
+Keep it under the largest frame your inspector accepts, which is 32 MiB for the one in this repository: over it, a connection is closed on every attempt to send the observation.
+
+TIP: The limit does not spare your application the cost of rendering a heavy model, which happens before the model is measured.
+Keep decoded images and file contents out of the models you observe.
+
+
 [#middleware]
 == Installing the middleware
 
