@@ -9,7 +9,7 @@ import org.kodein.arch.vie.VIE
 import org.kodein.arch.vie.timemachine.client.ProbeLog
 import org.kodein.arch.vie.timemachine.client.ProbeTuning
 import org.kodein.arch.vie.timemachine.client.callingApp
-import org.kodein.arch.vie.timemachine.client.role.VIERole
+import org.kodein.arch.vie.timemachine.client.type.VIEObjectType
 import org.kodein.arch.vie.timemachine.client.viewmodel.TimeMachineMiddleware
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineClientMessage
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineSequence
@@ -115,9 +115,10 @@ internal class TimeMachineSink(
     /**
      * Reports an object observed flowing through the ViewModel [viewModelId].
      *
-     * @param interventionId The request that placed the object, or `null` if the app produced it.
+     * @param interventionId The intervention request the object was injected for, or `null` if the
+     *   app produced it.
      */
-    fun <T : Any> observed(viewModelId: Uuid, kind: VIEObjectKind, role: VIERole<T>, value: T, interventionId: Uuid? = null) {
+    fun <T : Any> observed(viewModelId: Uuid, kind: VIEObjectKind, type: VIEObjectType<T>, value: T, interventionId: Uuid? = null) {
         // Checked first: an object of a stopped probe costs neither a clock reading nor an entry.
         if (isClosed) return
         val at = Clock.System.now()
@@ -130,9 +131,9 @@ internal class TimeMachineSink(
                 viewModelId = viewModelId,
                 at = at,
                 kind = kind,
-                typeName = log.callingApp({ "name $kind $asString" }) { role.typeNameOf(value) } ?: role.typeName,
+                typeName = log.callingApp({ "name $kind $asString" }) { type.typeNameOf(value) } ?: type.typeName,
                 asString = asString,
-                asJson = log.callingApp({ "encode $kind $asString" }) { role.encode(value) },
+                asJson = log.callingApp({ "encode $kind $asString" }) { type.encode(value) },
                 interventionId = interventionId,
                 delivery = deliveryOf(kind, value),
                 truncated = rendered.length > maxStringLength,

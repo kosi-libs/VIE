@@ -26,8 +26,8 @@ import org.kodein.arch.vie.VIE
 import org.kodein.arch.vie.VIELoggingMiddleware
 import org.kodein.arch.vie.VIEViewModel
 import org.kodein.arch.vie.timemachine.client.fixtures.FakeInspector
-import org.kodein.arch.vie.timemachine.client.fixtures.role
-import org.kodein.arch.vie.timemachine.client.role.displayName
+import org.kodein.arch.vie.timemachine.client.fixtures.objectType
+import org.kodein.arch.vie.timemachine.client.type.displayName
 import org.kodein.arch.vie.timemachine.client.viewmodel.StressIntent
 import org.kodein.arch.vie.timemachine.client.viewmodel.StressModel
 import org.kodein.arch.vie.timemachine.client.viewmodel.StressSignal
@@ -133,10 +133,10 @@ class TimeMachineTest {
         val info = announcedInfoOf { UndescribableVM() }
 
         assertEquals(UndescribableVM::class.displayName, info.typeName)
-        assertFalse(info.model.isSerializable, "The model's role must have fallen back to one without a serializer")
+        assertFalse(info.model.isSerializable, "The model's type must have fallen back to one without a serializer")
         assertTrue(info.model.typeName.endsWith("UndescribableModel"), info.model.typeName)
-        assertEquals(role<StressIntent>().toVIETypeInfo(), info.intent)
-        assertEquals(role<StressSignal>().toVIETypeInfo(), info.signal)
+        assertEquals(objectType<StressIntent>().toVIETypeInfo(), info.intent)
+        assertEquals(objectType<StressSignal>().toVIETypeInfo(), info.signal)
     }
 
     @Test
@@ -205,9 +205,9 @@ class TimeMachineTest {
         val info = announcedInfoOf(newVM)
 
         assertEquals(type.displayName, info.typeName)
-        assertEquals(role<StressModel>().toVIETypeInfo(), info.model)
-        assertEquals(role<StressIntent>().toVIETypeInfo(), info.intent)
-        assertEquals(role<StressSignal>().toVIETypeInfo(), info.signal)
+        assertEquals(objectType<StressModel>().toVIETypeInfo(), info.model)
+        assertEquals(objectType<StressIntent>().toVIETypeInfo(), info.intent)
+        assertEquals(objectType<StressSignal>().toVIETypeInfo(), info.signal)
     }
 
     /** Starts the probe against an inspector, builds a ViewModel with [newVM], and returns how it was announced. */

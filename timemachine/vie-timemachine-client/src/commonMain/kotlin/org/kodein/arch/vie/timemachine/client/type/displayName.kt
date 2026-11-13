@@ -1,4 +1,4 @@
-package org.kodein.arch.vie.timemachine.client.role
+package org.kodein.arch.vie.timemachine.client.type
 
 import kotlin.reflect.KClass
 

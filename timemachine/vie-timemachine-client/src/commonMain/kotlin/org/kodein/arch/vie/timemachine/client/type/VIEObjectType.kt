@@ -1,4 +1,4 @@
-package org.kodein.arch.vie.timemachine.client.role
+package org.kodein.arch.vie.timemachine.client.type
 
 import kotlin.reflect.KType
 import kotlinx.serialization.KSerializer
@@ -58,18 +58,19 @@ private class SerialNameCapture(private val sealedDescriptor: SerialDescriptor) 
 }
 
 /**
- * Introspection over one VIE role (`Model`, `Intent` or `Signal`): whether [T] is `@Serializable`,
- * its type name, and — for a sealed [T] — the names of its registered subtypes. Built once per role
- * via [of] and reused for every observation and intervention of that role.
+ * The type of the objects of one kind (`Model`, `Intent` or `Signal`) a ViewModel handles, as the
+ * probe introspected it: whether [T] is `@Serializable`, its type name, and — for a sealed [T] — the
+ * names of its registered subtypes. Built once per type via [of] and reused for every observation
+ * and intervention of that type.
  *
- * Everything a role knows about [T] is read by [of], when it is built: from then on, only [encode],
+ * Everything it knows about [T] is read by [of], when it is built: from then on, only [encode],
  * [decodeForIntervention] and [typeNameOf] run the app's serializers.
  *
  * Every name is a *serial name*: the fully qualified name unless `@SerialName` overrides it, so a
  * name can be a bare `circle` with no package at all. Only a type that is not `@Serializable` is
  * named by its class instead: fully qualified, except on web (js and wasmJs), where
  * `KClass.qualifiedName` is unsupported and the simple name stands in. This only affects the
- * display-only name of a role already shown disabled in the inspector: encode/decode never run
+ * display-only name of a type already shown disabled in the inspector: encode/decode never run
  * without a serializer.
  *
  * An open polymorphic type — a plain interface that is not `@Serializable`, or a `@Polymorphic` or
@@ -84,7 +85,7 @@ private class SerialNameCapture(private val sealedDescriptor: SerialDescriptor) 
  *   `@JsonClassDiscriminator` when it has one, [TimeMachineJson]'s otherwise — the same lookup
  *   kotlinx-serialization does when it encodes and decodes [T].
  */
-internal class VIERole<T> private constructor(
+internal class VIEObjectType<T> private constructor(
     val typeName: String,
     val serializer: KSerializer<T>?,
     val sealedSubTypes: List<String>?,
@@ -94,7 +95,7 @@ internal class VIERole<T> private constructor(
     /** Whether [T] is `@Serializable` and not open polymorphic, i.e. whether [serializer] is non-null. */
     val isSerializable: Boolean get() = serializer != null
 
-    /** Snapshots this role's introspected info as the wire-transmissible [VIETypeInfo]. */
+    /** Snapshots this type's introspected info as the wire-transmissible [VIETypeInfo]. */
     fun toVIETypeInfo(): VIETypeInfo =
         VIETypeInfo(typeName = typeName, isSerializable = isSerializable, sealedSubTypes = sealedSubTypes)
 
@@ -110,7 +111,7 @@ internal class VIERole<T> private constructor(
      * `IllegalArgumentException`, and the reasons could not be told apart by type.
      *
      * - [T] is not `@Serializable`: [VIEInterventionResult.Reason.NotSerializable].
-     * - [typeName] is none of [sealedSubTypes] (nor this role's own [typeName] when not sealed):
+     * - [typeName] is none of [sealedSubTypes] (nor this type's own [typeName] when not sealed):
      *   [VIEInterventionResult.Reason.UnknownType].
      * - [json]'s own class discriminator names another type: [VIEInterventionResult.Reason.BadJson].
      *   kotlinx-serialization dispatches decoding purely on that embedded field, and would otherwise
@@ -142,14 +143,14 @@ internal class VIERole<T> private constructor(
 
     private fun isKnown(typeName: String): Boolean = sealedSubTypes?.contains(typeName) ?: (typeName == this.typeName)
 
-    private fun unknownTypeMessage(typeName: String) = "Unknown type $typeName for role ${this.typeName}"
+    private fun unknownTypeMessage(typeName: String) = "Unknown type $typeName for ${this.typeName}"
 
     private fun mismatchMessage(typeName: String, actualType: String?) =
-        "typeName $typeName doesn't match json's own type $actualType for role ${this.typeName}"
+        "typeName $typeName doesn't match json's own type $actualType for ${this.typeName}"
 
-    /** The concrete type of [value], as [decodeForIntervention] expects it back: for a sealed role, the serial
+    /** The concrete type of [value], as [decodeForIntervention] expects it back: for a sealed type, the serial
      *  name of [value]'s registered subtype — one of [sealedSubTypes], even when [value] itself
-     *  fails to encode; this role's own [typeName] for any other serializable role. */
+     *  fails to encode; this type's own [typeName] for any other serializable type. */
     fun typeNameOf(value: T & Any): String {
         if (sealedSubTypes != null) {
             return serialNameOf(value) ?: value::class.displayName ?: typeName
@@ -172,13 +173,13 @@ internal class VIERole<T> private constructor(
     }
 
     /** The concrete type name carried by [json]'s class discriminator (see [classDiscriminator]),
-     *  or `null` when [json] carries none (a non-sealed role's JSON). */
+     *  or `null` when [json] carries none (a non-sealed type's JSON). */
     private fun concreteTypeNameIn(json: JsonElement?): String? =
         ((json as? JsonObject)?.get(classDiscriminator) as? JsonPrimitive)?.contentOrNull
 
     companion object {
         /**
-         * Builds a [VIERole] for [type], which must be [T]'s own type, introspecting its serializer,
+         * Builds a [VIEObjectType] for [type], which must be [T]'s own type, introspecting its serializer,
          * type name, and (if sealed) its subtypes.
          *
          * An open polymorphic serializer counts as none: kotlinx-serialization hands one out for any
@@ -192,17 +193,17 @@ internal class VIERole<T> private constructor(
          * without JSON. So does a type kotlinx-serialization refuses to look up, such as one with a
          * star projection.
          */
-        fun <T> of(type: KType, log: ProbeLog): VIERole<T> =
+        fun <T> of(type: KType, log: ProbeLog): VIEObjectType<T> =
             log.callingApp({ "introspect $type, reported without JSON" }) { introspect<T>(type) } ?: notSerializable(type)
 
-        /** The role of [type], or `null` if it has no serializer the probe can use. Runs app code, and
+        /** What is introspected of [type], or `null` if it has no serializer the probe can use. Runs app code, and
          *  throws whatever it throws. */
         @Suppress("UNCHECKED_CAST")
-        private fun <T> introspect(type: KType): VIERole<T>? {
+        private fun <T> introspect(type: KType): VIEObjectType<T>? {
             val serializer = (serializerOrNull(type) as KSerializer<T>?) ?: return null
             val descriptor = serializer.descriptor
             if (descriptor.kind == PolymorphicKind.OPEN) return null
-            return VIERole(
+            return VIEObjectType(
                 typeName = descriptor.serialName,
                 serializer = serializer,
                 sealedSubTypes = descriptor
@@ -218,7 +219,7 @@ internal class VIERole<T> private constructor(
             )
         }
 
-        private fun <T> notSerializable(type: KType): VIERole<T> = VIERole(
+        private fun <T> notSerializable(type: KType): VIEObjectType<T> = VIEObjectType(
             typeName = type.toString(),
             serializer = null,
             sealedSubTypes = null,

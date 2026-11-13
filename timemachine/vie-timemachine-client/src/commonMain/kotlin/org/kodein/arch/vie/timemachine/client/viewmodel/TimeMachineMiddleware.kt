@@ -11,8 +11,8 @@ import org.kodein.arch.vie.VIE
 import org.kodein.arch.vie.VIEMiddleware
 import org.kodein.arch.vie.VIEViewModel
 import org.kodein.arch.vie.timemachine.client.ProbeTuning
-import org.kodein.arch.vie.timemachine.client.role.VIERole
-import org.kodein.arch.vie.timemachine.client.role.displayName
+import org.kodein.arch.vie.timemachine.client.type.VIEObjectType
+import org.kodein.arch.vie.timemachine.client.type.displayName
 import org.kodein.arch.vie.timemachine.client.timeline.TimeMachineIntervener
 import org.kodein.arch.vie.timemachine.client.timeline.TimeMachineSink
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineServerMessage
@@ -24,8 +24,8 @@ import org.kodein.arch.vie.timemachine.protocol.VIEViewModelInfo
 
 /**
  * The probe's middleware: reports one ViewModel's start, every model, intent and signal that passes
- * through it, and its close, to [sink]; and places the objects the inspector intervenes with into
- * that ViewModel.
+ * through it, and its close, to [sink]; and injects into that ViewModel the object of each
+ * intervention the inspector requests.
  *
  * - *Started* is reported when the middleware is attached to its ViewModel, not when it is built:
  *   a middleware built but never installed reports nothing. The ViewModel is named after its own
@@ -58,7 +58,7 @@ import org.kodein.arch.vie.timemachine.protocol.VIEViewModelInfo
  *
  * As [VIEMiddleware.onAttached] requires, an instance serves exactly one ViewModel: the first it is
  * attached to. Attached to another one too (e.g. as a DI singleton), it prints a notice, and neither
- * reports that ViewModel's start and close nor intervenes on it. It ignores that ViewModel's models,
+ * reports that ViewModel's start and close nor injects anything into it. It ignores that ViewModel's models,
  * intents and signals too, but only when the two are built one after the other on a single-threaded
  * dispatcher, such as `Dispatchers.Main`: the intercepts are not told which ViewModel calls them, and
  * the first call of each wins. A ViewModel calls [interceptModels] from the coroutine that collects
@@ -74,9 +74,9 @@ import org.kodein.arch.vie.timemachine.protocol.VIEViewModelInfo
  * closed, and the middleware reports nothing more.
  */
 internal class TimeMachineMiddleware<Model : VIE.Model, Intent : VIE.Intent, Signal : VIE.Signal>(
-    private val modelRole: VIERole<Model>,
-    private val intentRole: VIERole<Intent>,
-    private val signalRole: VIERole<Signal>,
+    private val modelType: VIEObjectType<Model>,
+    private val intentType: VIEObjectType<Intent>,
+    private val signalType: VIEObjectType<Signal>,
     private val sink: TimeMachineSink,
 ) : VIEMiddleware<Model, Intent, Signal> {
 
@@ -94,7 +94,7 @@ internal class TimeMachineMiddleware<Model : VIE.Model, Intent : VIE.Intent, Sig
     private val intentsIntercepted = AtomicBoolean(false)
     private val signalsIntercepted = AtomicBoolean(false)
 
-    // Injected objects on their way into the ViewModel, by the request that placed them. Touched by the
+    // Injected objects on their way into the ViewModel, by the intervention request they answer. Touched by the
     // injector's `entering` callbacks and by observation: several of `viewModelScope`'s coroutines,
     // which run on several threads when its dispatcher does (e.g. `Dispatchers.Default`, the fallback
     // when no Main dispatcher is available).
@@ -104,15 +104,15 @@ internal class TimeMachineMiddleware<Model : VIE.Model, Intent : VIE.Intent, Sig
 
     override fun interceptModels(flow: Flow<Model>): Flow<Model> =
         if (!modelsIntercepted.compareAndSet(expectedValue = false, newValue = true)) flow
-        else flow.onEach { observe(VIEObjectKind.Model, modelRole, it, injectedModels.take(it)) }
+        else flow.onEach { observe(VIEObjectKind.Model, modelType, it, injectedModels.take(it)) }
 
     override fun interceptIntents(flow: Flow<Intent>): Flow<Intent> =
         if (!intentsIntercepted.compareAndSet(expectedValue = false, newValue = true)) flow
-        else flow.onEach { observe(VIEObjectKind.Intent, intentRole, it, injectedIntents.take(it)) }
+        else flow.onEach { observe(VIEObjectKind.Intent, intentType, it, injectedIntents.take(it)) }
 
     override fun interceptSignals(flow: Flow<Signal>): Flow<Signal> =
         if (!signalsIntercepted.compareAndSet(expectedValue = false, newValue = true)) flow
-        else flow.onEach { observe(VIEObjectKind.Signal, signalRole, it, injectedSignals.take(it)) }
+        else flow.onEach { observe(VIEObjectKind.Signal, signalType, it, injectedSignals.take(it)) }
 
     override fun onAttached(vm: VIEViewModel<Model, Intent, Signal>) {
         if (!attached.compareAndSet(expectedValue = false, newValue = true)) {
@@ -133,13 +133,13 @@ internal class TimeMachineMiddleware<Model : VIE.Model, Intent : VIE.Intent, Sig
     private fun infoOf(vm: VIEViewModel<Model, Intent, Signal>) = VIEViewModelInfo(
         id = viewModelId,
         typeName = vm.typeName,
-        model = modelRole.toVIETypeInfo(),
-        intent = intentRole.toVIETypeInfo(),
-        signal = signalRole.toVIETypeInfo(),
+        model = modelType.toVIETypeInfo(),
+        intent = intentType.toVIETypeInfo(),
+        signal = signalType.toVIETypeInfo(),
     )
 
     /**
-     * Intervenes in the ViewModel [viewModel] gives back, for as long as it does. It only captures
+     * Handles the interventions in the ViewModel [viewModel] gives back, for as long as it does. It only captures
      * that weak reference, never the ViewModel: the sink's registry holds it until the ViewModel is
      * cleared, and one that never is must still be garbage-collected.
      */
@@ -157,13 +157,13 @@ internal class TimeMachineMiddleware<Model : VIE.Model, Intent : VIE.Intent, Sig
         if (closed.load()) return closedFailure()
         val requestId = request.requestId
         return when (request.kind) {
-            VIEObjectKind.Model -> modelRole.decode(request) { model ->
+            VIEObjectKind.Model -> modelType.decode(request) { model ->
                 injector.injectModel(model) { injectedModels.add(Injected(model, requestId)) }.asResult()
             }
-            VIEObjectKind.Intent -> intentRole.decode(request) { intent ->
+            VIEObjectKind.Intent -> intentType.decode(request) { intent ->
                 injector.injectIntent(intent) { injectedIntents.add(Injected(intent, requestId)) }.asResult()
             }
-            VIEObjectKind.Signal -> signalRole.decode(request) { signal ->
+            VIEObjectKind.Signal -> signalType.decode(request) { signal ->
                 injector.injectSignal(signal) { injectedSignals.add(Injected(signal, requestId)) }?.asResult()
                     ?: VIEInterventionResult.Failure(Reason.UnknownType, "${request.typeName} is neither a VIE.Signal.Event nor a VIE.Signal.Effect")
             }
@@ -175,19 +175,19 @@ internal class TimeMachineMiddleware<Model : VIE.Model, Intent : VIE.Intent, Sig
     // An injection launched on a cleared ViewModel's scope is cancelled from the start: its object never enters.
     private fun Job.asResult(): VIEInterventionResult = if (isCancelled) closedFailure() else VIEInterventionResult.Success
 
-    private inline fun <T> VIERole<T>.decode(
+    private inline fun <T> VIEObjectType<T>.decode(
         request: TimeMachineServerMessage.Intervene,
         inject: (T) -> VIEInterventionResult,
     ): VIEInterventionResult =
         when (val decoded = decodeForIntervention(request.typeName, request.asJson)) {
-            is VIERole.Decoded.Value -> inject(decoded.value)
-            is VIERole.Decoded.Refused -> decoded.failure
+            is VIEObjectType.Decoded.Value -> inject(decoded.value)
+            is VIEObjectType.Decoded.Refused -> decoded.failure
         }
 
-    private fun <T : Any> observe(kind: VIEObjectKind, role: VIERole<T>, value: T, interventionId: Uuid?) {
+    private fun <T : Any> observe(kind: VIEObjectKind, type: VIEObjectType<T>, value: T, interventionId: Uuid?) {
         // Only narrows the race with the close: a report already past this check can still follow it.
         if (closed.load()) return
-        sink.log.onAppThread({ "report $kind" }) { sink.observed(viewModelId, kind, role, value, interventionId) }
+        sink.log.onAppThread({ "report $kind" }) { sink.observed(viewModelId, kind, type, value, interventionId) }
     }
 }
 
@@ -198,7 +198,7 @@ internal class TimeMachineMiddleware<Model : VIE.Model, Intent : VIE.Intent, Sig
 private val VIEViewModel<*, *, *>.typeName: String
     get() = this::class.let { it.displayName ?: it.simpleName ?: "<anonymous>" }
 
-/** An object an intervention placed into a ViewModel, and the request that placed it. */
+/** An object injected into a ViewModel, and the intervention request it answers. */
 private class Injected<T>(val value: T, val requestId: Uuid)
 
 /**
