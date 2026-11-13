@@ -10,6 +10,7 @@ import kotlinx.coroutines.flow.onEach
 import org.kodein.arch.vie.VIE
 import org.kodein.arch.vie.VIEMiddleware
 import org.kodein.arch.vie.VIEViewModel
+import org.kodein.arch.vie.timemachine.client.ProbeTuning
 import org.kodein.arch.vie.timemachine.client.role.VIERole
 import org.kodein.arch.vie.timemachine.client.role.displayName
 import org.kodein.arch.vie.timemachine.client.timeline.TimeMachineIntervener
@@ -217,7 +218,7 @@ private class InjectedQueue<T> {
     private val queue = AtomicReference<List<Injected<T>>>(emptyList())
 
     fun add(injected: Injected<T>) {
-        queue.update { (if (it.size == 32) it.drop(1) else it) + injected }
+        queue.update { (if (it.size == ProbeTuning.maxPendingInjections) it.drop(1) else it) + injected }
     }
 
     /** The request that injected [value] itself — not an equal object — if any; forgotten once taken. */

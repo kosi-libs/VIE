@@ -50,8 +50,8 @@ public class TimeMachineConfig(
     public val enabled: Boolean,
     public val host: String = "localhost",
     public val port: Int = TimeMachineConnection.port,
-    public val bufferSize: Int = 1024,
-    public val maxObservationLength: Int = defaultMaxObservationLength,
+    public val bufferSize: Int = ProbeTuning.bufferSize,
+    public val maxObservationLength: Int = ProbeTuning.maxObservationLength,
     public val logger: (String) -> Unit = ::println,
 ) {
     /** What makes this configuration invalid, i.e. what keeps a probe from starting with it, or
@@ -67,6 +67,3 @@ public class TimeMachineConfig(
     /** The inspector's WebSocket, as the probe connects to it and prints it. */
     internal val inspectorAddress: String get() = "ws://$host:$port${TimeMachineConnection.path}"
 }
-
-/** [TimeMachineConfig.maxObservationLength] when the app does not choose: a megabyte of characters. */
-internal const val defaultMaxObservationLength: Int = 1024 * 1024

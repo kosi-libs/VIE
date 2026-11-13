@@ -9,9 +9,6 @@ import io.ktor.websocket.Frame
 import io.ktor.websocket.readText
 import kotlin.coroutines.cancellation.CancellationException
 import kotlin.time.Duration
-import kotlin.time.Duration.Companion.milliseconds
-import kotlin.time.Duration.Companion.minutes
-import kotlin.time.Duration.Companion.seconds
 import kotlin.time.TimeSource
 import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.coroutineScope
@@ -21,6 +18,7 @@ import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withTimeout
 import org.kodein.arch.vie.timemachine.client.ProbeLog
+import org.kodein.arch.vie.timemachine.client.ProbeTuning
 import org.kodein.arch.vie.timemachine.client.TimeMachineConfig
 import org.kodein.arch.vie.timemachine.client.TimeMachineProbe
 import org.kodein.arch.vie.timemachine.client.timeline.TimeMachineIntervener
@@ -54,13 +52,13 @@ internal class InspectorConnection(
     private val sink: TimeMachineSink,
     private val outbox: TimeMachineOutbox,
     private val log: ProbeLog,
-    private val firstRetryDelay: Duration = 500.milliseconds,
-    private val maxRetryDelay: Duration = 5.seconds,
-    private val quietAfter: Duration = 1.minutes,
-    private val quietRetryDelay: Duration = 30.seconds,
-    private val heldAfter: Duration = 5.seconds,
-    private val pingInterval: Duration = 5.seconds,
-    private val handshakeTimeout: Duration = 10.seconds,
+    private val firstRetryDelay: Duration = ProbeTuning.firstRetryDelay,
+    private val maxRetryDelay: Duration = ProbeTuning.maxRetryDelay,
+    private val quietAfter: Duration = ProbeTuning.quietAfter,
+    private val quietRetryDelay: Duration = ProbeTuning.quietRetryDelay,
+    private val heldAfter: Duration = ProbeTuning.heldAfter,
+    private val pingInterval: Duration = ProbeTuning.pingInterval,
+    private val handshakeTimeout: Duration = ProbeTuning.handshakeTimeout,
 ) : AutoCloseable {
 
     // The connection is pinged every `pingInterval`, and closed when a pong is late, so that a
@@ -246,5 +244,6 @@ internal class InspectorConnection(
         }
 
     /** The start of a frame: an `Intervene` frame carries a whole object, of any size. */
-    private fun String.excerpt(): String = if (length <= 100) this else "${take(100)}…"
+    private fun String.excerpt(): String =
+        if (length <= ProbeTuning.frameExcerptLength) this else "${take(ProbeTuning.frameExcerptLength)}…"
 }

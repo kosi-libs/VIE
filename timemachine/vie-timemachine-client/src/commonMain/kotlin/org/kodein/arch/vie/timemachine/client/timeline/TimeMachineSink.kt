@@ -7,8 +7,8 @@ import kotlin.time.Clock
 import kotlin.uuid.Uuid
 import org.kodein.arch.vie.VIE
 import org.kodein.arch.vie.timemachine.client.ProbeLog
+import org.kodein.arch.vie.timemachine.client.ProbeTuning
 import org.kodein.arch.vie.timemachine.client.callingApp
-import org.kodein.arch.vie.timemachine.client.defaultMaxObservationLength
 import org.kodein.arch.vie.timemachine.client.role.VIERole
 import org.kodein.arch.vie.timemachine.client.viewmodel.TimeMachineMiddleware
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineClientMessage
@@ -54,7 +54,7 @@ import org.kodein.arch.vie.timemachine.protocol.VIEViewModelInfo
  */
 internal class TimeMachineSink(
     val log: ProbeLog,
-    maxObservationLength: Int = defaultMaxObservationLength,
+    maxObservationLength: Int = ProbeTuning.maxObservationLength,
     private val outlet: (Entry) -> Unit,
 ) {
 
@@ -84,7 +84,7 @@ internal class TimeMachineSink(
 
     // The registry size from which [started] prunes it: twice what the last pruning left, so that
     // pruning costs each start a constant on average. Only a hint: a race on it prunes once more or less.
-    private val pruneFrom = AtomicInt(minPruneFrom)
+    private val pruneFrom = AtomicInt(ProbeTuning.minPruneFrom)
 
     /**
      * The ViewModels started and not closed yet, by identifier; none once the sink is closed. Looking
@@ -109,7 +109,7 @@ internal class TimeMachineSink(
         outlet(Entry(info.id) { TimeMachineClientMessage.ViewModelStarted(info = info, at = at, sequence = it) })
         // Without this, an app that never clears its ViewModels would grow the registry for as long
         // as no inspector looks it up.
-        if ((live.load()?.size ?: 0) >= pruneFrom.load()) pruneFrom.store(maxOf(minPruneFrom, 2 * prune()))
+        if ((live.load()?.size ?: 0) >= pruneFrom.load()) pruneFrom.store(maxOf(ProbeTuning.minPruneFrom, 2 * prune()))
     }
 
     /**
@@ -170,10 +170,6 @@ internal class TimeMachineSink(
             left--
         }
         return left
-    }
-
-    private companion object {
-        const val minPruneFrom = 16
     }
 }
 

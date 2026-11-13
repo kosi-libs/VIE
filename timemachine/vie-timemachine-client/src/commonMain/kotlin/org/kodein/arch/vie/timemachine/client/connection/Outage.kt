@@ -80,6 +80,9 @@ internal class Outage(
     }
 
     private fun retryDelay(failures: Int, cap: Duration): Duration =
-        if (failures >= 30) cap
+        if (failures >= maxDoublings) cap
         else (firstRetryDelay * (1 shl failures).toDouble()).coerceAtMost(cap)
 }
+
+/** Past it, `1 shl failures` overflows an `Int`: not a setting, and any cap is reached long before. */
+private const val maxDoublings = 30

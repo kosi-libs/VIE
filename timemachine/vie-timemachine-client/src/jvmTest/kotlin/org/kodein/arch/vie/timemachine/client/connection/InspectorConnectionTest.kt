@@ -35,6 +35,7 @@ import kotlinx.serialization.encoding.Encoder
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonPrimitive
 import org.kodein.arch.vie.timemachine.client.ProbeLog
+import org.kodein.arch.vie.timemachine.client.ProbeTuning
 import org.kodein.arch.vie.timemachine.client.TimeMachineConfig
 import org.kodein.arch.vie.timemachine.client.TimeMachineProbe
 import org.kodein.arch.vie.timemachine.client.fixtures.FakeInspector
@@ -87,9 +88,9 @@ private class Probed(
 
 private fun withConnection(
     inspector: FakeInspector,
-    bufferSize: Int = 1024,
-    window: Int = 256 * 1024,
-    maxObservationLength: Int = TimeMachineConfig(appName = "", enabled = false).maxObservationLength,
+    bufferSize: Int = ProbeTuning.bufferSize,
+    window: Int = ProbeTuning.window,
+    maxObservationLength: Int = ProbeTuning.maxObservationLength,
     maxRetryDelay: Duration = 100.milliseconds,
     // Longer than any test: no connection holds unless the test asks for it.
     heldAfter: Duration = 10.seconds,

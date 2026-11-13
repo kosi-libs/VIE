@@ -9,7 +9,7 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
-import org.kodein.arch.vie.timemachine.client.defaultMaxObservationLength
+import org.kodein.arch.vie.timemachine.client.ProbeTuning
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineClientMessage
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineJson
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineSequence
@@ -45,8 +45,8 @@ import org.kodein.arch.vie.timemachine.protocol.TimeMachineTimelineMessage
  */
 internal class TimeMachineOutbox(
     capacity: Int,
-    private val window: Int = 256 * 1024,
-    private val maxObservationLength: Int = defaultMaxObservationLength,
+    private val window: Int = ProbeTuning.window,
+    private val maxObservationLength: Int = ProbeTuning.maxObservationLength,
 ) {
 
     /** A message numbered and encoded, ready to send. */
