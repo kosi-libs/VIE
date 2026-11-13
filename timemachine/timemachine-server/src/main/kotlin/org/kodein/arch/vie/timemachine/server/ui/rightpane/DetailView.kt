@@ -45,14 +45,13 @@ import org.kodein.arch.vie.timemachine.server.ui.common.TreeRawSwitch
 import org.kodein.arch.vie.timemachine.server.ui.common.action
 import org.kodein.arch.vie.timemachine.server.ui.common.formatTime
 import org.kodein.arch.vie.timemachine.server.ui.common.jsonTree
-import org.kodein.arch.vie.timemachine.server.ui.common.kind
 import org.kodein.arch.vie.timemachine.server.ui.common.pretty
 import org.kodein.arch.vie.timemachine.server.ui.common.rawJson
 import org.kodein.arch.vie.timemachine.server.ui.common.rememberCopy
 import org.kodein.arch.vie.timemachine.server.ui.common.rememberJsonLines
 import org.kodein.arch.vie.timemachine.server.ui.common.splitSerialName
+import org.kodein.arch.vie.timemachine.server.ui.common.style
 import org.kodein.arch.vie.timemachine.server.ui.common.treeLines
-import org.kodein.arch.vie.timemachine.server.ui.common.verb
 import org.kodein.arch.vie.timemachine.server.ui.core.InspectorPane
 import org.kodein.arch.vie.timemachine.server.ui.core.LocalInspector
 import org.kodein.arch.vie.timemachine.server.ui.theme.Glyph
@@ -145,16 +144,14 @@ private fun DetailHeader(observation: VIEObservation, sequence: TimeMachineSeque
     val colors = InspectorTheme.colors
     val copy = rememberCopy()
     val kind = observation.kind
+    val kindStyle = kind.style()
     val name = splitSerialName(observation.typeName)
     val json = observation.asJson
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
             KindBadge(kind)
-            Symbol(if (kind == VIEObjectKind.Intent) Glyph.Login else Glyph.Logout, size = 16.dp, tint = colors.kind(kind), mirrored = kind != VIEObjectKind.Intent)
-            Text(
-                if (kind == VIEObjectKind.Intent) "into the ViewModel" else "out of the ViewModel",
-                style = InspectorTheme.text.body, color = scheme.onSurfaceVariant,
-            )
+            Symbol(kindStyle.direction.glyph, size = 16.dp, tint = kindStyle.color(colors), mirrored = kindStyle.direction.mirrored)
+            Text(kindStyle.direction.label, style = InspectorTheme.text.body, color = scheme.onSurfaceVariant)
             Spacer(Modifier.weight(1f))
             Text("#$sequence · ${formatTime(observation.at)}", style = InspectorTheme.text.codeRow, color = scheme.onSurfaceVariant, maxLines = 1)
         }
@@ -175,7 +172,7 @@ private fun DetailHeader(observation: VIEObservation, sequence: TimeMachineSeque
                     buildAnnotatedString {
                         append("Sent by the inspector — ")
                         withStyle(SpanStyle(fontWeight = FontWeight.SemiBold)) { append("intervention #$number") }
-                        projection.interventionKind?.let { append(" · ${verb(it)}") }
+                        projection.interventionKind?.let { append(" · ${it.style().verb}") }
                     },
                     style = InspectorTheme.text.body, color = scheme.onSurface, modifier = Modifier.weight(1f),
                 )
