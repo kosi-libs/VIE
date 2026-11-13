@@ -16,8 +16,11 @@ import kotlin.uuid.Uuid
  * through the probe's queue: they arrive in either order, and either can arrive without the other.
  * So [status] is a function of the facts, not of the order they arrived in.
  *
- * @property sent Whether the [TimeMachineServerMessage.Intervene] was sent: not when the session was
- *   disconnected.
+ * @property sent Whether the [TimeMachineServerMessage.Intervene] was handed to the transport, the
+ *   session having a connection the store believed alive when it applied the request: not when the
+ *   session was disconnected. An attempt, not a delivery: a connection that turns out to be gone,
+ *   ended in the same batch or before the frame is written, drops it unnoticed, and the intervention
+ *   ends [InterventionStatus.TimedOut] rather than [InterventionStatus.NotSent].
  * @property result The probe's first answer.
  * @property taggedSequence The sequence of the observation tagged with [requestId], whether it was
  *   placed or counted as evicted.
