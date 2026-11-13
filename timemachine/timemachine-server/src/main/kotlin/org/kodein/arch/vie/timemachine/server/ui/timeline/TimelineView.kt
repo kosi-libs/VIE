@@ -90,7 +90,7 @@ import org.kodein.arch.vie.timemachine.server.ui.common.kindContainer
 import org.kodein.arch.vie.timemachine.server.ui.common.pretty
 import org.kodein.arch.vie.timemachine.server.ui.common.rememberCopy
 import org.kodein.arch.vie.timemachine.server.ui.common.rememberJsonLines
-import org.kodein.arch.vie.timemachine.server.ui.common.role
+import org.kodein.arch.vie.timemachine.server.ui.common.type
 import org.kodein.arch.vie.timemachine.server.ui.common.splitSerialName
 import org.kodein.arch.vie.timemachine.server.ui.common.viewModelName
 import org.kodein.arch.vie.timemachine.server.ui.core.InspectorPane
@@ -213,7 +213,7 @@ private fun ViewModelHeader(header: TimelineHeader.ViewModel) {
     val scheme = MaterialTheme.colorScheme
     val colors = InspectorTheme.colors
     val info = header.info
-    // Whether the type info is open: one panel for the three roles, whichever chip opened it. It is this
+    // Whether the type info is open: one panel for the three kinds, whichever chip opened it. It is this
     // header's own: the one of another ViewModel starts closed.
     var typeInfoOpen by remember { mutableStateOf(false) }
     val gone = header.status == ViewModelStatus.Closed || !header.sessionConnected
@@ -254,8 +254,8 @@ private fun ViewModelHeader(header: TimelineHeader.ViewModel) {
             Box {
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     for (kind in VIEObjectKind.entries) {
-                        val role = info.role(kind)
-                        TypeChip(kind, role, open = typeInfoOpen) { typeInfoOpen = !typeInfoOpen }
+                        val typeInfo = info.type(kind)
+                        TypeChip(kind, typeInfo, open = typeInfoOpen) { typeInfoOpen = !typeInfoOpen }
                     }
                 }
                 if (typeInfoOpen) {
@@ -279,7 +279,7 @@ private fun ViewModelHeader(header: TimelineHeader.ViewModel) {
 }
 
 @Composable
-private fun TypeChip(kind: VIEObjectKind, role: VIETypeInfo, open: Boolean, onClick: () -> Unit) {
+private fun TypeChip(kind: VIEObjectKind, typeInfo: VIETypeInfo, open: Boolean, onClick: () -> Unit) {
     val scheme = MaterialTheme.colorScheme
     val colors = InspectorTheme.colors
     Row(
@@ -297,12 +297,12 @@ private fun TypeChip(kind: VIEObjectKind, role: VIETypeInfo, open: Boolean, onCl
             kind.name,
             style = InspectorTheme.text.action.copy(
                 fontWeight = FontWeight.Normal,
-                textDecoration = if (role.isSerializable) TextDecoration.None else TextDecoration.LineThrough,
+                textDecoration = if (typeInfo.isSerializable) TextDecoration.None else TextDecoration.LineThrough,
             ),
-            color = if (role.isSerializable) scheme.onSurfaceVariant else scheme.outline,
+            color = if (typeInfo.isSerializable) scheme.onSurfaceVariant else scheme.outline,
         )
-        Symbol(if (role.isSerializable) "data_object" else "text_fields", size = 14.dp, tint = if (role.isSerializable) colors.success else colors.error)
-        role.sealedSubTypes?.let { Text(it.size.toString(), style = InspectorTheme.text.monoMeta, color = scheme.outline) }
+        Symbol(if (typeInfo.isSerializable) "data_object" else "text_fields", size = 14.dp, tint = if (typeInfo.isSerializable) colors.success else colors.error)
+        typeInfo.sealedSubTypes?.let { Text(it.size.toString(), style = InspectorTheme.text.monoMeta, color = scheme.outline) }
     }
 }
 
@@ -319,8 +319,8 @@ private fun TypeInfoPopover(info: VIEViewModelInfo) {
     ) {
         Text("Type info", style = MaterialTheme.typography.titleSmall, color = scheme.onSurface)
         for (kind in VIEObjectKind.entries) {
-            val role = info.role(kind)
-            val parts = splitSerialName(role.typeName)
+            val typeInfo = info.type(kind)
+            val parts = splitSerialName(typeInfo.typeName)
             Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                     KindBadge(kind)
@@ -334,14 +334,14 @@ private fun TypeInfoPopover(info: VIEViewModelInfo) {
                     horizontalArrangement = Arrangement.spacedBy(6.dp), verticalArrangement = Arrangement.spacedBy(4.dp),
                     itemVerticalAlignment = Alignment.CenterVertically,
                 ) {
-                    val ok = role.isSerializable
+                    val ok = typeInfo.isSerializable
                     Text(
                         if (ok) "JSON · can intervene" else "toString only · can't intervene",
                         style = InspectorTheme.text.actionSmall,
                         color = if (ok) colors.success else colors.error,
                         modifier = Modifier.background(if (ok) colors.successContainer else colors.errorContainer, RoundedCornerShape(4.dp)).padding(horizontal = 6.dp),
                     )
-                    role.sealedSubTypes?.forEach { sub ->
+                    typeInfo.sealedSubTypes?.forEach { sub ->
                         Text(
                             sub, style = InspectorTheme.text.monoSecondary, color = scheme.onSurfaceVariant,
                             modifier = Modifier.border(1.dp, scheme.outlineVariant, RoundedCornerShape(4.dp)).padding(horizontal = 5.dp),

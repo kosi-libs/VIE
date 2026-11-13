@@ -141,7 +141,7 @@ internal data class ModelDiff(val previous: TimeMachineSequence, val ops: List<D
  * @property interventionNumber For an intervened observation, its number within its ViewModel.
  * @property snippet Under a query, the text that matched, trimmed to bring the hit into view.
  * @property source In a session scope, the ViewModel the row belongs to, as the `[180]` column names it.
- * @property canIntervene Whether Edit & intervene is open on it: it has JSON, its role is serializable,
+ * @property canIntervene Whether Edit & intervene is open on it: it has JSON, its type is serializable,
  *   its ViewModel is alive and its session connected.
  */
 internal data class TimelineItem(
@@ -254,12 +254,12 @@ internal class TimelineProjector(private val scope: InspectorScope) {
 
     private fun canIntervene(session: SessionRecord, vm: ViewModelRecord, observation: VIEObservation): Boolean {
         val info = vm.info ?: return false
-        val role = when (observation.kind) {
+        val typeInfo = when (observation.kind) {
             VIEObjectKind.Model -> info.model
             VIEObjectKind.Intent -> info.intent
             VIEObjectKind.Signal -> info.signal
         }
-        return session.isConnected && !vm.closed && role.isSerializable && observation.asJson != null
+        return session.isConnected && !vm.closed && typeInfo.isSerializable && observation.asJson != null
     }
 
     private fun ViewModelRecord.label(): String = viewModelLabel(info?.typeName, id)
