@@ -206,6 +206,8 @@ class ViewModelTest {
 
         assertEquals(seq(2), record.previousModel(seq(4))?.sequence)
         assertEquals(seq(0), record.previousModel(seq(2))?.sequence)
+        assertEquals(seq(2), record.previousModel(seq(3))?.sequence)
+        assertEquals(seq(4), record.previousModel(seq(9))?.sequence)
         assertNull(record.previousModel(seq(0)))
     }
 

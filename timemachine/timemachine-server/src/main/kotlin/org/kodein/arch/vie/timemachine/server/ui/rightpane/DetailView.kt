@@ -39,6 +39,7 @@ import org.kodein.arch.vie.timemachine.protocol.VIEObjectKind
 import org.kodein.arch.vie.timemachine.protocol.VIEObservation
 import org.kodein.arch.vie.timemachine.server.ui.common.DiffText
 import org.kodein.arch.vie.timemachine.server.ui.common.KindBadge
+import org.kodein.arch.vie.timemachine.server.ui.common.ModelDiff
 import org.kodein.arch.vie.timemachine.server.ui.common.ScrollbarBox
 import org.kodein.arch.vie.timemachine.server.ui.common.TreeRawSwitch
 import org.kodein.arch.vie.timemachine.server.ui.common.action
@@ -58,7 +59,6 @@ import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorDimens
 import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorPillShape
 import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorTheme
 import org.kodein.arch.vie.timemachine.server.ui.theme.Symbol
-import org.kodein.arch.vie.timemachine.server.ui.timeline.ModelDiff
 
 /** The Detail tab: [DetailPaneContent] over what the store holds and the window has selected. */
 @Composable

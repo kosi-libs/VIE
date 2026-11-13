@@ -88,7 +88,7 @@ class ScrollbarsTest {
     fun `the timeline shows a scrollbar while its rows overflow`() {
         val controls = TimelineVIE.Controls()
         val vie = MockVIE<TimelineVIE.Model, TimelineVIE.Intent, NoSignal>(
-            TimelineVIE.Model(controls, TimelineProjector(session).project(main.state(), Selection(session), controls)),
+            TimelineVIE.Model(controls, TimelineProjector(session, ModelDiffs()).project(main.state(), Selection(session), controls)),
         )
         contentTest(width = 700, height = 300, content = { vie.Rendered { TimelineContent(session, it, selectedRow = { null }) } }) {
             assertTrue(scrollbarAtTheEdge(700, 300))

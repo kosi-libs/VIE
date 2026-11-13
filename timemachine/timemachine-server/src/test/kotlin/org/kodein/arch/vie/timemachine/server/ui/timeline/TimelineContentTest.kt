@@ -38,6 +38,7 @@ import org.kodein.arch.vie.timemachine.server.fixtures.ScenarioData
 import org.kodein.arch.vie.timemachine.server.fixtures.contentTest
 import org.kodein.arch.vie.timemachine.server.fixtures.shown
 import org.kodein.arch.vie.timemachine.server.fixtures.state
+import org.kodein.arch.vie.timemachine.server.ui.common.ModelDiffs
 import org.kodein.arch.vie.timemachine.server.ui.core.InspectorScope
 import org.kodein.arch.vie.timemachine.server.ui.core.Selection
 
@@ -59,7 +60,7 @@ class TimelineContentTest {
         scope: InspectorScope,
         data: ScenarioData = ScenarioData.of("main"),
         controls: TimelineVIE.Controls = TimelineVIE.Controls(),
-    ) = TimelineVIE.Model(controls, TimelineProjector(scope).project(data.state(), Selection(scope), controls))
+    ) = TimelineVIE.Model(controls, TimelineProjector(scope, ModelDiffs()).project(data.state(), Selection(scope), controls))
 
     private fun mock(model: TimelineVIE.Model) = MockVIE<TimelineVIE.Model, TimelineVIE.Intent, NoSignal>(model)
 

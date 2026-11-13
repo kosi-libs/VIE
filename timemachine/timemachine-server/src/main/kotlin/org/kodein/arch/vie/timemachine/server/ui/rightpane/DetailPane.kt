@@ -10,7 +10,8 @@ import org.kodein.arch.vie.timemachine.protocol.VIEObservation
 import org.kodein.arch.vie.timemachine.server.store.Row
 import org.kodein.arch.vie.timemachine.server.store.TimeMachineState
 import org.kodein.arch.vie.timemachine.server.ui.common.JsonPath
-import org.kodein.arch.vie.timemachine.server.ui.common.diffJson
+import org.kodein.arch.vie.timemachine.server.ui.common.ModelDiff
+import org.kodein.arch.vie.timemachine.server.ui.common.ModelDiffs
 import org.kodein.arch.vie.timemachine.server.ui.common.interventionNumber
 import org.kodein.arch.vie.timemachine.server.ui.common.pretty
 import org.kodein.arch.vie.timemachine.server.ui.core.Inspector
@@ -20,7 +21,6 @@ import org.kodein.arch.vie.timemachine.server.ui.core.RightTab
 import org.kodein.arch.vie.timemachine.server.ui.core.Selection
 import org.kodein.arch.vie.timemachine.server.ui.core.current
 import org.kodein.arch.vie.timemachine.server.ui.core.whileShown
-import org.kodein.arch.vie.timemachine.server.ui.timeline.ModelDiff
 import kotlin.uuid.Uuid
 
 
@@ -71,31 +71,32 @@ internal data class DetailProjection(
     val observation: VIEObservation? get() = (row?.message as? TimeMachineClientMessage.Observed)?.observation
 }
 
-/** The selected row of [selection] in [state], with what Detail says of it; its JSON as text when [raw]. Nothing when none is selected or the store no longer retains it. */
-internal fun detailProjection(state: TimeMachineState, selection: Selection, raw: Boolean): DetailProjection {
+/**
+ * The selected row of [selection] in [state], with what Detail says of it: its diff from [diffs]; its JSON as text
+ * when [raw]. Nothing when none is selected or the store no longer retains it.
+ */
+internal fun detailProjection(state: TimeMachineState, selection: Selection, raw: Boolean, diffs: ModelDiffs): DetailProjection {
+    diffs.retain(state)
     val sequence = selection.row
     val session = selection.scope?.let { state.sessions[it.sessionId] }
     val vm = sequence?.let { s -> session?.viewModels?.values?.firstOrNull { it.holds(s) } } ?: return DetailProjection()
     val row = vm.row(sequence) ?: return DetailProjection()
     val observation = (row.message as? TimeMachineClientMessage.Observed)?.observation
-    val previous = if (observation?.kind == VIEObjectKind.Model) vm.previousModel(sequence) else null
-    val old = (previous?.message as? TimeMachineClientMessage.Observed)?.observation?.asJson
-    val new = observation?.asJson
     return DetailProjection(
         row = row,
         viewModelId = vm.id,
-        diff = previous?.let { ModelDiff(it.sequence, if (old != null && new != null) diffJson(old, new) else emptyList()) },
+        diff = if (observation?.kind == VIEObjectKind.Model) diffs.of(vm, sequence) else null,
         interventionNumber = observation?.interventionId?.let { vm.interventionNumber(it) },
         interventionKind = observation?.interventionId?.let { vm.interventions[it]?.kind },
         canIntervene = observation != null && canIntervene(session, vm, observation),
-        rawText = if (raw) new?.pretty() else null,
+        rawText = if (raw) observation?.asJson?.pretty() else null,
     )
 }
 
 internal class DetailVM(
     private val inspector: Inspector,
 ) : DetailVIE, PaneViewModel<DetailVIE.Model, DetailVIE.Intent, VIE.NoSignal>(
-    inspector.current().let { (state, selection) -> DetailVIE.Model(projection = detailProjection(state, selection, raw = false)) },
+    inspector.current().let { (state, selection) -> DetailVIE.Model(projection = detailProjection(state, selection, raw = false, inspector.modelDiffs)) },
 ) {
 
     init {
@@ -104,7 +105,7 @@ internal class DetailVM(
             inspector.selection.state,
             modelFlow.map { it.controls.raw }.distinctUntilChanged(),
         ) { state, selection, raw -> Triple(state, selection.resolvedIn(state), raw) }
-        project(inspector.whileShown(Key, inputs) { { (state, selection, raw) -> detailProjection(state, selection, raw) } }) { copy(projection = it) }
+        project(inspector.whileShown(Key, inputs) { { (state, selection, raw) -> detailProjection(state, selection, raw, inspector.modelDiffs) } }) { copy(projection = it) }
     }
 
     override suspend fun process(intent: DetailVIE.Intent) {
