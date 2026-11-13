@@ -40,7 +40,7 @@ internal fun hello(
 internal fun receive(connection: ConnectionId, message: TimeMachineClientMessage, length: Int = 10, now: Instant = t0) =
     TimeMachineEvent.MessageReceived(connection, message, length, now)
 
-internal fun started(vm: Uuid, sequence: Long) = TimeMachineClientMessage.ViewModelStarted(info(vm), t0, seq(sequence))
+internal fun started(vm: Uuid, sequence: Long, at: Instant = t0) = TimeMachineClientMessage.ViewModelStarted(info(vm), at, seq(sequence))
 
 internal fun closed(vm: Uuid, sequence: Long, at: Instant = t0) = TimeMachineClientMessage.ViewModelClosed(vm, at, seq(sequence))
 

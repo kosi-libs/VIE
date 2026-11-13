@@ -38,13 +38,14 @@ class ViewModelTest {
     @Test
     fun aStartRegistersTheViewModelAndPlacesItsBookendOncePerId() {
         val (state) = connected.after(
-            receive(c1, started(vm, 0), now = at(1)),
-            receive(c1, started(vm, 3)),
+            receive(c1, started(vm, 0, at = at(1)), now = at(2)),
+            receive(c1, started(vm, 3, at = at(5)), now = at(6)),
         )
 
         val record = state.vm(session.id, vm)
         assertEquals(info(vm), record.info)
-        assertEquals(at(1), record.firstSeenAt)
+        assertEquals(at(1), record.startedAt)
+        assertEquals(at(2), record.firstSeenAt)
         assertEquals(seq(0), record.startSequence)
         assertEquals(listOf(0L), state.sequencesOf(session.id, vm))
     }
