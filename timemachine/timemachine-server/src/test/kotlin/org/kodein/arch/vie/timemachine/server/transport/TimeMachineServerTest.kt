@@ -43,6 +43,17 @@ import org.kodein.arch.vie.timemachine.server.store.vmInfo
 
 private class Inspector(val store: TimeMachineStore, val server: TimeMachineServer, val probe: FakeProbe) {
     suspend fun until(predicate: (TimeMachineState) -> Boolean): TimeMachineState = store.state.first(predicate)
+
+    /**
+     * The sessions the inspector knows once everything sent so far was handled: a later probe's
+     * welcome comes after, and the store publishes the state before it executes the commands that
+     * send it.
+     */
+    suspend fun sessionsSoFar(): Set<Uuid> {
+        val barrier = TimeMachineSession(Uuid.random(), "Barrier")
+        probe.welcomed(barrier)
+        return store.state.value.sessions.keys - barrier.id
+    }
 }
 
 private fun inspector(
@@ -115,7 +126,7 @@ class TimeMachineServerTest {
         connection.send(started(vm, 0))
 
         assertEquals("Expected a hello, got a ViewModelStarted", connection.closeReason())
-        assertEquals(emptyMap(), store.state.value.sessions)
+        assertEquals(emptySet(), sessionsSoFar())
     }
 
     @Test
@@ -124,7 +135,7 @@ class TimeMachineServerTest {
         connection.sendBinary(byteArrayOf(1, 2, 3))
 
         assertEquals("Expected a hello, got a binary frame", connection.closeReason())
-        assertEquals(emptyMap(), store.state.value.sessions)
+        assertEquals(emptySet(), sessionsSoFar())
     }
 
     @Test
@@ -133,7 +144,7 @@ class TimeMachineServerTest {
         connection.sendText("not a message")
 
         assertEquals("Expected a hello, got an undecodable frame", connection.closeReason())
-        assertEquals(emptyMap(), store.state.value.sessions)
+        assertEquals(emptySet(), sessionsSoFar())
     }
 
     @Test
@@ -195,7 +206,7 @@ class TimeMachineServerTest {
         connection.sendText("x".repeat(2048))
 
         assertTrue(connection.closeReason().orEmpty().startsWith("Frame is too big"))
-        assertEquals(emptyMap(), store.state.value.sessions)
+        assertEquals(emptySet(), sessionsSoFar())
     }
 
     @Test
@@ -294,13 +305,14 @@ class TimeMachineServerTest {
         connection.send(started(vm, 0))
         assertEquals(TimeMachineServerMessage.Received(seq(0)), connection.receive())
 
-        connection.sendText("""{"type":"FromALaterVersion","sequence":1}""")
+        connection.sendText("""{"#type":"from-a-later-version","sequence":1}""")
         assertEquals(TimeMachineServerMessage.Received(seq(1)), connection.receive())
 
-        connection.sendText("not a message")
-        connection.sendText("""{"type":"FromALaterVersion","sequence":"2"}""")
-        assertNull(connection.receiveWithin())
-        assertEquals(SequenceLedger(floor = seq(0), highest = seq(0)), store.state.value.sessions.getValue(session.id).sequences)
+        // A sequence that is not a number is not acknowledged: the next answer is the one for 2, and a
+        // wrongly acknowledged 5 would come out before it or win over it in the same batch.
+        connection.sendText("""{"#type":"from-a-later-version","sequence":"5"}""")
+        connection.send(observed(vm, 2))
+        assertEquals(TimeMachineServerMessage.Received(seq(2)), connection.receive())
     }
 
     @Test

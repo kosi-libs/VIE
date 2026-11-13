@@ -226,18 +226,18 @@ class TimeMachineServer(
             null
         }
 
-    /**
-     * The `sequence` of a frame that does not decode, read leniently: `null` unless it is a JSON
-     * object holding a whole number there.
-     */
-    private fun sequenceIn(text: String): TimeMachineSequence? =
-        try {
-            ((TimeMachineJson.parseToJsonElement(text) as? JsonObject)?.get("sequence") as? JsonPrimitive)
-                ?.takeUnless { it.isString }?.longOrNull?.let(::TimeMachineSequence)
-        } catch (_: Exception) {
-            null
-        }
-
     /** The start of a frame: an observation carries a whole object, of any size. */
     private fun String.excerpt(): String = if (length <= 100) this else "${take(100)}…"
 }
+
+/**
+ * The `sequence` of a frame that does not decode, read leniently: `null` unless it is a JSON
+ * object holding a whole number there.
+ */
+internal fun sequenceIn(text: String): TimeMachineSequence? =
+    try {
+        ((TimeMachineJson.parseToJsonElement(text) as? JsonObject)?.get("sequence") as? JsonPrimitive)
+            ?.takeUnless { it.isString }?.longOrNull?.let(::TimeMachineSequence)
+    } catch (_: Exception) {
+        null
+    }

@@ -9,10 +9,8 @@ import io.ktor.client.plugins.websocket.webSocketSession
 import io.ktor.websocket.Frame
 import io.ktor.websocket.close
 import io.ktor.websocket.readText
-import kotlin.time.Duration
-import kotlin.time.Duration.Companion.milliseconds
+import kotlin.test.fail
 import kotlinx.coroutines.cancel
-import kotlinx.coroutines.withTimeoutOrNull
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineClientMessage
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineConnection
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineJson
@@ -70,9 +68,9 @@ internal class FakeProbe(private val port: Int) : AutoCloseable {
             return null
         }
 
-        /** The reason the inspector gave when closing the connection, skipping any message before it. */
+        /** The reason the inspector gave when closing the connection; fails on any message received before it. */
         suspend fun closeReason(): String? {
-            while (receive() != null) continue
+            receive()?.let { fail("Expected the close, got $it") }
             return session.closeReason.await()?.message
         }
 
@@ -83,10 +81,6 @@ internal class FakeProbe(private val port: Int) : AutoCloseable {
                 if (message !is TimeMachineServerMessage.Received) return message
             }
         }
-
-        /** Whatever arrives within [timeout]: `null` when nothing does. */
-        suspend fun receiveWithin(timeout: Duration = 200.milliseconds): TimeMachineServerMessage? =
-            withTimeoutOrNull(timeout) { receive() }
 
         suspend fun close() {
             session.close()
