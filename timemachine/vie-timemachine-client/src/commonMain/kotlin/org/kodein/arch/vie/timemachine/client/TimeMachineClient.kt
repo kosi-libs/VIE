@@ -44,21 +44,14 @@ import org.kodein.arch.vie.timemachine.protocol.VIEInterventionResult
  *
  * The connection loop connects, sends [TimeMachineClientMessage.Hello] and waits for the inspector's
  * answer. Once welcomed, it streams the outbound queue and answers the inspector's requests until
- * the connection breaks, then retries with a capped exponential backoff. A rejection is printed —
- * once, not on every retry — and retried too: the inspector may be restarted with a compatible
- * version. So is an inspector that does not answer the handshake within `handshakeTimeout`.
+ * the connection breaks, then retries. A rejection is retried too: the inspector may be restarted
+ * with a compatible version. So is an inspector that does not answer the handshake within
+ * `handshakeTimeout`.
  *
- * The backoff starts over only once a connection has lasted `stableAfter`, not on a welcome: an
- * inspector that fails on what the probe sends first drops every connection right after welcoming
- * it, since the probe sends that first again each time. Such an inspector is retried ever less
- * often, and its drop is printed once: the connections that follow are announced only once one of
- * them holds.
- *
- * Once no connection has held for `quietAfter` — since the probe started, or since the last one
- * that held ended — the backoff is capped at `quietRetryDelay` instead: most debug sessions run with
- * no inspector open, and an unattended app should not attempt a connection every few seconds for
- * the life of its process. This is printed once per outage, and ends with the next connection that
- * holds.
+ * A connection holds once it has lasted `heldAfter`. It is announced then, not on its welcome, and
+ * only then does it end the [Outage], which decides how long to wait before each retry and what is
+ * worth printing: an inspector that fails on what the probe sends first drops every connection
+ * right after welcoming it, since the probe sends that first again each time.
  *
  * The connection is pinged every `pingInterval`, and closed when a pong is late, so that a
  * half-open connection — a phone whose wifi dropped — is not streamed into for minutes. Browsers
@@ -72,11 +65,11 @@ import org.kodein.arch.vie.timemachine.protocol.VIEInterventionResult
  * request's identifier, once it actually flows through the ViewModel. A ViewModel no longer alive
  * — closed, or never known — is answered with `UnknownViewModel`.
  *
- * After a reconnect, every live ViewModel is described again with a
+ * Each time it is welcomed, the probe describes every live ViewModel with a
  * [TimeMachineClientMessage.ViewModelInfo], since the inspector may have restarted and lost them.
  * Not with a `ViewModelStarted`: a re-announce is not a timeline event, and must not take a
- * position ahead of what the queue still holds — a start reported during the outage included. Nor
- * on the first connection: everything since the start is still in the queue.
+ * position ahead of what the queue still holds — a start reported during an outage included. On
+ * the first connection, where every start is still in the queue, it is redundant and harmless.
  *
  * Never throws into the host app: every failure is printed and swallowed. An `Error` in the
  * connection loop — running out of memory while encoding a model, an engine class that fails to
@@ -92,7 +85,7 @@ internal class TimeMachineClient(
     private val maxRetryDelay: Duration = 5.seconds,
     private val quietAfter: Duration = 1.minutes,
     private val quietRetryDelay: Duration = 30.seconds,
-    private val stableAfter: Duration = 5.seconds,
+    private val heldAfter: Duration = 5.seconds,
     private val pingInterval: Duration = 5.seconds,
     private val handshakeTimeout: Duration = 10.seconds,
     window: Int = 256 * 1024,
@@ -169,68 +162,42 @@ internal class TimeMachineClient(
     }
 
     private suspend fun connectForever() {
-        var welcomedBefore = false
-        var failures = 0
-        var lastProblem: String? = null
-        // Whether the last connection was welcomed, then dropped before it became stable.
-        var droppedEarly = false
-        // Since when no connection has held, and whether that is long enough to retry less often.
-        var outage = TimeSource.Monotonic.markNow()
-        var quiet = false
+        var outage = outage()
         while (true) {
-            var connected = false
-            var stable = false
-            val problem: String = try {
-                var rejection: String? = null
-                http.webSocket(host = config.host, port = config.port, path = TimeMachineConnection.path) {
-                    rejection = handshake()
-                    if (rejection != null) return@webSocket
-                    connected = true
-                    // After one that dropped early, a connection is announced once it holds.
-                    val announced = !droppedEarly
-                    if (announced) notice("TimeMachine: connected to the inspector at $address")
-                    if (welcomedBefore) {
-                        sink.liveViewModels.values.forEach { sendMessage(TimeMachineClientMessage.ViewModelInfo(it.info.id, it.info)) }
-                    }
-                    welcomedBefore = true
-                    // Set on the stream's own coroutine, and read once the stream has joined it.
-                    stream(onStable = {
-                        stable = true
-                        if (!announced) notice("TimeMachine: connected to the inspector at $address")
-                    })
-                }
-                rejection ?: "the inspector at $address closed the connection"
-            } catch (e: Exception) {
-                // Only the probe's own cancellation ends the loop: any other one is a lost connection.
-                if (e is CancellationException) currentCoroutineContext().ensureActive()
-                if (connected) "lost the connection to the inspector at $address ($e)"
-                else "cannot reach the inspector at $address ($e)"
-            }
-            // A welcome alone does not start the backoff over, nor end the outage: an inspector that fails
-            // on what the probe sends first fails again on every connection, since the probe sends it
-            // first again.
-            if (stable) {
-                failures = 0
-                lastProblem = null
-                outage = TimeSource.Monotonic.markNow()
-                quiet = false
-            }
-            droppedEarly = connected && !stable
-            if (problem != lastProblem) {
-                notice("TimeMachine: $problem; retrying.")
-                lastProblem = problem
-            }
-            if (!quiet && outage.elapsedNow() >= quietAfter) {
-                quiet = true
-                notice("TimeMachine: no connection to the inspector at $address has held for $quietAfter; retrying every $quietRetryDelay from now on.")
-            }
-            delay(retryDelay(failures++, cap = if (quiet) quietRetryDelay else maxRetryDelay))
+            val end = attempt()
+            // A connection that held ends the outage: its own end is the first failure of the next one.
+            if (end.held) outage = outage()
+            delay(outage.failed(end))
         }
     }
 
-    private fun retryDelay(failures: Int, cap: Duration): Duration =
-        if (failures >= 30) cap
-        else (firstRetryDelay * (1 shl failures).toDouble()).coerceAtMost(cap)
+    private fun outage() = Outage(TimeSource.Monotonic.markNow(), address, firstRetryDelay, maxRetryDelay, quietAfter, quietRetryDelay, notice)
+
+    /** One connection to the inspector, from its opening to its end. Prints nothing but the
+     *  connection itself, once it holds: what its end is worth printing is the [Outage]'s to tell. */
+    private suspend fun attempt(): Attempt {
+        var welcomed = false
+        var held = false
+        var refusal: String? = null
+        try {
+            http.webSocket(host = config.host, port = config.port, path = TimeMachineConnection.path) {
+                refusal = handshake()
+                if (refusal != null) return@webSocket
+                welcomed = true
+                sink.liveViewModels.values.forEach { sendMessage(TimeMachineClientMessage.ViewModelInfo(it.info.id, it.info)) }
+                // Set on the stream's own coroutine, and read once the stream has joined it.
+                stream(onHeld = {
+                    held = true
+                    notice("TimeMachine: connected to the inspector at $address")
+                })
+            }
+        } catch (e: Exception) {
+            // Only the probe's own cancellation ends the loop: any other one is a lost connection.
+            if (e is CancellationException) currentCoroutineContext().ensureActive()
+            return if (welcomed) Attempt.Dropped(held, e) else Attempt.Unreachable(e)
+        }
+        return refusal?.let { Attempt.Refused(it) } ?: Attempt.Dropped(held, cause = null)
+    }
 
     /** Sends [TimeMachineClientMessage.Hello] and waits for the answer: `null` when welcomed, the
      *  rejection to print otherwise. */
@@ -262,20 +229,20 @@ internal class TimeMachineClient(
     }
 
     /** Streams the outbound queue and answers the inspector, until the connection breaks. Calls
-     *  [onStable], from a coroutine of its own, once the connection has lasted `stableAfter`. */
-    private suspend fun DefaultClientWebSocketSession.stream(onStable: () -> Unit) {
+     *  [onHeld], from a coroutine of its own, once the connection has lasted `heldAfter`. */
+    private suspend fun DefaultClientWebSocketSession.stream(onHeld: () -> Unit) {
         coroutineScope {
             val drain = launch { outbox.drain { send(Frame.Text(it)) } }
-            val stability = launch {
-                delay(stableAfter)
-                onStable()
+            val holding = launch {
+                delay(heldAfter)
+                onHeld()
             }
             while (true) {
                 val message = receiveMessage() ?: break
                 guardedSuspending({ "answer $message" }) { answer(message) }
             }
             drain.cancel()
-            stability.cancel()
+            holding.cancel()
         }
     }
 
