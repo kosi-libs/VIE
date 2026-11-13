@@ -85,13 +85,12 @@ import org.kodein.arch.vie.timemachine.server.ui.common.TextAction
 import org.kodein.arch.vie.timemachine.server.ui.common.action
 import org.kodein.arch.vie.timemachine.server.ui.common.clock
 import org.kodein.arch.vie.timemachine.server.ui.common.formatTime
-import org.kodein.arch.vie.timemachine.server.ui.common.kind
-import org.kodein.arch.vie.timemachine.server.ui.common.kindContainer
 import org.kodein.arch.vie.timemachine.server.ui.common.pretty
 import org.kodein.arch.vie.timemachine.server.ui.common.rememberCopy
 import org.kodein.arch.vie.timemachine.server.ui.common.rememberJsonLines
 import org.kodein.arch.vie.timemachine.server.ui.common.type
 import org.kodein.arch.vie.timemachine.server.ui.common.splitSerialName
+import org.kodein.arch.vie.timemachine.server.ui.common.style
 import org.kodein.arch.vie.timemachine.server.ui.common.viewModelName
 import org.kodein.arch.vie.timemachine.server.ui.core.InspectorPane
 import org.kodein.arch.vie.timemachine.server.ui.core.InspectorScope
@@ -290,7 +289,7 @@ private fun TypeChip(kind: VIEObjectKind, typeInfo: VIETypeInfo, open: Boolean, 
         horizontalArrangement = Arrangement.spacedBy(5.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Box(Modifier.size(6.dp).background(colors.kind(kind), CircleShape))
+        Box(Modifier.size(6.dp).background(kind.style().color(colors), CircleShape))
         Text(
             kind.name,
             style = InspectorTheme.text.action.copy(
@@ -407,10 +406,11 @@ private fun FilterBar(
 private fun KindFilterChip(kind: VIEObjectKind, on: Boolean, count: Int, onClick: () -> Unit) {
     val scheme = MaterialTheme.colorScheme
     val colors = InspectorTheme.colors
+    val kindStyle = kind.style()
     FilterChip(
         kind.name, count, glyph = if (on) Glyph.Check else null,
-        fg = if (on) colors.kind(kind) else scheme.onSurfaceVariant,
-        container = if (on) colors.kindContainer(kind) else Color.Transparent,
+        fg = if (on) kindStyle.color(colors) else scheme.onSurfaceVariant,
+        container = if (on) kindStyle.container(colors) else Color.Transparent,
         outlined = !on, onClick = onClick,
     )
 }
@@ -688,7 +688,7 @@ private fun ObservationRow(
     val observation = item.observation ?: return
     val sequence = item.sequence ?: return
     val intervened = observation.interventionId != null
-    val kindColor = colors.kind(observation.kind)
+    val kindStyle = observation.kind.style()
     Column {
         Row(
             Modifier
@@ -709,7 +709,7 @@ private fun ObservationRow(
                 style = InspectorTheme.text.codeRow, color = if (intervened) colors.intervened else if (selected) scheme.onSurface else scheme.outline, fontWeight = if (intervened) FontWeight.SemiBold else FontWeight.Normal,
             )
             Text(formatTime(observation.at), style = InspectorTheme.text.codeRow, color = scheme.outline, maxLines = 1, modifier = Modifier.width(TimeWidth))
-            Symbol(if (observation.kind == VIEObjectKind.Intent) Glyph.Login else Glyph.Logout, size = 16.dp, tint = kindColor, mirrored = observation.kind != VIEObjectKind.Intent)
+            Symbol(kindStyle.direction.glyph, size = 16.dp, tint = kindStyle.color(colors), mirrored = kindStyle.direction.mirrored)
             KindBadge(observation.kind)
             if (merged) {
                 item.source?.let { source ->

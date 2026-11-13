@@ -71,7 +71,7 @@ import org.kodein.arch.vie.timemachine.server.ui.common.colorJsonLine
 import org.kodein.arch.vie.timemachine.server.ui.common.formatDelay
 import org.kodein.arch.vie.timemachine.server.ui.common.formatTime
 import org.kodein.arch.vie.timemachine.server.ui.common.splitSerialName
-import org.kodein.arch.vie.timemachine.server.ui.common.verb
+import org.kodein.arch.vie.timemachine.server.ui.common.style
 import org.kodein.arch.vie.timemachine.server.ui.core.InspectorPane
 import org.kodein.arch.vie.timemachine.server.ui.core.LocalInspector
 import org.kodein.arch.vie.timemachine.server.ui.theme.Glyph
@@ -172,17 +172,12 @@ private fun KindSegments(kind: VIEObjectKind, enabled: Set<VIEObjectKind>, block
 @Composable
 private fun KindReason(kind: VIEObjectKind, typeName: String) {
     val scheme = MaterialTheme.colorScheme
-    val tail = when (kind) {
-        VIEObjectKind.Model -> "replaced"
-        VIEObjectKind.Intent -> "posted"
-        VIEObjectKind.Signal -> "emitted"
-    }
     Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
         Symbol(Glyph.Info, size = 15.dp, tint = scheme.outline)
         Text(
             buildAnnotatedString {
                 withStyle(SpanStyle(color = scheme.onSurface, fontFamily = InspectorTheme.fonts.mono)) { append(typeName) }
-                append(" isn’t serializable — ${kind.name}s of this ViewModel only exist as toString, so they can’t be $tail.")
+                append(" isn’t serializable — ${kind.name}s of this ViewModel only exist as toString, so they can’t be ${kind.style().participle}.")
             },
             style = InspectorTheme.text.note, color = scheme.onSurfaceVariant,
         )
@@ -303,8 +298,7 @@ private fun prefillNote(type: String, kind: VIEObjectKind, source: PrefillSource
         edited -> "edited" + (source as? PrefillSource.Observed)?.let { " · based on #${it.sequence}" }.orEmpty()
         source is PrefillSource.Observed -> "pre-filled from #${source.sequence}, the latest observed $short"
         source is PrefillSource.SealedTemplate -> "no $short observed yet — starting from its #type"
-        kind == VIEObjectKind.Model -> "no Model observed yet — starting from {}"
-        else -> "no $short observed yet — starting from {}"
+        else -> kind.style().unobservedNote(short)
     }
 }
 
@@ -380,16 +374,7 @@ private fun JsonEditor(text: String, errorLine: Int?, enabled: Boolean, modifier
 @Composable
 private fun SendRow(kind: VIEObjectKind, enabled: Boolean, onSend: () -> Unit) {
     val scheme = MaterialTheme.colorScheme
-    val glyph = when (kind) {
-        VIEObjectKind.Model -> Glyph.SwapHoriz
-        VIEObjectKind.Intent -> Glyph.Login
-        VIEObjectKind.Signal -> Glyph.Campaign
-    }
-    val effect = when (kind) {
-        VIEObjectKind.Model -> "Replaces the ViewModel’s current state. The app’s next update computes from it."
-        VIEObjectKind.Intent -> "Posted to the ViewModel as if the user did it."
-        VIEObjectKind.Signal -> "Emitted to the view as if the ViewModel sent it."
-    }
+    val kindStyle = kind.style()
     Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
         val foreground = if (enabled) scheme.onPrimary else scheme.outline
         Row(
@@ -399,10 +384,10 @@ private fun SendRow(kind: VIEObjectKind, enabled: Boolean, onSend: () -> Unit) {
                 .padding(start = 14.dp, end = 18.dp),
             horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically,
         ) {
-            Symbol(glyph, size = 17.dp, tint = foreground)
-            Text(verb(kind), style = InspectorTheme.text.actionLarge, color = foreground, maxLines = 1)
+            Symbol(kindStyle.sendGlyph, size = 17.dp, tint = foreground)
+            Text(kindStyle.verb, style = InspectorTheme.text.actionLarge, color = foreground, maxLines = 1)
         }
-        Text(effect, style = InspectorTheme.text.note, color = scheme.onSurfaceVariant, modifier = Modifier.weight(1f))
+        Text(kindStyle.effect, style = InspectorTheme.text.note, color = scheme.onSurfaceVariant, modifier = Modifier.weight(1f))
     }
 }
 
@@ -448,7 +433,7 @@ private fun ResultCard(view: InterventionView, projection: ComposerProjection, p
     when (status) {
         InterventionStatus.Pending -> {
             title = "Sent — waiting for $app…"
-            body = "${verb(view.kind)} · $type · sent ${formatTime(view.requestedAt)} · times out after $timeout"
+            body = "${view.kind.style().verb} · $type · sent ${formatTime(view.requestedAt)} · times out after $timeout"
         }
         is InterventionStatus.Succeeded -> {
             title = "Success · observed as #${status.sequence}"
@@ -553,7 +538,7 @@ private fun RecentInterventions(history: List<InterventionView>, older: Int, pos
                 Column(Modifier.weight(1f)) {
                     Text(
                         buildAnnotatedString {
-                            append(verb(view.kind) + " ")
+                            append(view.kind.style().verb + " ")
                             withStyle(SpanStyle(fontFamily = InspectorTheme.fonts.mono, fontSize = InspectorTheme.text.codeRow.fontSize, color = scheme.onSurfaceVariant)) { append(splitSerialName(view.typeName).last) }
                         },
                         style = InspectorTheme.text.body, color = scheme.onSurface, maxLines = 1, overflow = TextOverflow.Ellipsis,
