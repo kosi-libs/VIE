@@ -22,7 +22,10 @@ sealed interface SessionTimelineEntry {
     }
 }
 
-/** The timeline entry the filter looks at, `null` for a divider, which always passes. */
+/**
+ * The [TimelineEntry] this entry stands for: the row or top marker of a [SessionTimelineEntry.Scoped],
+ * the range of a [SessionTimelineEntry.Shared]; `null` for a [SessionTimelineEntry.Divider], which stands for none.
+ */
 val SessionTimelineEntry.timelineEntry: TimelineEntry?
     get() = when (this) {
         is SessionTimelineEntry.Scoped -> entry

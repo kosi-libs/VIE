@@ -192,4 +192,30 @@ class ViewModelTest {
 
         assertEquals(listOf(vm), requests(commands, c3))
     }
+
+    @Test
+    fun theSelectedPreviousModelIsTheModelObservedBeforeIt() {
+        val (state) = connected.after(
+            receive(c1, observed(vm, 0, VIEObjectKind.Model)),
+            receive(c1, observed(vm, 1, VIEObjectKind.Intent)),
+            receive(c1, observed(vm, 2, VIEObjectKind.Model)),
+            receive(c1, observed(vm, 3, VIEObjectKind.Signal)),
+            receive(c1, observed(vm, 4, VIEObjectKind.Model)),
+        )
+        val record = state.vm(session.id, vm)
+
+        assertEquals(seq(2), record.previousModel(seq(4))?.sequence)
+        assertEquals(seq(0), record.previousModel(seq(2))?.sequence)
+        assertNull(record.previousModel(seq(0)))
+    }
+
+    @Test
+    fun thereIsNoPreviousModelOnceItWasEvicted() {
+        val (state) = TimeMachineState(limits = Limits(maxRows = 1)).on(hello(c1, session)).state.after(
+            receive(c1, observed(vm, 0, VIEObjectKind.Model)),
+            receive(c1, observed(vm, 1, VIEObjectKind.Model)),
+        )
+
+        assertNull(state.vm(session.id, vm).previousModel(seq(1)))
+    }
 }

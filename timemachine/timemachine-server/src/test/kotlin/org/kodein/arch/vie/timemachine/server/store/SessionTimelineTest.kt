@@ -5,7 +5,6 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNull
 import kotlin.uuid.Uuid
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineSession
-import org.kodein.arch.vie.timemachine.protocol.VIEObjectKind
 
 
 class SessionTimelineTest {
@@ -148,31 +147,5 @@ class SessionTimelineTest {
     @Test
     fun theEntryOfADividerIsNull() {
         assertNull(SessionTimelineEntry.Divider(SessionTimelineEntry.Divider.Kind.Connected, t0, null).timelineEntry)
-    }
-
-    @Test
-    fun theSelectedPreviousModelIsTheModelObservedBeforeIt() {
-        val (state) = connected().after(
-            receive(c1, observed(a, 0, VIEObjectKind.Model)),
-            receive(c1, observed(a, 1, VIEObjectKind.Intent)),
-            receive(c1, observed(a, 2, VIEObjectKind.Model)),
-            receive(c1, observed(a, 3, VIEObjectKind.Signal)),
-            receive(c1, observed(a, 4, VIEObjectKind.Model)),
-        )
-        val vm = state.vm(session.id, a)
-
-        assertEquals(seq(2), vm.previousModel(seq(4))?.sequence)
-        assertEquals(seq(0), vm.previousModel(seq(2))?.sequence)
-        assertNull(vm.previousModel(seq(0)))
-    }
-
-    @Test
-    fun thereIsNoPreviousModelOnceItWasEvicted() {
-        val (state) = connected(Limits(maxRows = 1)).after(
-            receive(c1, observed(a, 0, VIEObjectKind.Model)),
-            receive(c1, observed(a, 1, VIEObjectKind.Model)),
-        )
-
-        assertNull(state.vm(session.id, a).previousModel(seq(1)))
     }
 }
