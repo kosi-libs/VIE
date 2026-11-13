@@ -212,9 +212,10 @@ internal object Demo {
             asString: String = json?.let { typeName.substringAfterLast('.') + it.toString() } ?: typeName.substringAfterLast('.'),
             delivery: VIESignalDelivery? = null,
             interventionId: Uuid? = null,
+            truncated: Boolean = false,
         ) = message(
             TimeMachineClientMessage.Observed(
-                VIEObservation(viewModelId, at, kind, typeName, asString, json, interventionId, delivery),
+                VIEObservation(viewModelId, at, kind, typeName, asString, json, interventionId, delivery, truncated),
                 TimeMachineSequence(sequence),
             ),
             at,

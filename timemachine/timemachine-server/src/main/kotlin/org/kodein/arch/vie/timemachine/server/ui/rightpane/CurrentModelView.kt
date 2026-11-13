@@ -147,7 +147,8 @@ internal fun VIEViewScope<CurrentModelVIE.Intent, NoSignal>.CurrentModelContent(
                         Column(Modifier.padding(horizontal = 6.dp, vertical = 4.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                             Text(projection.asString.orEmpty(), style = InspectorTheme.text.code, color = scheme.onSurface)
                             Text(
-                                "toString only — this model has no JSON, so it can't be shown as a tree or replaced.",
+                                if (projection.truncated) TooLargeNote
+                                else "toString only — this model has no JSON, so it can't be shown as a tree or replaced.",
                                 style = InspectorTheme.text.note, color = scheme.outline,
                             )
                         }

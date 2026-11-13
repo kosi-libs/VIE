@@ -745,7 +745,8 @@ private fun ObservationRow(
             }
             if (observation.asJson == null) {
                 Text(
-                    "toString only", style = InspectorTheme.text.monoMeta, color = scheme.outline, maxLines = 1,
+                    // Too big to send whole, which is not the same as not serializable: the row says which.
+                    if (observation.truncated) "too large" else "toString only", style = InspectorTheme.text.monoMeta, color = scheme.outline, maxLines = 1,
                     modifier = Modifier.border(1.dp, colors.strongOutline, RoundedCornerShape(4.dp)).padding(horizontal = 5.dp),
                 )
             }

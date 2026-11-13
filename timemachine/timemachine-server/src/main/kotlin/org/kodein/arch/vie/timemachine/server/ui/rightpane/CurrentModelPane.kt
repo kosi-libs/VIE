@@ -48,7 +48,8 @@ internal interface CurrentModelVIE : VIE<CurrentModelVIE.Model, CurrentModelVIE.
  * The latest Model of the ViewModel, evicted rows included.
  *
  * @property sequence `null` when no Model was observed yet.
- * @property json `null` when the Model is not serializable: only [asString] is shown.
+ * @property json `null` when the Model is not serializable, or [truncated]: only [asString] is shown.
+ * @property truncated Whether the app sent the Model without its JSON, because it was too large.
  * @property rawText The JSON as text, only computed while the controls ask for it.
  * @property changedPaths The tree nodes that differ from the Model observed before; empty when that one was evicted.
  * @property changedFrom The sequence of that previous Model.
@@ -64,6 +65,7 @@ internal data class CurrentModelProjection(
     val changedPaths: Set<JsonPath> = emptySet(),
     val changedFrom: TimeMachineSequence? = null,
     val canReplace: Boolean = false,
+    val truncated: Boolean = false,
 )
 
 /** The previous Model, if still retained, and the nodes of [json] that differ from it. */
@@ -108,6 +110,7 @@ private fun currentModelProjection(
         changedPaths = changedPaths,
         changedFrom = changedFrom,
         canReplace = json != null && vm.info?.model?.isSerializable == true && composerBlock(session, vm) == null,
+        truncated = observation.truncated,
     )
 }
 
