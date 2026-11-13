@@ -179,7 +179,7 @@ A type is named by its serial name: its fully qualified name, unless `@SerialNam
 A type that is not `@Serializable` is named by its class instead, fully qualified except on the web, where only the simple name exists.
 A ViewModel is named by its class too: fully qualified where the platform allows it, simple on the web and for a local class, and `<anonymous>` for an anonymous one.
 `sealedSubTypes` is `null` when the type is not sealed, and otherwise lists the serial names of its serializable subtypes.
-Only a `@Serializable` role can be intervened on, and its JSON appears in the observations.
+Only a `@Serializable` type can be intervened on, and its JSON appears in the observations.
 
 The inspector learns of a ViewModel from `vm-started` or from `vm-info`, whose `info` is `null` when the probe no longer knows the identifier it was asked about.
 It asks with `request-vm-info`:
@@ -221,7 +221,7 @@ An `observed` message carries one object seen in one ViewModel:
 
 `kind` is `Model`, `Intent` or `Signal`, `asString` is the object's `toString()`, and `asJson` is its JSON, present only when its type is `@Serializable`.
 `typeName` is the object's concrete type.
-For a sealed role, that is the serial name its JSON discriminator carries, which is also the name an intervention has to give back.
+For a sealed type, that is the serial name its JSON discriminator carries, which is also the name an intervention has to give back.
 For a Signal, `delivery` says whether it is an `Event` or an `Effect`: the serial descriptor of a type cannot tell, only the instance can.
 `interventionId` is explained under <<intervention,Intervention>>.
 `at` is when the probe saw the object, for display only.
@@ -350,8 +350,9 @@ An `intervene` message names the ViewModel, the kind of object, its concrete typ
 ----
 
 The inspector picks the `requestId`.
-`typeName` is the serial name of the object's type: one of the role's `sealedSubTypes` for a sealed role, whose JSON then carries the matching `+#type+`, and the role's own `typeName` otherwise.
-The role must be `@Serializable`.
+`typeName` is the serial name of the object's type.
+When the ViewModel's type for that `kind` is sealed, it is one of its `sealedSubTypes`, and the JSON carries the matching `+#type+`; otherwise it is that type's own `typeName`.
+That type must be `@Serializable`.
 
 The probe answers at once with `intervention-result`, which says whether it accepted the request, not whether the object arrived:
 
@@ -366,7 +367,7 @@ The probe answers at once with `intervention-result`, which says whether it acce
   "result": {
     "#type": "failure",
     "reason": "UnknownType",
-    "message": "Unknown type no.such.Intent for role org.kodein.arch.vie.demo.vie.TaskListVIE.Intent"
+    "message": "Unknown type no.such.Intent for org.kodein.arch.vie.demo.vie.TaskListVIE.Intent"
   }
 }
 ----
@@ -382,10 +383,10 @@ The probe answers at once with `intervention-result`, which says whether it acce
 | The ViewModel was closed while the request was handled.
 
 | `NotSerializable`
-| The role was reported as not `@Serializable`.
+| The ViewModel's type for that kind was reported as not `@Serializable`.
 
 | `UnknownType`
-| The type is not the role's, nor one of its sealed subtypes.
+| The type is neither the ViewModel's type for that kind, nor one of its sealed subtypes.
 A Signal that picked neither delivery kind is refused the same way, since the ViewModel cannot emit it.
 
 | `BadJson`

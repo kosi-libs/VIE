@@ -43,4 +43,27 @@ It runs the WebSocket server, keeps the sessions, ViewModels and timelines in me
 The module names follow the WebSocket roles: your application is the WebSocket client, and the inspector is its server.
 The pages say probe and inspector.
 
+
+[#vocabulary]
+== Vocabulary
+
+Each of these words names one thing, in these pages and in the code alike.
+
+Probe:: What runs in your application between `TimeMachine.start` and `TimeMachine.stop`: it observes the ViewModels and talks to the inspector.
+Inspector:: The desktop application the probe connects to, which shows what it receives.
+Client and server:: The two ends of the WebSocket, and nothing more.
+They name the modules and the two directions of the protocol, whose messages are `TimeMachineClientMessage` and `TimeMachineServerMessage`: the probe is the client, and the inspector is the server.
+Session:: One run of your application, as the inspector lists it.
+Kind:: Which of the three an object is: a Model, an Intent or a Signal.
+Type:: The class of a ViewModel's objects of one kind, such as `CounterVIE.Intent`, with its subtypes when it is sealed.
+The probe describes it to the inspector as a `VIETypeInfo`.
+Observation:: One Model, Intent or Signal that the probe saw go through a ViewModel, as it reports it.
+Intervention:: What the inspector asks of the probe, and what the probe answers: an object to send into a live ViewModel.
+Injection:: What the probe does to carry out an intervention: it puts the object into the ViewModel, through the ViewModel's own public API.
+The answer to an intervention says that the probe accepted it, not that the injected object arrived (see xref:protocol.adoc#intervention[Intervention]).
+
+The names in the code follow one more rule.
+A name that starts with `VIE` describes something of the application the probe observes, such as `VIEObservation`, `VIEViewModelInfo`, `VIETypeInfo` or `VIEObjectKind`.
+A name that starts with `TimeMachine` is a part of the tool itself, such as `TimeMachineConfig`, `TimeMachineSession` or `TimeMachineClientMessage`.
+
 TIP: To add the probe to your application, see xref:setup.adoc[].
