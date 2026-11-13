@@ -181,7 +181,7 @@ internal class InspectorConnection(
             }
             while (true) {
                 val message = receiveMessage() ?: break
-                guardedSuspending({ "answer $message" }) { answer(message) }
+                guardedSuspending({ "answer ${message.summary}" }) { answer(message) }
             }
             drain.cancel()
             holding.cancel()
@@ -194,7 +194,9 @@ internal class InspectorConnection(
      * An intervention request is handed to its ViewModel's [TimeMachineIntervener], and answered with
      * its result right away: the object itself is reported later, as an observation tagged with the
      * request's identifier, once it actually flows through the ViewModel. A ViewModel no longer alive
-     * — closed, or never known — is answered with `UnknownViewModel`.
+     * — closed, or never known — is answered with `UnknownViewModel`. A request the probe fails to
+     * handle is answered with `ProbeFailure`, so that the inspector does not wait for a result that
+     * never comes.
      */
     private suspend fun DefaultClientWebSocketSession.answer(message: TimeMachineServerMessage) {
         when (message) {
@@ -202,8 +204,13 @@ internal class InspectorConnection(
                 sendMessage(TimeMachineClientMessage.ViewModelInfo(message.viewModelId, sink.liveViewModels[message.viewModelId]?.info))
             is TimeMachineServerMessage.Intervene -> {
                 val live = sink.liveViewModels[message.viewModelId]
-                val result = live?.intervener?.intervene(message)
-                    ?: VIEInterventionResult.Failure(VIEInterventionResult.Reason.UnknownViewModel, "No live ViewModel ${message.viewModelId}")
+                val result = if (live == null) {
+                    VIEInterventionResult.Failure(VIEInterventionResult.Reason.UnknownViewModel, "No live ViewModel ${message.viewModelId}")
+                } else {
+                    // An intervener never throws, but it runs app code: a failure still gets its answer.
+                    guardedSuspending({ "intervene with ${message.summary}" }) { live.intervener.intervene(message) }
+                        ?: VIEInterventionResult.Failure(VIEInterventionResult.Reason.ProbeFailure, "The probe failed to handle the request ${message.requestId}")
+                }
                 sendMessage(TimeMachineClientMessage.InterventionResult(message.requestId, result))
             }
             is TimeMachineServerMessage.Received -> outbox.acknowledge(message.sequence)
@@ -225,6 +232,17 @@ internal class InspectorConnection(
         }
         return null
     }
+
+    /** What names a message in a failure: its type and identifiers, never the object an `Intervene`
+     *  carries, which is of any size. */
+    private val TimeMachineServerMessage.summary: String
+        get() = when (this) {
+            is TimeMachineServerMessage.RequestViewModelInfo -> "RequestViewModelInfo of $viewModelId"
+            is TimeMachineServerMessage.Intervene -> "Intervene $requestId on $viewModelId ($kind $typeName)"
+            is TimeMachineServerMessage.Received -> "Received $sequence"
+            TimeMachineServerMessage.Welcome -> "Welcome"
+            is TimeMachineServerMessage.Rejected -> "Rejected"
+        }
 
     /** The start of a frame: an `Intervene` frame carries a whole object, of any size. */
     private fun String.excerpt(): String = if (length <= 100) this else "${take(100)}…"

@@ -174,6 +174,14 @@ class ProtocolSerializationTest {
     )
 
     @Test
+    fun interventionResultRoundTripsOnAProbeFailure() = assertRoundTrip<TimeMachineClientMessage>(
+        TimeMachineClientMessage.InterventionResult(
+            requestId,
+            VIEInterventionResult.Failure(VIEInterventionResult.Reason.ProbeFailure, "The probe failed to handle the request"),
+        )
+    )
+
+    @Test
     fun interventionResultRoundTripsOnFailureWithoutAMessage() = assertRoundTrip<TimeMachineClientMessage>(
         TimeMachineClientMessage.InterventionResult(requestId, VIEInterventionResult.Failure(VIEInterventionResult.Reason.UnknownType)),
     )
