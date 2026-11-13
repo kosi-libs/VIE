@@ -48,4 +48,43 @@ class SequenceLedgerTest {
         assertNull(ledger.receive(seq(6))) // the highest
         assertEquals(listOf(seqs(4, 5)), ledger.missing)
     }
+
+    @Test
+    fun aSkippedFirstSequenceIsTheFloorTheHighestAndMissing() {
+        assertEquals(SequenceLedger(seq(0), seq(0), listOf(seqs(0, 0))), SequenceLedger().skip(seq(0)))
+    }
+
+    @Test
+    fun aSkippedSequenceAboveTheHighestExtendsItAndStaysMissing() {
+        assertEquals(SequenceLedger(seq(0), seq(3), listOf(seqs(2, 3))), ledgerOf(0, 1).skip(seq(3)))
+    }
+
+    @Test
+    fun aSkippedSequenceBelowTheFloorLowersItAndStaysMissing() {
+        assertEquals(SequenceLedger(seq(2), seq(6), listOf(seqs(2, 4))), ledgerOf(5, 6).skip(seq(2)))
+    }
+
+    @Test
+    fun skippingASequenceReceivedOrMissingChangesNothing() {
+        val ledger = ledgerOf(0, 4)
+        assertEquals(ledger, ledger.skip(seq(0)))
+        assertEquals(ledger, ledger.skip(seq(2)))
+        assertEquals(ledger, ledger.skip(seq(4)))
+        val skipped = ledger.skip(seq(6))
+        assertEquals(skipped, skipped.skip(seq(6)))
+    }
+
+    @Test
+    fun aRangeNextToASkippedSequenceMergesWithIt() {
+        assertEquals(listOf(seqs(1, 2)), ledgerOf(0).skip(seq(1)).receive(seq(3))?.missing)
+        assertEquals(listOf(seqs(2, 4)), ledgerOf(5).skip(seq(4)).receive(seq(1))?.missing)
+        assertEquals(listOf(seqs(1, 3)), ledgerOf(0).skip(seq(1)).skip(seq(3)).missing)
+        assertEquals(listOf(seqs(2, 4)), ledgerOf(5).skip(seq(4)).skip(seq(2)).missing)
+    }
+
+    @Test
+    fun aLateFrameHealsASkippedSequence() {
+        assertEquals(SequenceLedger(seq(0), seq(1)), ledgerOf(0).skip(seq(1)).receive(seq(1)))
+        assertEquals(SequenceLedger(seq(0), seq(0)), SequenceLedger().skip(seq(0)).receive(seq(0)))
+    }
 }

@@ -51,8 +51,7 @@ data class TimeMachineState(
                 ?: this
         )
         is TimeMachineEvent.ListenerChanged -> Transition(copy(listener = event.listener))
-        // Only acknowledged, by the batch: the frame is not held, its sequence stays missing.
-        is TimeMachineEvent.Skipped -> Transition(this)
+        is TimeMachineEvent.Skipped -> onSkipped(event)
     }
 
     /**
@@ -173,6 +172,12 @@ data class TimeMachineState(
                 Transition(withSession(session.updateIntervention(message.requestId) { copy(result = result ?: message.result) }))
             is TimeMachineClientMessage.Hello -> Transition(this)
         }
+    }
+
+    /** Acknowledged by the batch; here its sequence enters the session's ledger as missing for good. */
+    private fun onSkipped(event: TimeMachineEvent.Skipped): Transition {
+        val session = connections[event.connection]?.let { sessions[it] } ?: return Transition(this)
+        return Transition(withSession(session.copy(sequences = session.sequences.skip(event.sequence))))
     }
 
     private fun onIntervene(event: TimeMachineEvent.Intervene): Transition {

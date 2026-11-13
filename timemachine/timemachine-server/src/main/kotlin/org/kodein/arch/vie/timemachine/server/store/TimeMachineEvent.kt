@@ -44,7 +44,8 @@ sealed interface TimeMachineEvent {
     /**
      * A timeline frame of [connection] the inspector will never hold: it did not decode, or the core
      * threw on it. It is acknowledged all the same, so that its probe forgets it rather than waiting
-     * on it; [sequence] stays missing.
+     * on it; [sequence] enters its session's `SequenceLedger` as missing for good, even below its
+     * floor or above its highest.
      */
     data class Skipped(
         val connection: ConnectionId,

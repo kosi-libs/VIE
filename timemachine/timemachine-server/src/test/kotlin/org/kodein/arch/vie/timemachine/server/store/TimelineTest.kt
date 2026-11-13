@@ -231,6 +231,30 @@ class TimelineTest {
     }
 
     @Test
+    fun aSkippedFirstFrameShowsAsMissingInsteadOfMakingTheHistoryUnavailable() {
+        val (state) = connected().after(
+            TimeMachineEvent.Skipped(c1, seq(0)),
+            receive(c1, observed(vm, 1)),
+            receive(c1, vmInfo(vm)),
+        )
+
+        assertEquals(SequenceLedger(seq(0), seq(1), listOf(seqs(0, 0))), state.session(session.id).sequences)
+        assertFalse(state.historyUnavailable())
+        assertEquals(listOf(TimelineEntry.PossiblyIncomplete(seqs(0, 0)), 1L), state.timeline().shape())
+    }
+
+    @Test
+    fun aSkippedLastFrameShowsAsMissingBelowTheLastRow() {
+        val (state) = connected().after(
+            receive(c1, started(vm, 0)),
+            receive(c1, observed(vm, 1)),
+            TimeMachineEvent.Skipped(c1, seq(2)),
+        )
+
+        assertEquals(listOf(0L, 1L, TimelineEntry.PossiblyIncomplete(seqs(2, 2))), state.timeline().shape())
+    }
+
+    @Test
     fun aMissingRangeOutsideTheAliveSpanIsNotShown() {
         val (state) = connected().after(
             receive(c1, observed(other, 0)),

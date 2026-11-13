@@ -171,7 +171,7 @@ class TimeMachineStoreTest {
         )
         val record = store.state.value.session(session.id)
         assertEquals(listOf(a), record.viewModels.keys.toList())
-        assertEquals(SequenceLedger(floor = seq(0), highest = seq(0)), record.sequences)
+        assertEquals(SequenceLedger(floor = seq(0), highest = seq(1), missing = listOf(seqs(1, 1))), record.sequences)
     }
 
     @Test
