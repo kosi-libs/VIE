@@ -30,15 +30,16 @@ import org.kodein.arch.vie.VIEViewModel
 import org.kodein.arch.vie.VIEViewScope
 import org.kodein.arch.vie.timemachine.server.store.TimeMachineState
 import org.kodein.arch.vie.timemachine.server.store.TimeMachineStore
+import org.kodein.arch.vie.timemachine.server.ui.common.ModelDiffs
 import kotlin.time.Clock
 
 
 /**
  * What lives and dies together with one [store]: its [selection] holder, the panes' [visibility],
- * the [viewModels] they live in, the dispatcher their projections run on, the clock and the
- * listener's retry. It is provided at the window root through [LocalInspector], and closed as a
- * whole, so no ViewModel and no selection outlives the store it reads. The ViewModels of a scope go
- * sooner, with the scope: see [releaseDroppedScopes].
+ * the [viewModels] they live in, the dispatcher their projections run on, the clock, the
+ * listener's retry, and the [modelDiffs] its panes share. It is provided at the window root through
+ * [LocalInspector], and closed as a whole, so no ViewModel and no selection outlives the store it
+ * reads. The ViewModels of a scope go sooner, with the scope: see [releaseDroppedScopes].
  *
  * @property compute `Dispatchers.Default` live, the test dispatcher in tests.
  * @property clock `Clock.System` live, a fixed or virtual-time clock in tests.
@@ -53,6 +54,9 @@ internal class Inspector(
     val clock: Clock,
     val retry: () -> Unit,
 ) {
+
+    /** The diffs of each Model from the one before it, shared by every pane that shows them. */
+    val modelDiffs: ModelDiffs = ModelDiffs()
 
     /** Clears every pane ViewModel, which cancels the collectors of the store they read. */
     fun close() {

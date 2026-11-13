@@ -5,11 +5,10 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.serialization.json.JsonElement
 import org.kodein.arch.vie.VIE
-import org.kodein.arch.vie.timemachine.protocol.TimeMachineClientMessage
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineSequence
 import org.kodein.arch.vie.timemachine.server.store.TimeMachineState
 import org.kodein.arch.vie.timemachine.server.ui.common.JsonPath
-import org.kodein.arch.vie.timemachine.server.ui.common.diffJson
+import org.kodein.arch.vie.timemachine.server.ui.common.ModelDiffs
 import org.kodein.arch.vie.timemachine.server.ui.common.nearestNodePath
 import org.kodein.arch.vie.timemachine.server.ui.common.pretty
 import org.kodein.arch.vie.timemachine.server.ui.core.Inspector
@@ -67,38 +66,24 @@ internal data class CurrentModelProjection(
     val truncated: Boolean = false,
 )
 
-/** The previous Model, if still retained, and the nodes of [json] that differ from it. */
-internal fun changesFrom(
-    state: TimeMachineState,
-    sessionId: Uuid,
-    viewModelId: Uuid,
-    sequence: TimeMachineSequence,
-    json: JsonElement?,
-): Pair<TimeMachineSequence?, Set<JsonPath>> {
-    val previous = state.sessions[sessionId]?.viewModels?.get(viewModelId)?.previousModel(sequence) ?: return null to emptySet()
-    val old = (previous.message as? TimeMachineClientMessage.Observed)?.observation?.asJson
-    if (old == null || json == null) return previous.sequence to emptySet()
-    return previous.sequence to diffJson(old, json).mapTo(LinkedHashSet()) { json.nearestNodePath(it.path) }
-}
-
 /**
- * The latest Model of ViewModel [viewModelId] of session [sessionId] in [state], its JSON as text when [raw].
- * [changes] says what changed since the Model before: the pane remembers it for as long as the Model is the same.
+ * The latest Model of ViewModel [viewModelId] of session [sessionId] in [state], its JSON as text when [raw],
+ * and what changed since the Model before it, from [diffs].
  */
 private fun currentModelProjection(
     state: TimeMachineState,
     sessionId: Uuid,
     viewModelId: Uuid,
     raw: Boolean,
-    changes: (sequence: TimeMachineSequence, json: JsonElement?) -> Pair<TimeMachineSequence?, Set<JsonPath>> =
-        { sequence, json -> changesFrom(state, sessionId, viewModelId, sequence, json) },
+    diffs: ModelDiffs,
 ): CurrentModelProjection {
+    diffs.retain(state)
     val session = state.sessions[sessionId]
     val vm = session?.viewModels?.get(viewModelId)
     val current = vm?.currentModel ?: return CurrentModelProjection()
     val observation = current.value
     val json = observation.asJson
-    val (changedFrom, changedPaths) = changes(current.sequence, json)
+    val diff = diffs.of(vm, current.sequence)
     return CurrentModelProjection(
         typeName = observation.typeName,
         sequence = current.sequence,
@@ -106,8 +91,8 @@ private fun currentModelProjection(
         asString = observation.asString,
         json = json,
         rawText = if (raw) json?.pretty() else null,
-        changedPaths = changedPaths,
-        changedFrom = changedFrom,
+        changedPaths = json?.let { root -> diff?.ops?.mapTo(LinkedHashSet()) { root.nearestNodePath(it.path) } }.orEmpty(),
+        changedFrom = diff?.previous,
         canReplace = canIntervene(session, vm, observation),
         truncated = observation.truncated,
     )
@@ -118,21 +103,13 @@ internal class CurrentModelVM(
     private val sessionId: Uuid,
     private val viewModelId: Uuid,
 ) : CurrentModelVIE, PaneViewModel<CurrentModelVIE.Model, CurrentModelVIE.Intent, VIE.NoSignal>(
-    CurrentModelVIE.Model(projection = currentModelProjection(inspector.store.state.value, sessionId, viewModelId, raw = false)),
+    CurrentModelVIE.Model(projection = currentModelProjection(inspector.store.state.value, sessionId, viewModelId, raw = false, inspector.modelDiffs)),
 ) {
 
     init {
         val inputs = combine(inspector.store.state, modelFlow.map { it.controls.raw }.distinctUntilChanged()) { state, raw -> state to raw }
         project(
-            inspector.whileShown(key(viewModelId), inputs) {
-                // Only the latest Model's differences are ever shown.
-                var cached: Pair<TimeMachineSequence, Pair<TimeMachineSequence?, Set<JsonPath>>>? = null;
-                { (state, raw) ->
-                    currentModelProjection(state, sessionId, viewModelId, raw) { sequence, json ->
-                        cached?.takeIf { it.first == sequence }?.second ?: changesFrom(state, sessionId, viewModelId, sequence, json).also { cached = sequence to it }
-                    }
-                }
-            },
+            inspector.whileShown(key(viewModelId), inputs) { { (state, raw) -> currentModelProjection(state, sessionId, viewModelId, raw, inspector.modelDiffs) } },
         ) { copy(projection = it) }
     }
 

@@ -10,14 +10,22 @@ import org.kodein.arch.vie.test.runVMTest
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineSequence
 import org.kodein.arch.vie.timemachine.protocol.VIEObjectKind
 import org.kodein.arch.vie.timemachine.server.fixtures.Demo
+import org.kodein.arch.vie.timemachine.server.fixtures.ScenarioData
 import org.kodein.arch.vie.timemachine.server.fixtures.inspector
+import org.kodein.arch.vie.timemachine.server.fixtures.state
 import org.kodein.arch.vie.timemachine.server.fixtures.taskListScope
 import org.kodein.arch.vie.timemachine.server.ui.common.DiffKind
+import org.kodein.arch.vie.timemachine.server.ui.common.ModelDiffs
 import org.kodein.arch.vie.timemachine.server.ui.core.Inspector
 import org.kodein.arch.vie.timemachine.server.ui.core.RightTab
+import org.kodein.arch.vie.timemachine.server.ui.core.Selection
+import org.kodein.arch.vie.timemachine.server.ui.timeline.TimelineProjector
+import org.kodein.arch.vie.timemachine.server.ui.timeline.TimelineVIE
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNotNull
 import kotlin.test.assertNull
+import kotlin.test.assertSame
 import kotlin.test.assertTrue
 
 
@@ -101,4 +109,14 @@ class DetailPaneTest {
             assertEquals(TimeMachineSequence(206), model.projection.diff?.previous)
         },
     )
+
+    @Test
+    fun `the Detail tab shows the very diff the Timeline computed for its row`() {
+        val state = ScenarioData.of("main").state()
+        val diffs = ModelDiffs()
+        val timeline = TimelineProjector(taskListScope, diffs).project(state, Selection(taskListScope), TimelineVIE.Controls())
+        val detail = detailProjection(state, Selection(taskListScope, row = TimeMachineSequence(208)), raw = false, diffs)
+
+        assertSame(timeline.items.first { it.sequence == TimeMachineSequence(208) }.diff, assertNotNull(detail.diff))
+    }
 }

@@ -17,8 +17,8 @@ import org.kodein.arch.vie.timemachine.server.store.TimelineEntry
 import org.kodein.arch.vie.timemachine.server.store.ViewModelRecord
 import org.kodein.arch.vie.timemachine.server.store.sessionTimeline
 import org.kodein.arch.vie.timemachine.server.store.timelineEntry
-import org.kodein.arch.vie.timemachine.server.ui.common.DiffOp
-import org.kodein.arch.vie.timemachine.server.ui.common.diffJson
+import org.kodein.arch.vie.timemachine.server.ui.common.ModelDiff
+import org.kodein.arch.vie.timemachine.server.ui.common.ModelDiffs
 import org.kodein.arch.vie.timemachine.server.ui.common.interventionNumber
 import org.kodein.arch.vie.timemachine.server.ui.common.shortSessionId
 import org.kodein.arch.vie.timemachine.server.ui.common.shortViewModelId
@@ -130,9 +130,6 @@ internal sealed interface TimelineHeader {
     ) : TimelineHeader
 }
 
-/** What the Model row shows as `Δ`: the differences from the Model observed [previous]. */
-internal data class ModelDiff(val previous: TimeMachineSequence, val ops: List<DiffOp>)
-
 /**
  * One entry of the filtered list.
  *
@@ -171,16 +168,17 @@ private fun SessionTimelineEntry.key(): String = when (this) {
     is SessionTimelineEntry.Divider -> "divider:$span:$kind"
 }
 
-/** Projects the Timeline of one scope. The caches belong to it, and live as long as the pane is shown. */
-internal class TimelineProjector(private val scope: InspectorScope) {
+/**
+ * Projects the Timeline of one scope. Its JSON text cache belongs to it, and lives as long as the pane is
+ * shown; the Model diffs are the inspector's [diffs], shared with the other panes.
+ */
+internal class TimelineProjector(private val scope: InspectorScope, private val diffs: ModelDiffs) {
 
     /** Each row's JSON text, `null` for a row without any. */
     private val jsonText = LinkedHashMap<TimeMachineSequence, String?>()
 
-    private val diffs = LinkedHashMap<TimeMachineSequence, ModelDiff?>()
-
-    /** The rows whose JSON text and diff are cached. */
-    val cachedRows: Set<TimeMachineSequence> get() = jsonText.keys + diffs.keys
+    /** The rows whose JSON text is cached. */
+    val cachedRows: Set<TimeMachineSequence> get() = jsonText.keys.toSet()
 
     fun project(state: TimeMachineState, selection: Selection, controls: TimelineVIE.Controls): TimelineProjection {
         val session = state.sessions[scope.sessionId]
@@ -193,6 +191,7 @@ internal class TimelineProjector(private val scope: InspectorScope) {
         }
         val rows = entries.mapNotNull { ((it as? SessionTimelineEntry.Scoped)?.entry as? TimelineEntry.Message)?.row }
         trim(rows)
+        diffs.retain(state)
 
         val filtered = controls.filter.apply(entries, { it.timelineEntry }, ::json)
         val query = controls.filter.query
@@ -239,7 +238,7 @@ internal class TimelineProjector(private val scope: InspectorScope) {
         return TimelineItem(
             key = entry.key(),
             entry = entry,
-            diff = if (vm != null && observation.kind == VIEObjectKind.Model) diff(vm, row, observation) else null,
+            diff = if (vm != null && observation.kind == VIEObjectKind.Model) diffs.of(vm, row.sequence) else null,
             interventionNumber = observation.interventionId?.let { vm?.interventionNumber(it) },
             source = source,
             canIntervene = canIntervene(session, vm, observation),
@@ -255,21 +254,10 @@ internal class TimelineProjector(private val scope: InspectorScope) {
         return (row.message as? TimeMachineClientMessage.Observed)?.observation?.asJson?.toString().also { jsonText[sequence] = it }
     }
 
-    private fun diff(vm: ViewModelRecord, row: Row, observation: VIEObservation): ModelDiff? {
-        val sequence = row.sequence
-        if (sequence in diffs) return diffs[sequence]
-        val previous = vm.previousModel(sequence)
-        val old = (previous?.message as? TimeMachineClientMessage.Observed)?.observation?.asJson
-        val new = observation.asJson
-        return (if (previous == null) null else ModelDiff(previous.sequence, if (old != null && new != null) diffJson(old, new) else emptyList()))
-            .also { diffs[sequence] = it }
-    }
-
-    /** Drops the cache entries of the rows the store no longer retains. */
+    /** Drops the JSON texts of the rows the store no longer retains. */
     private fun trim(retained: List<Row>) {
         val sequences = retained.mapTo(HashSet()) { it.sequence }
         jsonText.keys.retainAll(sequences)
-        diffs.keys.retainAll(sequences)
     }
 }
 
@@ -291,7 +279,7 @@ internal class TimelineVM(
         ) { state, selection, controls -> Triple(state, selection.resolvedIn(state), controls) }
         project(
             inspector.whileShown(key(scope), inputs) {
-                val projector = TimelineProjector(scope);
+                val projector = TimelineProjector(scope, inspector.modelDiffs);
                 { (state, selection, controls) -> projector.project(state, selection, controls) }
             },
         ) { copy(projection = it) }

@@ -23,6 +23,7 @@ import org.kodein.arch.vie.timemachine.server.store.ConnectionId
 import org.kodein.arch.vie.timemachine.server.store.SessionTimelineEntry
 import org.kodein.arch.vie.timemachine.server.store.TimeMachineEvent
 import org.kodein.arch.vie.timemachine.server.ui.common.DiffKind
+import org.kodein.arch.vie.timemachine.server.ui.common.ModelDiffs
 import org.kodein.arch.vie.timemachine.server.ui.core.Inspector
 import org.kodein.arch.vie.timemachine.server.ui.core.InspectorScope
 import org.kodein.arch.vie.timemachine.server.ui.core.RightTab
@@ -312,7 +313,7 @@ class TimelinePaneTest {
     @Test
     fun `a cache entry goes with its evicted row`() {
         val data = ScenarioData.of("main")
-        val projector = TimelineProjector(taskListScope)
+        val projector = TimelineProjector(taskListScope, ModelDiffs())
         val controls = TimelineVIE.Controls(filter = TimelineFilter(query = "no row has this"))
         val state = data.state()
         projector.project(state, Selection(), controls)
@@ -341,7 +342,7 @@ class TimelinePaneTest {
         val reconnection = ConnectionId(9)
         val hello = TimeMachineClientMessage.Hello(Demo.session, TimeMachineConnection.protocolVersion)
         val state = ScenarioData.of("disconnected").state().on(TimeMachineEvent.HelloReceived(reconnection, hello, Demo.at(30_000))).state
-        val projector = TimelineProjector(demoSession)
+        val projector = TimelineProjector(demoSession, ModelDiffs())
         fun TimelineProjection.dividers() = items.filter { it.entry is SessionTimelineEntry.Divider }.map { it.key }
         fun TimelineProjection.assertKeysAreDistinct() = assertEquals(items.size, items.map { it.key }.toSet().size, "two items share a key")
 

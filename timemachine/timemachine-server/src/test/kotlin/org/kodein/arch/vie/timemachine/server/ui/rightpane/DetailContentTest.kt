@@ -24,6 +24,7 @@ import org.kodein.arch.vie.timemachine.server.fixtures.contentTest
 import org.kodein.arch.vie.timemachine.server.fixtures.shown
 import org.kodein.arch.vie.timemachine.server.fixtures.state
 import org.kodein.arch.vie.timemachine.server.fixtures.taskListScope
+import org.kodein.arch.vie.timemachine.server.ui.common.ModelDiffs
 import org.kodein.arch.vie.timemachine.server.ui.core.Selection
 
 
@@ -33,7 +34,7 @@ class DetailContentTest {
     /** The Detail of row [sequence] of the main scenario's TaskListVM. */
     private fun detail(sequence: Long): MockVIE<DetailVIE.Model, DetailVIE.Intent, NoSignal> {
         val selection = Selection(scope = taskListScope, row = TimeMachineSequence(sequence))
-        return MockVIE(DetailVIE.Model(projection = detailProjection(ScenarioData.of("main").state(), selection, raw = false)))
+        return MockVIE(DetailVIE.Model(projection = detailProjection(ScenarioData.of("main").state(), selection, raw = false, ModelDiffs())))
     }
 
     @Test
@@ -47,7 +48,7 @@ class DetailContentTest {
         )
         val selection = Selection(scope = taskListScope, row = TimeMachineSequence(1))
         val vie = MockVIE<DetailVIE.Model, DetailVIE.Intent, NoSignal>(
-            DetailVIE.Model(projection = detailProjection(SampleWorld.state(b.events), selection, raw = false)),
+            DetailVIE.Model(projection = detailProjection(SampleWorld.state(b.events), selection, raw = false, ModelDiffs())),
         )
         assertFalse(vie.model.projection.canIntervene)
         contentTest(width = 420, height = 900, content = { vie.Rendered { DetailPaneContent(it) } }) {
