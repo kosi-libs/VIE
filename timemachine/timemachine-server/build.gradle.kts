@@ -11,6 +11,12 @@ kotlin {
     jvmToolchain(findProperty("jvm.toolchain")!!.toString().toInt())
 }
 
+// The types from other modules that the compiler cannot see are immutable (Uuid, Instant, the protocol,
+// the JSON tree): listed there, they and the classes that hold them are compared by equals, not identity.
+composeCompiler {
+    stabilityConfigurationFiles.add(layout.projectDirectory.file("compose-stability.conf"))
+}
+
 // Opt-in: `-Pvie.composeReports=true` writes the Compose compiler's reports and metrics to
 // build/compose-reports/, to read which composables skip and which of their parameters are unstable.
 // A report is only written for what is compiled: add `--rerun-tasks` when the sources did not change.

@@ -1,5 +1,6 @@
 package org.kodein.arch.vie.timemachine.server.ui.sessions
 
+import androidx.compose.runtime.Immutable
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
@@ -62,8 +63,12 @@ internal interface SessionsVIE : VIE<SessionsVIE.Model, SessionsVIE.Intent, VIE.
 }
 
 /**
+ * Immutable: built once by [sessionsModel], its lists are never changed after. Without the annotation the
+ * compiler, which cannot tell that of a `List`, would compare it by identity.
+ *
  * @property clearLabel What the session's clear action does: "Clear session" when disconnected, else "Clear N closed ViewModels".
  */
+@Immutable
 internal data class SessionItem(
     val id: Uuid,
     val name: String,
@@ -77,11 +82,15 @@ internal data class SessionItem(
 )
 
 /**
+ * Immutable: built once by [sessionsModel], its lists are never changed after. Without the annotation the
+ * compiler, which cannot tell that of a `List`, would compare it by identity.
+ *
  * @property rowCount How many rows it ever had: the count printed under its sparkline.
  * @property typeName `null` while the ViewModel is unknown: it is then shown by [shortId] only.
  * @property since When it started, or when the inspector first heard of it when its start was never seen.
  * @property startSeen Whether [since] is its start.
  */
+@Immutable
 internal data class ViewModelItem(
     val id: Uuid,
     val typeName: String?,
