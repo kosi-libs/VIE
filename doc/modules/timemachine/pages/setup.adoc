@@ -51,6 +51,27 @@ TIP: The limit does not spare your application the cost of rendering a heavy mod
 Keep decoded images and file contents out of the models you observe.
 
 
+[#output]
+== The probe's output
+
+The probe says little: a banner when it starts, the state of its connection to the inspector, and each failure it survives.
+It prints them with `println`, unless you give it a `logger`:
+
+[source,kotlin]
+.Routing the probe's messages to Logcat, on Android
+----
+TimeMachine.start(TimeMachineConfig(appName = "Counter", enabled = isDebugBuild, logger = { Log.d("TimeMachine", it) })) // <1>
+----
+<1> Each call hands the logger one message, ready to print: a line that starts with `TimeMachine:`, or the banner, a box of several lines.
+
+The logger is called from whichever thread has something to say, a ViewModel's included: keep it thread-safe and quick.
+A logger that throws does not break the probe, which then prints the message with `println` instead.
+A probe that is not `enabled` never calls it.
+
+Pass `{}` to silence the probe.
+That silences its banner too, which is one of the things that xref:safety.adoc#mitigations[keep the probe safe]: prefer routing it.
+
+
 [#middleware]
 == Installing the middleware
 

@@ -393,7 +393,7 @@ A Signal that picked neither delivery kind is refused the same way, since the Vi
 
 | `ProbeFailure`
 | The probe failed while handling the request: a defect of the probe, not a refusal.
-It is not known whether the object reached the ViewModel, and the failure is printed in the application's output.
+It is not known whether the object reached the ViewModel, and the failure is printed in xref:setup.adoc#output[the probe's output].
 |===
 
 What an accepted request does depends on the kind, and uses the ViewModel's own public API:
