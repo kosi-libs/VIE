@@ -16,6 +16,10 @@ sealed interface SessionTimelineEntry {
 
     /**
      * The session's connection changed at [at], right after the row at [after] (the top when `null`).
+     *
+     * [at] is read on the inspector's clock, when it accepted or lost the connection: the probe does
+     * not report its connection changes. A row's display time is read on the device's clock, so the
+     * two compare only as far as the clocks agree; [after], not [at], places the divider.
      */
     data class Divider(val kind: Kind, val at: Instant, val after: TimeMachineSequence?) : SessionTimelineEntry {
         enum class Kind { Connected, Reconnected, Disconnected }
