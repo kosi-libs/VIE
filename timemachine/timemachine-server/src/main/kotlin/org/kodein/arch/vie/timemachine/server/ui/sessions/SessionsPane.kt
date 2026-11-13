@@ -62,7 +62,6 @@ internal interface SessionsVIE : VIE<SessionsVIE.Model, SessionsVIE.Intent, VIE.
 }
 
 /**
- * @property sparkline The sum of its ViewModels' activity over the last 30 s.
  * @property clearLabel What the session's clear action does: "Clear session" when disconnected, else "Clear N closed ViewModels".
  */
 internal data class SessionItem(
@@ -73,7 +72,6 @@ internal data class SessionItem(
     val connectedAt: Instant,
     val disconnectedAt: Instant?,
     val viewModels: List<ViewModelItem>,
-    val sparkline: List<Int>,
     val clearLabel: String,
     val clearEnabled: Boolean,
 )
@@ -162,7 +160,6 @@ private fun SessionRecord.item(now: Instant): SessionItem {
         connectedAt = connectedAt,
         disconnectedAt = disconnectedAt,
         viewModels = viewModels.values.map { it.item(this, now) },
-        sparkline = sparkline(now),
         clearLabel = when {
             !isConnected -> "Clear session"
             closed == 0 -> "Clear closed ViewModels"

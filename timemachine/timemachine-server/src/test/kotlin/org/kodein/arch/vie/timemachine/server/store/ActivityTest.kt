@@ -15,7 +15,6 @@ class ActivityTest {
     private val c1 = ConnectionId(1)
     private val session = TimeMachineSession(Uuid.random(), "App")
     private val vm = Uuid.random()
-    private val other = Uuid.random()
 
     /** The start of a 3 s bucket: `t0` is a multiple of 3 s. */
     private val base = t0
@@ -145,17 +144,5 @@ class ActivityTest {
         assertEquals(emptyList(), state.vm(session.id, vm).rows)
         assertEquals(1, state.vm(session.id, vm).evictedCount)
         assertEquals(last(1), state.sparkline(base))
-    }
-
-    @Test
-    fun aSessionsSparklineIsTheSumOfItsViewModels() {
-        val (state) = connected().after(
-            receive(c1, observed(vm, 0), now = base),
-            receive(c1, observed(other, 1), now = base - 3.seconds),
-            receive(c1, observed(other, 2), now = base),
-        )
-
-        assertEquals(last(1, 2), state.session(session.id).sparkline(base))
-        assertEquals(last(), SessionRecord(session, null, state.session(session.id).connections).sparkline(base))
     }
 }

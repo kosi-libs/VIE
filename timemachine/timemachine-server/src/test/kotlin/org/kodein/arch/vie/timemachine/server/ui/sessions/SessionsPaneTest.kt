@@ -55,7 +55,7 @@ class SessionsPaneTest {
         assertEquals("Clear 1 closed ViewModel", live.clearLabel)
         assertTrue(live.clearEnabled)
         assertEquals("Clear session", gone.clearLabel)
-        assertEquals(10, live.sparkline.size)
+        assertTrue(live.viewModels.all { it.sparkline.size == 10 })
         assertEquals(1, model.disconnectedSessions)
         val closed = live.viewModels.first { it.id == Demo.editTaskClosed }
         assertEquals(ViewModelStatus.Closed, closed.status)
@@ -185,7 +185,7 @@ class SessionsPaneTest {
     )
 
     private val VMTestScope<SessionsVIE.Model, SessionsVIE.Intent, VIE.NoSignal>.sparkline
-        get() = model.sessions.single().sparkline
+        get() = model.sessions.single().viewModels.single { it.id == Demo.taskList }.sparkline
 
     @Test
     fun `a shown Sessions pane's sparkline shifts at a bucket boundary and not between two`() =
@@ -234,7 +234,7 @@ class SessionsPaneTest {
         newVM = { SessionsVM(inspector("main").also { it.selection.selectScope(taskListScope) }) },
         block = {
             assertEquals(2, model.sessions.size)
-            assertEquals(10, model.sessions.first { it.connected }.sparkline.size)
+            assertTrue(model.sessions.first { it.connected }.viewModels.all { it.sparkline.size == 10 })
             assertEquals(taskListScope, model.selected)
         },
     )

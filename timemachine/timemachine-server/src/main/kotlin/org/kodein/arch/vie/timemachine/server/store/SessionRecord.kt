@@ -37,10 +37,6 @@ data class SessionRecord(
 
     /** When the latest connection was lost, `null` while it is alive. */
     val disconnectedAt: Instant? get() = connections.last().disconnected?.at
-
-    /** The sum of its ViewModels' activity over the 30 s ending at [now], oldest bucket first. */
-    fun sparkline(now: Instant): List<Int> =
-        viewModels.values.map { it.sparkline(now) }.reduceOrNull { a, b -> a.zip(b) { x, y -> x + y } } ?: List(ActivityBuckets) { 0 }
 }
 
 /**
