@@ -30,6 +30,7 @@ import org.kodein.arch.vie.timemachine.protocol.TimeMachineConnection
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineJson
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineSequence
 import org.kodein.arch.vie.timemachine.server.store.ConnectionId
+import org.kodein.arch.vie.timemachine.server.store.DefaultMaxChars
 import org.kodein.arch.vie.timemachine.server.store.ListenerState
 import org.kodein.arch.vie.timemachine.server.store.TimeMachineEvent
 import org.kodein.arch.vie.timemachine.server.store.TimeMachineStore
@@ -55,9 +56,13 @@ import kotlin.time.Duration.Companion.seconds
  * that its probe, acknowledged, does not wait on it.
  *
  * A frame larger than [maxFrameSize] bytes, first or later, closes the connection before it is read:
- * the probe is told it was too big, and the closing is printed. The default matches the default of
- * [org.kodein.arch.vie.timemachine.server.store.Limits.maxChars]: a frame of that many bytes holds at
- * most that many characters, so the cap refuses no frame a timeline would keep.
+ * the probe is told it was too big, and the closing is printed. The default, [DefaultMaxChars], is
+ * also the default of [org.kodein.arch.vie.timemachine.server.store.Limits.maxChars], which counts
+ * characters where the cap counts UTF-8 bytes: a frame the cap lets through holds at most that many
+ * characters, so it is never too heavy for a timeline with the default limits. The converse does not
+ * hold: a frame of multi-byte characters can be refused though a timeline would keep it, such as
+ * 12 Mi characters of three bytes each. Only the defaults are tied: the server does not know the
+ * limits its store was given.
  */
 class TimeMachineServer(
     private val store: TimeMachineStore,
@@ -66,7 +71,7 @@ class TimeMachineServer(
     private val pingPeriod: Duration = 5.seconds,
     private val timeout: Duration = 10.seconds,
     private val handshakeTimeout: Duration = 10.seconds,
-    private val maxFrameSize: Long = 32L * 1024 * 1024,
+    private val maxFrameSize: Long = DefaultMaxChars,
 ) {
 
     private val nextId = AtomicLong()
