@@ -31,12 +31,15 @@ import org.kodein.arch.vie.timemachine.protocol.TimeMachineSession
  * @param notice Prints what the probe and its connection have to say.
  * @param onRetired Called with this probe when an `Error` retires it, before it is stopped. Must not throw.
  * @param newConnection Builds the connection that reads this probe's session, sink and outbound queue.
+ * It runs on the probe's own coroutine, once [start]ed, and not on the thread that starts the probe:
+ * building one loads the HTTP client and its engine, which takes long enough to be felt at the
+ * start-up of an application. An `Error` it throws retires the probe, like one of the connection loop.
  */
 internal class TimeMachineProbe(
     private val config: TimeMachineConfig,
     private val notice: (String) -> Unit = ::println,
     private val onRetired: (TimeMachineProbe) -> Unit = {},
-    newConnection: (TimeMachineSession, TimeMachineSink, TimeMachineOutbox) -> InspectorConnection =
+    private val newConnection: (TimeMachineSession, TimeMachineSink, TimeMachineOutbox) -> InspectorConnection =
         { session, sink, outbox -> InspectorConnection(config, session, sink, outbox, notice = notice) },
 ) {
 
@@ -53,8 +56,6 @@ internal class TimeMachineProbe(
     // Android kills the app.
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default + CoroutineExceptionHandler { _, e -> retire(e) })
 
-    private val connection = newConnection(session, sink, outbox)
-
     fun <Model : VIE.Model, Intent : VIE.Intent, Signal : VIE.Signal> middleware(
         model: KType,
         intent: KType,
@@ -64,14 +65,15 @@ internal class TimeMachineProbe(
 
     fun start() {
         printBanner()
-        scope.launch { connection.run() }
+        // Built here, off the caller's thread, and closed with the coroutine: cancelling the scope is
+        // what closes it, and a probe stopped before this runs never builds one.
+        scope.launch { newConnection(session, sink, outbox).use { it.run() } }
     }
 
     fun stop() {
         scope.cancel()
         sink.close()
         outbox.close()
-        connection.close()
     }
 
     /** Stops this probe for good after [failure] ended its connection loop, rather than leave it
