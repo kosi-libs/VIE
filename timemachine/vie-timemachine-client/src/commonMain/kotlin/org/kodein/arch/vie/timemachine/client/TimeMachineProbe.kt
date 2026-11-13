@@ -42,9 +42,9 @@ internal class TimeMachineProbe(
 
     private val session = TimeMachineSession(id = Uuid.random(), name = config.appName)
 
-    private val outbox = TimeMachineOutbox(config.bufferSize)
+    private val outbox = TimeMachineOutbox(config.bufferSize, maxObservationLength = config.maxObservationLength)
 
-    private val sink = TimeMachineSink(outbox::offer)
+    private val sink = TimeMachineSink(config.maxObservationLength, outbox::offer)
 
     private val roles = VIERoles()
 
@@ -89,6 +89,7 @@ internal class TimeMachineProbe(
             "TimeMachine probe started for \"${config.appName}\"",
             "Inspector: ${config.inspectorAddress}",
             "Keeps up to ${config.bufferSize} messages the inspector has not taken yet.",
+            "Sends at most ${config.maxObservationLength} characters of one observation.",
             "",
             "This probe streams every Model, Intent and Signal of this app",
             "in cleartext, and lets the inspector drive its ViewModels.",

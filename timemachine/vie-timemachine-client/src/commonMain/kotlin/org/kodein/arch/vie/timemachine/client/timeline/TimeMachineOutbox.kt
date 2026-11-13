@@ -9,6 +9,7 @@ import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.update
+import org.kodein.arch.vie.timemachine.client.defaultMaxObservationLength
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineClientMessage
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineJson
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineSequence
@@ -32,11 +33,21 @@ import org.kodein.arch.vie.timemachine.protocol.TimeMachineTimelineMessage
  * link that falls behind leaves the entries in the bounded queue, where they drop and are reported,
  * rather than piling up in the transport's own unbounded buffers.
  *
+ * A message whose encoding is longer than `maxObservationLength` characters loses its JSON: an
+ * observation is sent without its `asJson`, and says it was truncated, in the place its sequence
+ * gave it. The inspector closes a connection on a frame past its limit, and the message would
+ * then be sent again, and refused again, for as long as it is in flight. See
+ * [org.kodein.arch.vie.timemachine.client.TimeMachineConfig.maxObservationLength].
+ *
  * A message [drain] fails to send is kept, with its sequence, and sent first by the next [drain],
  * right after the messages still in flight, which it sends again: neither a message nor a drop count
  * is ever lost to a broken connection.
  */
-internal class TimeMachineOutbox(capacity: Int, private val window: Int = 256 * 1024) {
+internal class TimeMachineOutbox(
+    capacity: Int,
+    private val window: Int = 256 * 1024,
+    private val maxObservationLength: Int = defaultMaxObservationLength,
+) {
 
     /** A message numbered and encoded, ready to send. */
     private class Encoded(val sequence: TimeMachineSequence, val text: String)
@@ -107,8 +118,17 @@ internal class TimeMachineOutbox(capacity: Int, private val window: Int = 256 * 
         unsent += encode(entry.describe(nextSequence++))
     }
 
-    private fun encode(message: TimeMachineTimelineMessage) =
-        Encoded(message.sequence, TimeMachineJson.encodeToString(TimeMachineClientMessage.serializer(), message))
+    private fun encode(message: TimeMachineTimelineMessage): Encoded {
+        val text = encodeToString(message)
+        if (text.length <= maxObservationLength || message !is TimeMachineClientMessage.Observed || message.observation.asJson == null) {
+            return Encoded(message.sequence, text)
+        }
+        val withoutJson = message.copy(observation = message.observation.copy(asJson = null, truncated = true))
+        return Encoded(message.sequence, encodeToString(withoutJson))
+    }
+
+    private fun encodeToString(message: TimeMachineTimelineMessage) =
+        TimeMachineJson.encodeToString(TimeMachineClientMessage.serializer(), message)
 
     /** Forgets the in-flight messages up to [acknowledged]. */
     private fun trim(acknowledged: TimeMachineSequence?) {
