@@ -16,6 +16,7 @@ import io.ktor.websocket.Frame
 import io.ktor.websocket.FrameTooBigException
 import io.ktor.websocket.readText
 import kotlinx.coroutines.CoroutineExceptionHandler
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.sync.Mutex
@@ -180,6 +181,11 @@ class TimeMachineServer(
         } catch (e: FrameTooBigException) {
             // Ktor already closed the connection, telling the probe why.
             println("TimeMachine: closed connection ${id.value} on a ${e.frameSize}-byte frame, over the $maxFrameSize-byte cap")
+        } catch (e: java.io.IOException) {
+            // Ktor already sends the close, but a half-open peer never answers it, and `joinSession` would
+            // wait for it forever: cancelling is what frees the socket.
+            println("TimeMachine: lost connection ${id.value}: ${e.message}")
+            cancel()
         } finally {
             store.post(TimeMachineEvent.Disconnected(id, Clock.System.now()))
             connections.unregister(id)

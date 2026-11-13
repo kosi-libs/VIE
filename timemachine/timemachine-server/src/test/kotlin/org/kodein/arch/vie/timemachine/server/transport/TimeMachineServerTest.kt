@@ -6,6 +6,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
+import kotlin.time.Duration
 import kotlin.time.Duration.Companion.milliseconds
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.TimeSource
@@ -56,15 +57,28 @@ private class Inspector(val store: TimeMachineStore, val server: TimeMachineServ
     }
 }
 
+/**
+ * The ping period and timeout of a test's inspector: they never fire within a test's 10 s budget,
+ * unless a test shortens them.
+ */
+private val testPingPeriod = 5.seconds
+private val testPingTimeout = 10.seconds
+
 private fun inspector(
     port: Int,
     maxFrameSize: Long = 32L * 1024 * 1024,
+    pingPeriod: Duration = testPingPeriod,
+    timeout: Duration = testPingTimeout,
     block: suspend (store: TimeMachineStore, server: TimeMachineServer) -> Unit,
 ) = runBlocking {
     val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default)
     val connections = TimeMachineConnections(scope, closeTimeout = 1.seconds)
     val store = TimeMachineStore(scope, interventionTimeout = 200.milliseconds, execute = connections::execute)
-    val server = TimeMachineServer(store, connections, port = port, handshakeTimeout = 500.milliseconds, maxFrameSize = maxFrameSize)
+    val server = TimeMachineServer(
+        store, connections, port = port,
+        pingPeriod = pingPeriod, timeout = timeout,
+        handshakeTimeout = 500.milliseconds, maxFrameSize = maxFrameSize,
+    )
     try {
         withTimeout(10.seconds) { block(store, server) }
     } finally {
@@ -73,7 +87,12 @@ private fun inspector(
     }
 }
 
-private fun withInspector(maxFrameSize: Long = 32L * 1024 * 1024, block: suspend Inspector.() -> Unit) = inspector(port = 0, maxFrameSize) { store, server ->
+private fun withInspector(
+    maxFrameSize: Long = 32L * 1024 * 1024,
+    pingPeriod: Duration = testPingPeriod,
+    timeout: Duration = testPingTimeout,
+    block: suspend Inspector.() -> Unit,
+) = inspector(port = 0, maxFrameSize, pingPeriod, timeout) { store, server ->
     server.start()
     val listener = assertIs<ListenerState.Listening>(store.state.first { it.listener != ListenerState.Starting }.listener)
     FakeProbe(listener.port).use { Inspector(store, server, it).block() }
@@ -262,6 +281,14 @@ class TimeMachineServerTest {
         until { first !in it.connections }
 
         assertTrue(evicted.elapsedNow() >= 800.milliseconds, "cancelled after ${evicted.elapsedNow()}, before the 1 s close timeout")
+    }
+
+    @Test
+    fun aCurrentConnectionThatStopsAnsweringPingsIsCutAndItsSessionDisconnected() = withInspector(pingPeriod = 200.milliseconds, timeout = 300.milliseconds) {
+        val peer = probe.welcomedHalfOpen(session)
+
+        until { it.sessions[session.id]?.isConnected == false }
+        peer.awaitCut()
     }
 
     @Test
