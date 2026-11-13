@@ -152,6 +152,17 @@ class TimeMachineServerTest {
         assertEquals("Expected a hello within 500ms", probe.connect().closeReason())
     }
 
+    @Test
+    fun aRefusedConnectionThatNeverAnswersTheCloseIsCancelledAfterTheCloseTimeout() = withInspector {
+        val peer = probe.halfOpen()
+        assertEquals("Expected a hello within 500ms", peer.closeReason())
+
+        val refused = TimeSource.Monotonic.markNow()
+        peer.awaitCut()
+
+        assertTrue(refused.elapsedNow() >= 800.milliseconds, "cancelled after ${refused.elapsedNow()}, before the 1 s close timeout")
+    }
+
     // Weak: no regression of that branch changes what the state shows, it only guards a connection nobody handles.
     @Test
     fun aProbeThatLeavesBeforeItsHelloLeavesNothingBehind() = withInspector {

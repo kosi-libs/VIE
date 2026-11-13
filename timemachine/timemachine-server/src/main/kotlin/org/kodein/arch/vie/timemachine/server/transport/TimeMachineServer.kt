@@ -14,7 +14,6 @@ import io.ktor.server.websocket.webSocket
 import io.ktor.websocket.CloseReason
 import io.ktor.websocket.Frame
 import io.ktor.websocket.FrameTooBigException
-import io.ktor.websocket.close
 import io.ktor.websocket.readText
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.currentCoroutineContext
@@ -189,7 +188,9 @@ class TimeMachineServer(
 
     /**
      * The connection's first frame, when it is a hello. Otherwise `null`, and the connection is
-     * closed with a reason saying what arrived instead, unless the probe already left.
+     * closed with a reason saying what arrived instead, unless the probe already left. A probe that
+     * does not answer that close in time has its connection cancelled, as [TimeMachineConnections.close]
+     * does.
      *
      * @throws FrameTooBigException when the first frame is over [maxFrameSize].
      */
@@ -215,7 +216,7 @@ class TimeMachineServer(
                 }
             }
         }
-        close(CloseReason(CloseReason.Codes.VIOLATED_POLICY, reason))
+        connections.close(this, CloseReason(CloseReason.Codes.VIOLATED_POLICY, reason))
         return null
     }
 

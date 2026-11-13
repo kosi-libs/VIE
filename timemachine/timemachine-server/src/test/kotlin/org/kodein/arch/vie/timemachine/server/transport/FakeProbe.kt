@@ -2,15 +2,19 @@ package org.kodein.arch.vie.timemachine.server.transport
 
 import io.ktor.client.HttpClient
 import io.ktor.client.engine.cio.CIO
+import io.ktor.client.plugins.websocket.ClientWebSocketSession
 import io.ktor.client.plugins.websocket.DefaultClientWebSocketSession
 import io.ktor.client.plugins.websocket.WebSockets
 import io.ktor.client.plugins.websocket.cio.webSocketRawSession
 import io.ktor.client.plugins.websocket.webSocketSession
 import io.ktor.websocket.Frame
 import io.ktor.websocket.close
+import io.ktor.websocket.readReason
 import io.ktor.websocket.readText
 import kotlin.test.fail
+import kotlin.time.Duration.Companion.milliseconds
 import kotlinx.coroutines.cancel
+import kotlinx.coroutines.delay
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineClientMessage
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineConnection
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineJson
@@ -31,19 +35,59 @@ internal class FakeProbe(private val port: Int) : AutoCloseable {
         check(receive() == TimeMachineServerMessage.Welcome)
     }
 
-    /**
-     * Connects and says hello as [session], expecting a welcome, then reads nothing more: a raw
-     * session answers neither pings nor the inspector's close, as a half-open peer would not.
-     */
-    suspend fun welcomedHalfOpen(session: TimeMachineSession) {
-        val raw = http.webSocketRawSession(host = "localhost", port = port, path = TimeMachineConnection.path)
-        raw.send(Frame.Text(TimeMachineJson.encodeToString(TimeMachineClientMessage.serializer(), TimeMachineClientMessage.Hello(session, TimeMachineConnection.protocolVersion))))
-        val welcome = raw.incoming.receive()
-        check(welcome is Frame.Text && TimeMachineJson.decodeFromString(TimeMachineServerMessage.serializer(), welcome.readText()) == TimeMachineServerMessage.Welcome)
+    /** Opens a raw session: it answers neither pings nor the inspector's close, as a half-open peer would not. */
+    suspend fun halfOpen(): HalfOpen =
+        HalfOpen(http.webSocketRawSession(host = "localhost", port = port, path = TimeMachineConnection.path))
+
+    /** Connects and says hello as [session], expecting a welcome, then reads nothing more: see [halfOpen]. */
+    suspend fun welcomedHalfOpen(session: TimeMachineSession): HalfOpen = halfOpen().apply {
+        send(TimeMachineClientMessage.Hello(session, TimeMachineConnection.protocolVersion))
+        check(receive() == TimeMachineServerMessage.Welcome)
     }
 
     override fun close() {
         http.close()
+    }
+
+    class HalfOpen(private val raw: ClientWebSocketSession) {
+
+        suspend fun send(message: TimeMachineClientMessage) {
+            raw.send(Frame.Text(TimeMachineJson.encodeToString(TimeMachineClientMessage.serializer(), message)))
+        }
+
+        /** The next message, skipping control frames, or `null` once the inspector sent its close. */
+        suspend fun receive(): TimeMachineServerMessage? {
+            for (frame in raw.incoming) {
+                when (frame) {
+                    is Frame.Text -> return TimeMachineJson.decodeFromString(TimeMachineServerMessage.serializer(), frame.readText())
+                    is Frame.Close -> return null
+                    else -> Unit
+                }
+            }
+            return null
+        }
+
+        /** The reason the inspector gave when closing the connection; fails on any text frame received before it. */
+        suspend fun closeReason(): String? {
+            for (frame in raw.incoming) {
+                when (frame) {
+                    is Frame.Close -> return frame.readReason()?.message
+                    is Frame.Text -> fail("Expected the close, got ${frame.readText()}")
+                    else -> Unit
+                }
+            }
+            fail("Expected the close, got the end of the stream")
+        }
+
+        /**
+         * Returns once the inspector has cut the connection. A raw peer sees a cut only by writing to
+         * it, so this writes pongs: a text frame would unblock the inspector's `incoming` after a ping
+         * period, a ping would fail its ponger, and a pong is ignored, so it hides no leak. `trySend`
+         * throws nothing, so no `runCatching` swallows the cancellation of a surrounding timeout.
+         */
+        suspend fun awaitCut() {
+            while (raw.outgoing.trySend(Frame.Pong(ByteArray(0))).isSuccess) delay(50.milliseconds)
+        }
     }
 
     class Connection(private val session: DefaultClientWebSocketSession) {
