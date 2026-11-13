@@ -32,6 +32,7 @@ import org.kodein.arch.vie.timemachine.server.ui.core.Selection
 import org.kodein.arch.vie.timemachine.server.ui.core.ViewModelStatus
 import org.kodein.arch.vie.timemachine.server.ui.core.key
 import org.kodein.arch.vie.timemachine.server.ui.core.whileShown
+import org.kodein.arch.vie.timemachine.server.ui.rightpane.canIntervene
 import kotlin.time.Instant
 import kotlin.uuid.Uuid
 
@@ -141,8 +142,8 @@ internal data class ModelDiff(val previous: TimeMachineSequence, val ops: List<D
  * @property interventionNumber For an intervened observation, its number within its ViewModel.
  * @property snippet Under a query, the text that matched, trimmed to bring the hit into view.
  * @property source In a session scope, the ViewModel the row belongs to, as the `[180]` column names it.
- * @property canIntervene Whether Edit & intervene is open on it: it has JSON, its type is serializable,
- *   its ViewModel is alive and its session connected.
+ * @property canIntervene Whether Edit & intervene is open on it, by the composer's own rule:
+ *   `canIntervene(session, vm, observation)`.
  */
 internal data class TimelineItem(
     val key: String,
@@ -247,19 +248,9 @@ internal class TimelineProjector(private val scope: InspectorScope) {
             diff = if (vm != null && observation.kind == VIEObjectKind.Model) diff(vm, row, observation) else null,
             interventionNumber = observation.interventionId?.let { vm?.interventionNumber(it) },
             source = source,
-            canIntervene = vm != null && canIntervene(session, vm, observation),
+            canIntervene = canIntervene(session, vm, observation),
             snippet = if (query.isEmpty()) null else listOfNotNull(observation.asString, json(row)).firstOrNull { it.contains(query, ignoreCase = true) }?.let { searchSnippet(it, query) },
         )
-    }
-
-    private fun canIntervene(session: SessionRecord, vm: ViewModelRecord, observation: VIEObservation): Boolean {
-        val info = vm.info ?: return false
-        val typeInfo = when (observation.kind) {
-            VIEObjectKind.Model -> info.model
-            VIEObjectKind.Intent -> info.intent
-            VIEObjectKind.Signal -> info.signal
-        }
-        return session.isConnected && !vm.closed && typeInfo.isSerializable && observation.asJson != null
     }
 
     private fun ViewModelRecord.label(): String = viewModelLabel(info?.typeName, id)

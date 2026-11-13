@@ -6,6 +6,7 @@ import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonPrimitive
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineSequence
 import org.kodein.arch.vie.timemachine.protocol.VIEObjectKind
+import org.kodein.arch.vie.timemachine.protocol.VIEObservation
 import org.kodein.arch.vie.timemachine.protocol.VIESignalDelivery
 import org.kodein.arch.vie.timemachine.server.store.SessionRecord
 import org.kodein.arch.vie.timemachine.server.store.TypeKey
@@ -74,6 +75,14 @@ fun composerBlock(session: SessionRecord?, vm: ViewModelRecord?): ComposerBlock?
     vm.closed -> ComposerBlock.ViewModelClosed
     else -> null
 }
+
+/**
+ * Whether [observation] of [vm] of [session] can be edited and sent back as an intervention: nothing
+ * blocks the composer ([composerBlock]), the type of its kind is `@Serializable`, and it came with its
+ * JSON. Every pane that offers Edit & intervene, or Edit & replace on the current Model, asks this.
+ */
+fun canIntervene(session: SessionRecord?, vm: ViewModelRecord?, observation: VIEObservation): Boolean =
+    composerBlock(session, vm) == null && vm?.info?.type(observation.kind)?.isSerializable == true && observation.asJson != null
 
 /**
  * The composer for [vm] of [session] and [kind].

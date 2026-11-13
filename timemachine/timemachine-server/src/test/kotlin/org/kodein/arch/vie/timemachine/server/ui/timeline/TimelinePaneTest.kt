@@ -78,6 +78,12 @@ class TimelinePaneTest {
         }
 
     @Test
+    fun `a disconnected session's rows cannot be edited`() = timeline("disconnected") {
+        assertTrue(model.projection.items.any { it.observation != null })
+        assertTrue(model.projection.items.none { it.canIntervene })
+    }
+
+    @Test
     fun `a session scope names each row's ViewModel, and a closed one cannot be edited`() = runVMTest(
         newVM = {
             val inspector = inspector("main")

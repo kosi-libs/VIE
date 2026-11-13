@@ -53,7 +53,7 @@ internal interface CurrentModelVIE : VIE<CurrentModelVIE.Model, CurrentModelVIE.
  * @property rawText The JSON as text, only computed while the controls ask for it.
  * @property changedPaths The tree nodes that differ from the Model observed before; empty when that one was evicted.
  * @property changedFrom The sequence of that previous Model.
- * @property canReplace Whether "Edit & replace" is open: the Model has JSON, its type serializes and nothing blocks the composer.
+ * @property canReplace Whether "Edit & replace" is open: `canIntervene(session, vm, observation)` on the current Model.
  */
 internal data class CurrentModelProjection(
     val typeName: String? = null,
@@ -109,7 +109,7 @@ private fun currentModelProjection(
         rawText = if (raw) json?.pretty() else null,
         changedPaths = changedPaths,
         changedFrom = changedFrom,
-        canReplace = json != null && vm.info?.model?.isSerializable == true && composerBlock(session, vm) == null,
+        canReplace = canIntervene(session, vm, observation),
         truncated = observation.truncated,
     )
 }
