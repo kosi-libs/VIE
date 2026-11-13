@@ -152,6 +152,11 @@ class TimeMachineStore(
      * returns the request's identifier, under which [state] records the intervention. When the store no
      * longer holds that session or ViewModel by the time the request is applied, nor once the writer
      * stopped, nothing is recorded, and the identifier never appears in [state].
+     *
+     * The store only checks that it holds the session and the ViewModel. Whether the ViewModel is
+     * alive, and whether the type was reported `@Serializable`, is the caller's to check before
+     * offering the intervention: the store sends it all the same, and the probe refuses it, which
+     * ends it [InterventionStatus.Failed].
      */
     fun intervene(sessionId: Uuid, viewModelId: Uuid, kind: VIEObjectKind, typeName: String, asJson: JsonElement): Uuid {
         val requestId = Uuid.random()
