@@ -49,6 +49,8 @@ data class TypeKey(val kind: VIEObjectKind, val typeName: String)
  *   seen; kept when that row is evicted.
  * @property firstSequence The lowest sequence of any row it had, placed or not; kept when that row
  *   is evicted. `null` before its first row.
+ * @property lastSequence The highest sequence of any row it had, placed or not; kept when that row
+ *   is evicted. `null` before its first row.
  * @property startedAt When the probe says it started, once its [TimeMachineClientMessage.ViewModelStarted]
  *   was seen; kept when that row is evicted.
  * @property closeSequence The sequence of its [TimeMachineClientMessage.ViewModelClosed], once seen.
@@ -68,7 +70,6 @@ data class TypeKey(val kind: VIEObjectKind, val typeName: String)
  * @property signalDelivery The delivery kind of each Signal type observed, by type name, evicted rows
  *   included. A type that picked neither kind has no entry.
  * @property currentModel The latest Model observed, evicted rows included.
- * @property lastActivity The display time of its latest row, evicted rows included.
  * @property activity How many rows it had in each of its newest ten 3 s buckets, by the time the
  *   inspector received them rather than their display time, so that a device's clock cannot skew
  *   them; evicted rows included; `null` before its first row.
@@ -82,6 +83,7 @@ data class ViewModelRecord(
     val seenOnTimeline: Boolean = false,
     val startSequence: TimeMachineSequence? = null,
     val firstSequence: TimeMachineSequence? = null,
+    val lastSequence: TimeMachineSequence? = null,
     val startedAt: Instant? = null,
     val closeSequence: TimeMachineSequence? = null,
     val closedAt: Instant? = null,
@@ -95,7 +97,6 @@ data class ViewModelRecord(
     val latestJson: Map<TypeKey, Latest<JsonElement>> = emptyMap(),
     val signalDelivery: Map<String, VIESignalDelivery> = emptyMap(),
     val currentModel: Latest<VIEObservation>? = null,
-    val lastActivity: Latest<Instant>? = null,
     val activity: Activity? = null,
     val interventions: Map<Uuid, Intervention> = emptyMap(),
 ) {
@@ -131,13 +132,13 @@ data class ViewModelRecord(
     /**
      * The sequences it was alive for: from its start, or the session's floor when its start was
      * never seen, to its close. When only the probe's answer closed it, to the inferred end, or its
-     * last row when that is later. Open-ended while it is not closed; `null` before the session
-     * received any sequence.
+     * [lastSequence] when that is later. Open-ended while it is not closed; `null` before the
+     * session received any sequence.
      */
     fun aliveSpan(sequences: SequenceLedger): ClosedRange<TimeMachineSequence>? {
         val start = startSequence ?: sequences.floor ?: return null
         val end = closeSequence
-            ?: if (closed) maxOf(inferredEnd ?: NoSequence, lastActivity?.sequence ?: NoSequence)
+            ?: if (closed) maxOf(inferredEnd ?: NoSequence, lastSequence ?: NoSequence)
             else EndOfTime
         return start..end
     }
@@ -154,7 +155,7 @@ data class ViewModelRecord(
         var next = copy(
             rowCount = rowCount + 1,
             firstSequence = firstSequence?.let { minOf(it, sequence) } ?: sequence,
-            lastActivity = lastActivity.newer(sequence, message.at),
+            lastSequence = lastSequence?.let { maxOf(it, sequence) } ?: sequence,
             activity = activity.counting(now),
         )
         if (message is TimeMachineClientMessage.Observed) {

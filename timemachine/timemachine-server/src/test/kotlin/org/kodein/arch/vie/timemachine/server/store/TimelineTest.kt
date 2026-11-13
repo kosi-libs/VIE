@@ -157,7 +157,7 @@ class TimelineTest {
         assertEquals(20L, record.retainedChars)
         assertEquals(1, record.evictedCount)
         assertEquals(3, record.rowCount)
-        assertEquals(seq(2), record.lastActivity?.sequence)
+        assertEquals(seq(2), record.lastSequence)
     }
 
     @Test
@@ -198,7 +198,7 @@ class TimelineTest {
             record.latestJson,
         )
         assertEquals(seq(2), record.currentModel?.sequence)
-        assertEquals(Latest(seq(3), at(3)), record.lastActivity)
+        assertEquals(seq(3), record.lastSequence)
         assertEquals(4, record.rowCount)
     }
 
