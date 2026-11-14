@@ -17,4 +17,5 @@ internal val GalleryScenes: List<GalleryScene> = listOf(
     SegmentedControlScene,
     ToggleChipScene,
     TabRowScene,
+    SerialNameScene,
 )

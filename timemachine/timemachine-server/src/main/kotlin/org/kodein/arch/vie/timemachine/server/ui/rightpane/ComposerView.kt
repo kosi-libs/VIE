@@ -77,6 +77,7 @@ import org.kodein.arch.vie.timemachine.server.ui.designsystem.IconAction
 import org.kodein.arch.vie.timemachine.server.ui.designsystem.InspectorButton
 import org.kodein.arch.vie.timemachine.server.ui.designsystem.LinkAction
 import org.kodein.arch.vie.timemachine.server.ui.designsystem.SegmentedControl
+import org.kodein.arch.vie.timemachine.server.ui.designsystem.SerialName
 import org.kodein.arch.vie.timemachine.server.ui.theme.Glyph
 import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorColors
 import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorDimens
@@ -168,7 +169,6 @@ private fun KindReason(kind: VIEObjectKind, typeName: String) {
 private fun TypeField(type: String, types: List<String>, open: Boolean, blocked: Boolean, post: (ComposerVIE.Intent) -> Unit) {
     val scheme = MaterialTheme.colorScheme
     val shape = MaterialTheme.shapes.small
-    val name = splitSerialName(type)
     val choosable = types.size > 1 && !blocked
     // The field's width, for its menu: written when the field is laid out and read when the menu is
     // measured, so a field that is resized, as a dragged splitter does at each frame, composes nothing.
@@ -181,10 +181,7 @@ private fun TypeField(type: String, types: List<String>, open: Boolean, blocked:
                 .padding(start = 12.dp, end = 6.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Row(Modifier.weight(1f)) {
-                Text(name.prefix, style = InspectorTheme.text.code, color = scheme.outline, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
-                Text(name.last, style = InspectorTheme.text.code, color = scheme.onSurface, fontWeight = FontWeight.SemiBold, maxLines = 1)
-            }
+            SerialName(type, InspectorTheme.text.code, Modifier.weight(1f))
             Symbol(if (open) Glyph.ArrowDropUp else Glyph.ArrowDropDown, size = 18.dp, tint = scheme.onSurfaceVariant)
         }
         Text(
@@ -203,15 +200,13 @@ private fun TypeField(type: String, types: List<String>, open: Boolean, blocked:
                 .background(scheme.surfaceContainerHighest),
         ) {
             for (option in types) {
-                val parts = splitSerialName(option)
                 Row(
                     Modifier.fillMaxWidth().height(32.dp).background(if (option == type) scheme.surfaceContainerHighest else Color.Transparent)
                         .action { post(ComposerVIE.Intent.SetType(option)) }.padding(horizontal = 12.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Symbol(Glyph.Check, size = 15.dp, tint = if (option == type) scheme.primary else Color.Transparent)
-                    Text(parts.prefix, style = InspectorTheme.text.code, color = scheme.outline, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
-                    Text(parts.last, style = InspectorTheme.text.code, color = scheme.onSurface, fontWeight = FontWeight.SemiBold, maxLines = 1)
+                    SerialName(option, InspectorTheme.text.code, Modifier.weight(1f, fill = false))
                 }
             }
         }

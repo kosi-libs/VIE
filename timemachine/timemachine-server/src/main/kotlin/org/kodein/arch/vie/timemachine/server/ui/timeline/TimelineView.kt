@@ -103,6 +103,7 @@ import org.kodein.arch.vie.timemachine.server.ui.designsystem.HorizontalRule
 import org.kodein.arch.vie.timemachine.server.ui.designsystem.IconAction
 import org.kodein.arch.vie.timemachine.server.ui.designsystem.InspectorButton
 import org.kodein.arch.vie.timemachine.server.ui.designsystem.LinkAction
+import org.kodein.arch.vie.timemachine.server.ui.designsystem.SerialName
 import org.kodein.arch.vie.timemachine.server.ui.designsystem.ToggleChip
 import org.kodein.arch.vie.timemachine.server.ui.theme.Glyph
 import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorDimens
@@ -303,14 +304,10 @@ private fun TypeInfoPopover(info: VIEViewModelInfo) {
         Text("Type info", style = MaterialTheme.typography.titleSmall, color = scheme.onSurface)
         for (kind in VIEObjectKind.entries) {
             val typeInfo = info.type(kind)
-            val parts = splitSerialName(typeInfo.typeName)
             Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                     KindBadge(kind)
-                    Row(Modifier.weight(1f)) {
-                        Text(parts.prefix, style = InspectorTheme.text.codeRow, color = scheme.outline, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
-                        Text(parts.last, style = InspectorTheme.text.codeRow, color = scheme.onSurface, fontWeight = FontWeight.SemiBold, maxLines = 1)
-                    }
+                    SerialName(typeInfo.typeName, InspectorTheme.text.codeRow, Modifier.weight(1f))
                 }
                 FlowRow(
                     Modifier.padding(start = 60.dp),

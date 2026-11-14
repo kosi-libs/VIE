@@ -45,7 +45,6 @@ import org.kodein.arch.vie.timemachine.server.ui.common.jsonTree
 import org.kodein.arch.vie.timemachine.server.ui.common.pretty
 import org.kodein.arch.vie.timemachine.server.ui.common.rawJson
 import org.kodein.arch.vie.timemachine.server.ui.common.rememberJsonLines
-import org.kodein.arch.vie.timemachine.server.ui.common.splitSerialName
 import org.kodein.arch.vie.timemachine.server.ui.common.style
 import org.kodein.arch.vie.timemachine.server.ui.common.treeLines
 import org.kodein.arch.vie.timemachine.server.ui.core.InspectorPane
@@ -53,6 +52,7 @@ import org.kodein.arch.vie.timemachine.server.ui.core.LocalInspector
 import org.kodein.arch.vie.timemachine.server.ui.designsystem.ButtonVariant
 import org.kodein.arch.vie.timemachine.server.ui.designsystem.InspectorButton
 import org.kodein.arch.vie.timemachine.server.ui.designsystem.LinkAction
+import org.kodein.arch.vie.timemachine.server.ui.designsystem.SerialName
 import org.kodein.arch.vie.timemachine.server.ui.designsystem.rememberCopyFeedback
 import org.kodein.arch.vie.timemachine.server.ui.theme.Glyph
 import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorDimens
@@ -144,7 +144,6 @@ private fun DetailHeader(observation: VIEObservation, sequence: TimeMachineSeque
     val copied = rememberCopyFeedback()
     val kind = observation.kind
     val kindStyle = kind.style()
-    val name = splitSerialName(observation.typeName)
     val json = observation.asJson
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -154,13 +153,7 @@ private fun DetailHeader(observation: VIEObservation, sequence: TimeMachineSeque
             Spacer(Modifier.weight(1f))
             Text("#$sequence · ${formatTime(observation.at)}", style = InspectorTheme.text.codeRow, color = scheme.onSurfaceVariant, maxLines = 1)
         }
-        Text(
-            buildAnnotatedString {
-                withStyle(SpanStyle(color = scheme.outline)) { append(name.prefix) }
-                withStyle(SpanStyle(color = scheme.onSurface, fontWeight = FontWeight.SemiBold)) { append(name.last) }
-            },
-            style = InspectorTheme.text.code, color = scheme.onSurface,
-        )
+        SerialName(observation.typeName, InspectorTheme.text.code, maxLines = Int.MAX_VALUE)
         projection.interventionNumber?.let { number ->
             Row(
                 Modifier.fillMaxWidth().background(colors.intervenedContainer, RoundedCornerShape(8.dp)).padding(horizontal = 10.dp, vertical = 6.dp),
