@@ -73,8 +73,10 @@ import org.kodein.arch.vie.timemachine.server.ui.common.splitSerialName
 import org.kodein.arch.vie.timemachine.server.ui.common.style
 import org.kodein.arch.vie.timemachine.server.ui.core.InspectorPane
 import org.kodein.arch.vie.timemachine.server.ui.core.LocalInspector
+import org.kodein.arch.vie.timemachine.server.ui.designsystem.ButtonSize
 import org.kodein.arch.vie.timemachine.server.ui.designsystem.HorizontalRule
 import org.kodein.arch.vie.timemachine.server.ui.designsystem.IconAction
+import org.kodein.arch.vie.timemachine.server.ui.designsystem.InspectorButton
 import org.kodein.arch.vie.timemachine.server.ui.designsystem.LinkAction
 import org.kodein.arch.vie.timemachine.server.ui.designsystem.VerticalRule
 import org.kodein.arch.vie.timemachine.server.ui.theme.Glyph
@@ -377,17 +379,7 @@ private fun SendRow(kind: VIEObjectKind, enabled: Boolean, onSend: () -> Unit) {
     val scheme = MaterialTheme.colorScheme
     val kindStyle = kind.style()
     Row(horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically) {
-        val foreground = if (enabled) scheme.onPrimary else scheme.outline
-        Row(
-            Modifier.height(InspectorDimens.sendButton).background(if (enabled) scheme.primary else scheme.surfaceContainerHighest, InspectorPillShape)
-                .clip(InspectorPillShape)
-                .action(enabled = enabled, onClick = onSend)
-                .padding(start = 14.dp, end = 18.dp),
-            horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Symbol(kindStyle.sendGlyph, size = 17.dp, tint = foreground)
-            Text(kindStyle.verb, style = InspectorTheme.text.actionLarge, color = foreground, maxLines = 1)
-        }
+        InspectorButton(kindStyle.verb, onClick = onSend, glyph = kindStyle.sendGlyph, size = ButtonSize.Large, enabled = enabled)
         Text(kindStyle.effect, style = InspectorTheme.text.note, color = scheme.onSurfaceVariant, modifier = Modifier.weight(1f))
     }
 }

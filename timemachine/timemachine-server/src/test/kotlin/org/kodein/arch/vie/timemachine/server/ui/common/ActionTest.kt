@@ -87,23 +87,6 @@ class ActionTest {
         }
     }
 
-    @Test
-    fun `a hovered text action is tinted inside its pill only`() {
-        val source = LatchedInteractionSource()
-        surfaceTest({ TextAction("Clear filters", Modifier.testTag(tag), interactionSource = source) {} }) {
-            val rest = pixels()
-            source.emit(HoverInteraction.Enter())
-            waitForIdle()
-            val hovered = pixels()
-            val w = hovered.width
-            val h = hovered.height
-            // In the pill, in its 8 px of padding to the right of the text; and in the corners the pill cuts off.
-            assertNotEquals(rest[w - 3, h / 2], hovered[w - 3, h / 2], "the inside is not tinted")
-            assertEquals(rest[1, 1], hovered[1, 1], "the top left corner is tinted")
-            assertEquals(rest[w - 2, 1], hovered[w - 2, 1], "the top right corner is tinted")
-        }
-    }
-
     /** [shown] differs from [rest] at the centre of the element, and at neither of its top corners. */
     private fun assertTintedInsideNotInCorners(rest: PixelMap, shown: PixelMap) {
         assertNotEquals(rest[width / 2, height / 2], shown[width / 2, height / 2], "the inside is not tinted")

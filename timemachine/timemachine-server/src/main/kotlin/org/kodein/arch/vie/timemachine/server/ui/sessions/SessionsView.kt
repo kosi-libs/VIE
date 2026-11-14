@@ -33,7 +33,6 @@ import org.kodein.arch.vie.VIE.NoSignal
 import org.kodein.arch.vie.VIEViewScope
 import org.kodein.arch.vie.timemachine.server.ui.common.LiveDot
 import org.kodein.arch.vie.timemachine.server.ui.common.ScrollbarBox
-import org.kodein.arch.vie.timemachine.server.ui.common.TextAction
 import org.kodein.arch.vie.timemachine.server.ui.common.action
 import org.kodein.arch.vie.timemachine.server.ui.common.clock
 import org.kodein.arch.vie.timemachine.server.ui.common.viewModelName
@@ -42,7 +41,9 @@ import org.kodein.arch.vie.timemachine.server.ui.core.InspectorScope
 import org.kodein.arch.vie.timemachine.server.ui.core.LocalInspector
 import org.kodein.arch.vie.timemachine.server.ui.core.LocalInspectorViewState
 import org.kodein.arch.vie.timemachine.server.ui.core.ViewModelStatus
+import org.kodein.arch.vie.timemachine.server.ui.designsystem.ButtonVariant
 import org.kodein.arch.vie.timemachine.server.ui.designsystem.IconAction
+import org.kodein.arch.vie.timemachine.server.ui.designsystem.InspectorButton
 import org.kodein.arch.vie.timemachine.server.ui.theme.Glyph
 import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorDimens
 import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorTheme
@@ -98,9 +99,10 @@ internal fun VIEViewScope<SessionsVIE.Intent, NoSignal>.SessionsContent(model: S
             Text("Sessions", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurface)
             Text(model.sessions.size.toString(), style = InspectorTheme.text.monoSecondary, color = MaterialTheme.colorScheme.outline)
             Box(Modifier.weight(1f))
-            TextAction(
-                "Clear disconnected", glyph = Glyph.DeleteSweep, enabled = model.disconnectedSessions > 0,
-            ) { post(SessionsVIE.Intent.ClearDisconnected) }
+            InspectorButton(
+                "Clear disconnected", onClick = { post(SessionsVIE.Intent.ClearDisconnected) },
+                glyph = Glyph.DeleteSweep, variant = ButtonVariant.Text, enabled = model.disconnectedSessions > 0,
+            )
         }
         val list = rememberLazyListState()
         ScrollbarBox(rememberScrollbarAdapter(list), Modifier.weight(1f).fillMaxWidth()) {
@@ -177,13 +179,12 @@ private fun SessionBlock(session: SessionItem, selected: InspectorScope?, collap
                     post(SessionsVIE.Intent.SelectScope(InspectorScope.ViewModel(session.id, vm.id)))
                 }
             }
-            TextAction(
-                session.clearLabel,
+            InspectorButton(
+                session.clearLabel, onClick = { post(SessionsVIE.Intent.ClearSession(session.id)) },
                 modifier = Modifier.padding(start = 16.dp).align(Alignment.Start),
                 glyph = if (session.connected) Glyph.ClearAll else Glyph.DeleteSweep,
-                enabled = session.clearEnabled,
-                height = 24.dp,
-            ) { post(SessionsVIE.Intent.ClearSession(session.id)) }
+                variant = ButtonVariant.Text, enabled = session.clearEnabled,
+            )
         }
     }
 }
