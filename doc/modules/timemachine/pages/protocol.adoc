@@ -61,7 +61,7 @@ A timeline message.
 
 | probe → inspector
 | `vm-info`
-| The description of a ViewModel, outside the timeline: the answer to `request-vm-info`, or sent unprompted after a reconnection.
+| The description of a ViewModel, outside the timeline: the answer to `request-vm-info`, or sent unprompted each time the inspector welcomes the probe.
 
 | probe → inspector
 | `intervention-result`
@@ -131,8 +131,9 @@ The inspector closes that connection if it is still open, and revives the sessio
 
 Frames already received on the evicted connection are still placed, and so is a late one: the sequence is the only order (see <<sequence,Sequence>>).
 
-After a reconnection, but not after the first connection, the probe describes every ViewModel it still runs with an unprompted `vm-info`, since the inspector may have restarted and lost them.
-On the first connection, everything since the probe started is still queued.
+Each time the inspector welcomes it, the probe describes every ViewModel it still runs with an unprompted `vm-info`, since the inspector may have restarted and lost them.
+It sends these before anything else, the timeline messages it sends again included.
+On the first connection, where every `vm-started` is still queued, they are redundant, and an inspector receives the `vm-info` of a ViewModel before its `vm-started`: it must accept them in that order.
 The inspector, for its part, asks again with `request-vm-info` for the ViewModels whose description it was still waiting for, in case the answer was lost with the previous connection.
 
 
