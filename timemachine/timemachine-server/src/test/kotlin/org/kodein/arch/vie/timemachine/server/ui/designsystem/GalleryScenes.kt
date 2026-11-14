@@ -19,4 +19,5 @@ internal val GalleryScenes: List<GalleryScene> = listOf(
     TabRowScene,
     SerialNameScene,
     SectionLabelScene,
+    PaneHeaderScene,
 )

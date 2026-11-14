@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -26,7 +25,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import kotlin.uuid.Uuid
 import kotlinx.coroutines.delay
@@ -49,10 +47,10 @@ import org.kodein.arch.vie.timemachine.server.ui.designsystem.CopyAction
 import org.kodein.arch.vie.timemachine.server.ui.designsystem.HorizontalRule
 import org.kodein.arch.vie.timemachine.server.ui.designsystem.IconAction
 import org.kodein.arch.vie.timemachine.server.ui.designsystem.InspectorButton
+import org.kodein.arch.vie.timemachine.server.ui.designsystem.PaneHeader
 import org.kodein.arch.vie.timemachine.server.ui.theme.Glyph
 import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorDimens
 import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorTheme
-import org.kodein.arch.vie.timemachine.server.ui.theme.Symbol
 
 /** The pinned current model's height, and the compact layout's, which leaves the tabs more room. */
 private val PinnedHeight = 300.dp
@@ -84,19 +82,11 @@ internal fun VIEViewScope<CurrentModelVIE.Intent, NoSignal>.CurrentModelContent(
     val projection = model.projection
     val compact = LocalCompact.current
     Column(Modifier.fillMaxWidth().height(if (compact) CompactPinnedHeight else PinnedHeight)) {
-        Row(
-            Modifier.fillMaxWidth().height(InspectorDimens.paneHeader).padding(start = InspectorDimens.paneHorizontalPadding, end = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically,
+        PaneHeader(
+            "Current model",
+            count = projection.sequence?.let { "#$it${projection.at?.let { at -> " · " + formatTime(at) }.orEmpty()}" },
+            glyph = Glyph.PushPin, glyphTint = InspectorTheme.colors.model,
         ) {
-            Symbol(Glyph.PushPin, size = 16.dp, tint = InspectorTheme.colors.model)
-            Text("Current model", style = MaterialTheme.typography.titleSmall, color = scheme.onSurface, maxLines = 1)
-            projection.sequence?.let {
-                Text(
-                    "#$it${projection.at?.let { at -> " · " + formatTime(at) }.orEmpty()}",
-                    style = InspectorTheme.text.monoSecondary, color = scheme.outline, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false),
-                )
-            }
-            Spacer(Modifier.weight(1f))
             if (projection.json != null) {
                 TreeRawSwitch(model.controls.raw) { post(CurrentModelVIE.Intent.SetRaw(it)) }
                 CopyAction({ projection.json.pretty() }, CopyModelDescription)

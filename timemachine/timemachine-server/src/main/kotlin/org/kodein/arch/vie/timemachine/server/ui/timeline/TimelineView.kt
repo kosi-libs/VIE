@@ -191,12 +191,25 @@ internal fun VIEViewScope<TimelineVIE.Intent, NoSignal>.TimelineContent(
 
 // ---- Header ----------------------------------------------------------------------------------
 
+/**
+ * Where the timeline's header sits: the pane's margins, and [InspectorDimens.timelineHeaderVerticalPadding]
+ * above and below it, the rule under it counted in the space below.
+ */
+private val TimelineHeaderFrame: Modifier = Modifier
+    .fillMaxWidth()
+    .padding(
+        start = InspectorDimens.paneHorizontalPadding,
+        end = InspectorDimens.paneHorizontalPadding,
+        top = InspectorDimens.timelineHeaderVerticalPadding,
+        bottom = InspectorDimens.timelineHeaderVerticalPadding - InspectorDimens.rule,
+    )
+
 @Composable
 private fun TimelineHeaderView(header: TimelineHeader) {
     Column(Modifier.fillMaxWidth()) {
         when (header) {
-            is TimelineHeader.ViewModel -> ViewModelHeader(header)
-            is TimelineHeader.Session -> SessionHeader(header)
+            is TimelineHeader.ViewModel -> ViewModelHeader(header, TimelineHeaderFrame)
+            is TimelineHeader.Session -> SessionHeader(header, TimelineHeaderFrame)
         }
         HorizontalRule()
     }
@@ -209,14 +222,14 @@ private fun StatusChip(label: String, tone: ChipTone, dot: Shape = CircleShape) 
 }
 
 @Composable
-private fun ViewModelHeader(header: TimelineHeader.ViewModel) {
+private fun ViewModelHeader(header: TimelineHeader.ViewModel, modifier: Modifier = Modifier) {
     val scheme = MaterialTheme.colorScheme
     val info = header.info
     // Whether the type info is open: one panel for the three kinds, whichever chip opened it. It is this
     // header's own: the one of another ViewModel starts closed.
     var typeInfoOpen by remember { mutableStateOf(false) }
     Row(
-        Modifier.fillMaxWidth().padding(start = InspectorDimens.paneHorizontalPadding, end = InspectorDimens.paneHorizontalPadding, top = 10.dp, bottom = 9.dp),
+        modifier,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
         verticalAlignment = Alignment.Top,
     ) {
@@ -324,10 +337,10 @@ private fun TypeInfoPopover(info: VIEViewModelInfo) {
 }
 
 @Composable
-private fun SessionHeader(header: TimelineHeader.Session) {
+private fun SessionHeader(header: TimelineHeader.Session, modifier: Modifier = Modifier) {
     val scheme = MaterialTheme.colorScheme
     Row(
-        Modifier.fillMaxWidth().padding(start = InspectorDimens.paneHorizontalPadding, end = InspectorDimens.paneHorizontalPadding, top = 10.dp, bottom = 9.dp),
+        modifier,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
