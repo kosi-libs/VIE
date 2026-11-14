@@ -54,6 +54,9 @@ internal fun rememberCopy(): (String) -> Unit {
  * What a click does here: [onClick], with the hand over it, as the [role] it has. Disabled, it keeps
  * its place in the semantics, as an action that cannot be taken, rather than becoming plain content.
  *
+ * The ripple that shows hover, press and keyboard focus is drawn in the theme's content colour (see
+ * `InspectorTheme`); a filled button provides its own `RippleConfiguration` (see `InspectorButton`).
+ *
  * @param shape The element's shape. What shows the pointer over the element or pressing it is clipped to
  *   it, and so are the element's content and where a click lands. The default rectangle needs no clip:
  *   the indication keeps to the element's bounds. A component of the design system always passes its own.

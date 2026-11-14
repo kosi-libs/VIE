@@ -8,9 +8,12 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.ColorScheme
+import androidx.compose.material3.LocalRippleConfiguration
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.RippleConfiguration
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -66,9 +69,11 @@ internal enum class ButtonSize(
 }
 
 /**
- * A pill button: [label], after [glyph] if any, does [onClick]. Disabled, whatever its [variant], its glyph
- * and label are in the outline's colour, on the highest container for a filled or tonal one, in an outline
- * variant for an outlined one: it keeps its place and its shape, and reads as out of reach.
+ * A pill button: [label], after [glyph] if any, does [onClick]. Under the pointer, pressed or focused, a filled
+ * button darkens its fill with a ripple of its own, and the others take the theme's content colour (see
+ * `InspectorTheme`). Disabled, whatever its [variant], its glyph and label are in the outline's colour, on the highest container
+ * for a filled or tonal one, in an outline variant for an outlined one: it keeps its place and its shape, and
+ * reads as out of reach.
  *
  * @param interactionSource What it reports its hover and press to, and shows them from; see `action`.
  */
@@ -95,17 +100,21 @@ internal fun InspectorButton(
         )
         ButtonVariant.Text -> Modifier
     }
-    Row(
-        modifier
-            .height(size.height)
-            .then(decoration)
-            .action(shape = InspectorPillShape, enabled = enabled, interactionSource = interactionSource, onClick = onClick)
-            .padding(start = if (glyph != null) size.start else size.end, end = size.end),
-        horizontalArrangement = Arrangement.spacedBy(size.gap),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        glyph?.let { Symbol(it, size = size.glyph, tint = content) }
-        Text(label, style = size.text(InspectorTheme.text), color = content, maxLines = 1)
+    // Provided whatever the variant, so that a button whose variant changes keeps its node, and what it shows.
+    val ripple = if (variant == ButtonVariant.Filled) FilledRipple else LocalRippleConfiguration.current
+    CompositionLocalProvider(LocalRippleConfiguration provides ripple) {
+        Row(
+            modifier
+                .height(size.height)
+                .then(decoration)
+                .action(shape = InspectorPillShape, enabled = enabled, interactionSource = interactionSource, onClick = onClick)
+                .padding(start = if (glyph != null) size.start else size.end, end = size.end),
+            horizontalArrangement = Arrangement.spacedBy(size.gap),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            glyph?.let { Symbol(it, size = size.glyph, tint = content) }
+            Text(label, style = size.text(InspectorTheme.text), color = content, maxLines = 1)
+        }
     }
 }
 
@@ -116,3 +125,11 @@ private fun ButtonVariant.content(scheme: ColorScheme): Color = when (this) {
     ButtonVariant.Outlined -> scheme.onSurfaceVariant
     ButtonVariant.Text -> scheme.primary
 }
+
+/**
+ * What shows the pointer over a filled button, pressing it or the focus on it (see `InspectorTheme`): black, as Material
+ * drew it everywhere before the theme provided a content colour. It darkens the primary fill by 8 to 22 levels of 255
+ * under the pointer. The dark theme's content colour, nearly as light as that fill, would lighten it by only 1 to 10
+ * levels, and by 1 to 3 on two of its three channels.
+ */
+private val FilledRipple = RippleConfiguration(color = Color.Black)
