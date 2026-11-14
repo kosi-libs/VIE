@@ -386,7 +386,7 @@ The probe answers at once with `intervention-result`, which says whether it acce
 | The probe knows no live ViewModel with that identifier, and a closed one is not known any more.
 
 | `ClosedViewModel`
-| The ViewModel was closed while the request was handled.
+| The ViewModel can no longer receive anything: it was closed, possibly while the request was handled, or garbage-collected without having been cleared.
 
 | `NotSerializable`
 | The ViewModel's type for that kind was reported as not `@Serializable`.
