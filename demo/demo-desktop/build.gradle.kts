@@ -39,9 +39,12 @@ compose {
     desktop {
         application {
             mainClass = "org.kodein.arch.vie.demo.MainKt"
-
-            // `run` is this app's debug build: it starts the TimeMachine probe, unless -Pvie.timemachine=false.
-            jvmArgs += "-Dvie.timemachine=${findProperty("vie.timemachine") ?: true}"
         }
     }
+}
+
+// `run` is this app's debug build: it starts the TimeMachine probe, unless -Pvie.timemachine=false.
+// Set on that task alone: the application's jvmArgs also reach the launcher of the packaged distributions.
+tasks.withType<JavaExec>().matching { it.name == "run" }.configureEach {
+    systemProperty("vie.timemachine", findProperty("vie.timemachine") ?: true)
 }
