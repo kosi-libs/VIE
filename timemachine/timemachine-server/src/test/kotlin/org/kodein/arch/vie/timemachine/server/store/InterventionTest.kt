@@ -8,9 +8,9 @@ import kotlin.test.assertTrue
 import kotlin.uuid.Uuid
 import kotlinx.serialization.json.JsonPrimitive
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineClientMessage
+import org.kodein.arch.vie.timemachine.protocol.TimeMachineInterventionResult
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineServerMessage
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineSession
-import org.kodein.arch.vie.timemachine.protocol.VIEInterventionResult
 import org.kodein.arch.vie.timemachine.protocol.VIEObjectKind
 
 
@@ -22,14 +22,14 @@ class InterventionTest {
     private val vm = Uuid.random()
     private val request = Uuid.random()
     private val json = JsonPrimitive(100)
-    private val refused = VIEInterventionResult.Failure(VIEInterventionResult.Reason.BadJson, "nope")
+    private val refused = TimeMachineInterventionResult.Failure(TimeMachineInterventionResult.Reason.BadJson, "nope")
 
     private val connected = TimeMachineState().after(hello(c1, session), receive(c1, started(vm, 0))).state
 
     private fun intervene(sessionId: Uuid = session.id, viewModelId: Uuid = vm) =
         TimeMachineEvent.Intervene(sessionId, viewModelId, VIEObjectKind.Model, "M", json, request, at(1))
 
-    private fun result(result: VIEInterventionResult, connection: ConnectionId = c1) =
+    private fun result(result: TimeMachineInterventionResult, connection: ConnectionId = c1) =
         receive(connection, TimeMachineClientMessage.InterventionResult(request, result))
 
     private fun tagged(sequence: Long, requestId: Uuid = request, connection: ConnectionId = c1) =
@@ -84,8 +84,8 @@ class InterventionTest {
     fun aTaggedRowIsASuccessWhicheverOrderTheResultArrivesIn() {
         val sent = connected.on(intervene()).state
 
-        assertEquals(InterventionStatus.Succeeded(seq(1)), sent.after(result(VIEInterventionResult.Success), tagged(1)).state.status())
-        assertEquals(InterventionStatus.Succeeded(seq(1)), sent.after(tagged(1), result(VIEInterventionResult.Success)).state.status())
+        assertEquals(InterventionStatus.Succeeded(seq(1)), sent.after(result(TimeMachineInterventionResult.Success), tagged(1)).state.status())
+        assertEquals(InterventionStatus.Succeeded(seq(1)), sent.after(tagged(1), result(TimeMachineInterventionResult.Success)).state.status())
     }
 
     @Test
@@ -107,7 +107,7 @@ class InterventionTest {
 
     @Test
     fun aSuccessIsPendingUntilTheDeadlineThenAcceptedNotObserved() {
-        val accepted = connected.after(intervene(), result(VIEInterventionResult.Success)).state
+        val accepted = connected.after(intervene(), result(TimeMachineInterventionResult.Success)).state
 
         assertEquals(InterventionStatus.Pending, accepted.status())
         assertEquals(InterventionStatus.AcceptedNotObserved, accepted.after(deadline).state.status())
@@ -118,12 +118,12 @@ class InterventionTest {
         val timedOut = connected.after(intervene(), deadline).state
 
         assertEquals(InterventionStatus.TimedOut, timedOut.status())
-        assertEquals(InterventionStatus.AcceptedNotObserved, timedOut.after(result(VIEInterventionResult.Success)).state.status())
+        assertEquals(InterventionStatus.AcceptedNotObserved, timedOut.after(result(TimeMachineInterventionResult.Success)).state.status())
     }
 
     @Test
     fun onlyTheFirstResultCounts() {
-        val (state) = connected.after(intervene(), result(VIEInterventionResult.Success), result(refused), deadline)
+        val (state) = connected.after(intervene(), result(TimeMachineInterventionResult.Success), result(refused), deadline)
 
         assertEquals(InterventionStatus.AcceptedNotObserved, state.status())
     }
