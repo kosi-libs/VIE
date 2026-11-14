@@ -339,11 +339,11 @@ flag the app sets for developer runs. A disabled probe opens no socket and does 
 
 **Grep:** `TimeMachine\.middleware` — check it is the last element of its `listOf(…)`.
 
-**Why:** the list folds from the end, so the last middleware sits nearest the source and sees
-intents and signals first. A probe listed earlier sees them only after the middlewares behind it
-have filtered or transformed them, so the inspector shows a stream that is no longer what the view
-posted or the ViewModel emitted: an intent a later middleware drops never appears in it. Models are
-reported as `update {}` produced them, wherever the probe sits.
+**Why:** the list folds from the end, for models as for intents and signals, so the last middleware
+sits nearest the source and sees all three first. A probe listed earlier sees them only after the
+middlewares behind it have filtered or transformed them, so the inspector shows a stream that is no
+longer what `update {}` produced, the view posted or the ViewModel emitted: an intent a later
+middleware drops never appears in it.
 
 **Fix:** move `TimeMachine.middleware()` to the end of the list.
 
