@@ -14,7 +14,7 @@ Its modules build from a checkout of VIE, where the task-list demo in `demo/` ha
 TimeMachine observes and intervenes.
 It does not rewind, restore snapshots or persist anything: the inspector keeps what it hears in memory, and starts empty again when it restarts.
 
-A session is one run of your application.
+A session is one run of the probe, from `TimeMachine.start` to `TimeMachine.stop`: usually one run of your application.
 The inspector lists the sessions it has heard from, the ViewModels of each, and for each ViewModel the Models, Intents and Signals it went through, in order.
 
 
@@ -53,7 +53,8 @@ Probe:: What runs in your application between `TimeMachine.start` and `TimeMachi
 Inspector:: The desktop application the probe connects to, which shows what it receives.
 Client and server:: The two ends of the WebSocket, and nothing more.
 They name the modules and the two directions of the protocol, whose messages are `TimeMachineClientMessage` and `TimeMachineServerMessage`: the probe is the client, and the inspector is the server.
-Session:: One run of your application, as the inspector lists it.
+Session:: One run of the probe, from `TimeMachine.start` to `TimeMachine.stop`, as the inspector lists it.
+A probe stopped then started again opens a new session in the same process.
 Kind:: Which of the three an object is: a Model, an Intent or a Signal.
 Type:: The class of a ViewModel's objects of one kind, such as `CounterVIE.Intent`, with its subtypes when it is sealed.
 The probe describes it to the inspector as a `VIETypeInfo`.
