@@ -8,6 +8,7 @@ import org.kodein.arch.vie.VIE
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineSequence
 import org.kodein.arch.vie.timemachine.server.store.TimeMachineState
 import org.kodein.arch.vie.timemachine.server.ui.common.JsonPath
+import org.kodein.arch.vie.timemachine.server.ui.common.JsonViewControls
 import org.kodein.arch.vie.timemachine.server.ui.common.ModelDiffs
 import org.kodein.arch.vie.timemachine.server.ui.common.nearestNodePath
 import org.kodein.arch.vie.timemachine.server.ui.common.pretty
@@ -22,14 +23,8 @@ import kotlin.uuid.Uuid
 
 internal interface CurrentModelVIE : VIE<CurrentModelVIE.Model, CurrentModelVIE.Intent, VIE.NoSignal> {
 
-    /**
-     * @property raw Whether the JSON shows as text rather than as a tree.
-     * @property expanded The tree nodes that are open; the root is, to begin with.
-     */
-    data class Controls(
-        val raw: Boolean = false,
-        val expanded: Set<JsonPath> = setOf(emptyList()),
-    )
+    /** @property jsonView What the Model's JSON shows as: the text or the tree, and the tree's open nodes. */
+    data class Controls(val jsonView: JsonViewControls = JsonViewControls())
 
     data class Model(val controls: Controls = Controls(), val projection: CurrentModelProjection = CurrentModelProjection()) : VIE.Model
 
@@ -107,7 +102,7 @@ internal class CurrentModelVM(
 ) {
 
     init {
-        val inputs = combine(inspector.store.state, modelFlow.map { it.controls.raw }.distinctUntilChanged()) { state, raw -> state to raw }
+        val inputs = combine(inspector.store.state, modelFlow.map { it.controls.jsonView.raw }.distinctUntilChanged()) { state, raw -> state to raw }
         project(
             inspector.whileShown(key(viewModelId), inputs) { { (state, raw) -> currentModelProjection(state, sessionId, viewModelId, raw, inspector.modelDiffs) } },
         ) { copy(projection = it) }
@@ -115,9 +110,8 @@ internal class CurrentModelVM(
 
     override suspend fun process(intent: CurrentModelVIE.Intent) {
         when (intent) {
-            is CurrentModelVIE.Intent.SetRaw -> update { copy(controls = controls.copy(raw = intent.raw)) }
-            is CurrentModelVIE.Intent.ToggleNode ->
-                update { copy(controls = controls.copy(expanded = controls.expanded.toggled(intent.path))) }
+            is CurrentModelVIE.Intent.SetRaw -> update { copy(controls = controls.copy(jsonView = controls.jsonView.copy(raw = intent.raw))) }
+            is CurrentModelVIE.Intent.ToggleNode -> update { copy(controls = controls.copy(jsonView = controls.jsonView.toggled(intent.path))) }
             CurrentModelVIE.Intent.EditAndReplace -> {
                 val current = inspector.store.state.value.sessions[sessionId]?.viewModels?.get(viewModelId)?.currentModel ?: return
                 inspector.selection.composeFrom(viewModelId, current.value)
@@ -129,8 +123,6 @@ internal class CurrentModelVM(
         fun key(viewModelId: Uuid): String = "current:${viewModelId.toHexString()}"
     }
 }
-
-internal fun <T> Set<T>.toggled(element: T): Set<T> = if (element in this) this - element else this + element
 
 internal fun Inspector.currentModelPane(sessionId: Uuid, viewModelId: Uuid) =
     Pane(CurrentModelVM.key(viewModelId), InspectorScope.ViewModel(sessionId, viewModelId)) { CurrentModelVM(this, sessionId, viewModelId) }

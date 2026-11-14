@@ -89,7 +89,7 @@ internal fun VIEViewScope<CurrentModelVIE.Intent, NoSignal>.CurrentModelContent(
             glyph = Glyph.PushPin, glyphTint = InspectorTheme.colors.model,
         ) {
             if (projection.json != null) {
-                TreeRawSwitch(model.controls.raw) { post(CurrentModelVIE.Intent.SetRaw(it)) }
+                TreeRawSwitch(model.controls.jsonView.raw) { post(CurrentModelVIE.Intent.SetRaw(it)) }
                 CopyAction({ projection.json.pretty() }, CopyModelDescription)
                 InspectorButton(
                     if (compact) "Edit" else "Edit & replace",
@@ -122,8 +122,8 @@ internal fun VIEViewScope<CurrentModelVIE.Intent, NoSignal>.CurrentModelContent(
         }
         // The lines of the one that shows, the tree or the text: the other has none.
         val json = projection.json
-        val raw = model.controls.raw
-        val expanded = model.controls.expanded
+        val raw = model.controls.jsonView.raw
+        val expanded = model.controls.jsonView.expanded
         val treeLines = remember(json, expanded, raw) { if (json == null || raw) emptyList() else treeLines(json, expanded) }
         val textLines = rememberJsonLines(if (raw) projection.rawText.orEmpty() else "")
         val list = rememberLazyListState()
