@@ -120,7 +120,7 @@ After a `welcome`, both sides send whenever they have something to say.
 [#sessions-and-reconnection]
 == Sessions and reconnection
 
-A session is one run of an application.
+A session is one run of the probe, from `TimeMachine.start` to `TimeMachine.stop`, and a probe started again opens a new one.
 The probe picks its `id`, a random UUID, when it starts, and its `name`, the application's name, is what the developer chose: several sessions may share one.
 
 The probe keeps one connection at a time, and reconnects for as long as it runs, waiting 0.5 s after the first failure, then twice as long after each, up to 5 s.
