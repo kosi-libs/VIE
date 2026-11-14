@@ -1,5 +1,6 @@
 package org.kodein.arch.vie.timemachine.client.type
 
+import kotlin.reflect.KClass
 import kotlin.reflect.KType
 import kotlinx.serialization.KSerializer
 import kotlinx.serialization.SerializationStrategy
@@ -219,8 +220,10 @@ internal class VIEObjectType<T> private constructor(
             )
         }
 
+        /** Named by [type]'s class, as [typeNameOf] names its values: [KType.toString] would add the type
+         *  arguments and the `?` that a value's class never carries. */
         private fun <T> notSerializable(type: KType): VIEObjectType<T> = VIEObjectType(
-            typeName = type.toString(),
+            typeName = (type.classifier as? KClass<*>)?.displayName ?: type.toString(),
             serializer = null,
             sealedSubTypes = null,
             classDiscriminator = TimeMachineJson.configuration.classDiscriminator,
