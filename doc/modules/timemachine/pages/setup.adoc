@@ -38,7 +38,7 @@ It retries within seconds at first, then every 30 s once no connection has held 
 [#large-models]
 == Large models
 
-The probe bounds what it sends of one observation to `maxObservationLength` characters, a million by default.
+The probe bounds what it sends of one observation to about `maxObservationLength` characters, 1,048,576 by default.
 Past it, the observation is sent cut, and without its JSON, and the inspector shows it as too large (see xref:protocol.adoc#truncated[Large observations]).
 
 [source,kotlin]
@@ -46,7 +46,9 @@ Past it, the observation is sent cut, and without its JSON, and the inspector sh
 TimeMachine.start(TimeMachineConfig(appName = "Counter", enabled = isDebugBuild, maxObservationLength = 200_000))
 ----
 
-Keep it under the largest frame your inspector accepts, which is 32 MiB for the one in this repository: over it, a connection is closed on every attempt to send the observation.
+Keep it well under the largest frame your inspector accepts: over it, a connection is closed on every attempt to send the observation.
+The limit counts characters, while the inspector in this repository accepts 32 MiB of UTF-8, where one character can take three bytes.
+So stay under a third of that, about 11 million characters, and keep a margin, since the limit is not strict (see xref:protocol.adoc#truncated[Large observations]).
 
 TIP: The limit does not spare your application the cost of rendering a heavy model, which happens before the model is measured.
 Keep decoded images and file contents out of the models you observe.
