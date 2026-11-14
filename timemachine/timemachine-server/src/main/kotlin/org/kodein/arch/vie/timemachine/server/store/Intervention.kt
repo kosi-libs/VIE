@@ -1,9 +1,9 @@
 package org.kodein.arch.vie.timemachine.server.store
 
 import kotlinx.serialization.json.JsonElement
+import org.kodein.arch.vie.timemachine.protocol.TimeMachineInterventionResult
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineSequence
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineServerMessage
-import org.kodein.arch.vie.timemachine.protocol.VIEInterventionResult
 import org.kodein.arch.vie.timemachine.protocol.VIEObjectKind
 import kotlin.time.Instant
 import kotlin.uuid.Uuid
@@ -33,7 +33,7 @@ data class Intervention(
     val asJson: JsonElement,
     val requestedAt: Instant,
     val sent: Boolean,
-    val result: VIEInterventionResult? = null,
+    val result: TimeMachineInterventionResult? = null,
     val taggedSequence: TimeMachineSequence? = null,
     val deadlinePassedAt: Instant? = null,
 ) {
@@ -43,9 +43,9 @@ data class Intervention(
         get() = when {
             !sent -> InterventionStatus.NotSent
             taggedSequence != null -> InterventionStatus.Succeeded(taggedSequence)
-            result is VIEInterventionResult.Failure -> InterventionStatus.Failed(result)
+            result is TimeMachineInterventionResult.Failure -> InterventionStatus.Failed(result)
             deadlinePassedAt == null -> InterventionStatus.Pending
-            result is VIEInterventionResult.Success -> InterventionStatus.AcceptedNotObserved
+            result is TimeMachineInterventionResult.Success -> InterventionStatus.AcceptedNotObserved
             else -> InterventionStatus.TimedOut
         }
 }
@@ -63,7 +63,7 @@ sealed interface InterventionStatus {
     data class Succeeded(val sequence: TimeMachineSequence) : InterventionStatus
 
     /** The probe refused it. */
-    data class Failed(val failure: VIEInterventionResult.Failure) : InterventionStatus
+    data class Failed(val failure: TimeMachineInterventionResult.Failure) : InterventionStatus
 
     /** Neither a tagged row nor a refusal yet, and the deadline has not passed. */
     data object Pending : InterventionStatus

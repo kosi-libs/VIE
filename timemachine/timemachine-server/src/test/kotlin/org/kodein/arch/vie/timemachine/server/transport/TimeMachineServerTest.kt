@@ -23,10 +23,10 @@ import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.json.JsonPrimitive
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineClientMessage
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineConnection
+import org.kodein.arch.vie.timemachine.protocol.TimeMachineInterventionResult
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineJson
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineServerMessage
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineSession
-import org.kodein.arch.vie.timemachine.protocol.VIEInterventionResult
 import org.kodein.arch.vie.timemachine.protocol.VIEObjectKind
 import org.kodein.arch.vie.timemachine.server.store.DefaultMaxChars
 import org.kodein.arch.vie.timemachine.server.store.InterventionStatus
@@ -384,7 +384,7 @@ class TimeMachineServerTest {
 
         val request = store.intervene(session.id, vm, VIEObjectKind.Intent, "I", JsonPrimitive(1))
         assertEquals(TimeMachineServerMessage.Intervene(request, vm, VIEObjectKind.Intent, "I", JsonPrimitive(1)), connection.receiveRequest())
-        connection.send(TimeMachineClientMessage.InterventionResult(request, VIEInterventionResult.Success))
+        connection.send(TimeMachineClientMessage.InterventionResult(request, TimeMachineInterventionResult.Success))
         connection.send(observed(vm, 1, VIEObjectKind.Intent, "I").let { it.copy(observation = it.observation.copy(interventionId = request)) })
 
         assertEquals(InterventionStatus.Succeeded(seq(1)), status(request) { it is InterventionStatus.Succeeded })
@@ -397,7 +397,7 @@ class TimeMachineServerTest {
         val request = store.intervene(session.id, vm, VIEObjectKind.Intent, "I", JsonPrimitive(1))
         assertIs<TimeMachineServerMessage.Intervene>(connection.receiveRequest())
         status(request) { it == InterventionStatus.TimedOut }
-        connection.send(TimeMachineClientMessage.InterventionResult(request, VIEInterventionResult.Success))
+        connection.send(TimeMachineClientMessage.InterventionResult(request, TimeMachineInterventionResult.Success))
 
         status(request) { it == InterventionStatus.AcceptedNotObserved }
     }
