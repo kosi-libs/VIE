@@ -33,6 +33,9 @@ import org.kodein.arch.vie.timemachine.server.ui.core.InspectorPane
 import org.kodein.arch.vie.timemachine.server.ui.core.LocalInspector
 import org.kodein.arch.vie.timemachine.server.ui.designsystem.ButtonSize
 import org.kodein.arch.vie.timemachine.server.ui.designsystem.ButtonVariant
+import org.kodein.arch.vie.timemachine.server.ui.designsystem.Chip
+import org.kodein.arch.vie.timemachine.server.ui.designsystem.ChipSize
+import org.kodein.arch.vie.timemachine.server.ui.designsystem.ChipTone
 import org.kodein.arch.vie.timemachine.server.ui.designsystem.CopyAction
 import org.kodein.arch.vie.timemachine.server.ui.designsystem.HorizontalRule
 import org.kodein.arch.vie.timemachine.server.ui.designsystem.InspectorButton
@@ -84,7 +87,7 @@ private fun AddressLine(status: StatusBarVIE.Model) {
         } else {
             LiveDot(true)
             Text("Listening on", style = body)
-            Text(address, style = InspectorTheme.text.monoTitle, color = scheme.onSurface, modifier = Modifier.background(scheme.surfaceContainerHigh, RoundedCornerShape(4.dp)).padding(horizontal = 8.dp, vertical = 2.dp))
+            Chip(address, ChipTone.Neutral, mono = true, size = ChipSize.Medium)
             CopyAction({ address }, CopyAddressDescription)
             Text(
                 buildAnnotatedString {
@@ -190,7 +193,7 @@ internal fun CannotListenScreen(reason: ListenerState.Failed.Reason, message: St
                 Step(1) { Text("Close the other inspector window.", style = body) }
                 Step(2) {
                     Text("Not sure what holds it? Run", style = body)
-                    Text("lsof -i :$port", style = InspectorTheme.text.code, color = scheme.onSurface, modifier = Modifier.background(scheme.surfaceContainerHigh, RoundedCornerShape(4.dp)).padding(horizontal = 8.dp, vertical = 2.dp))
+                    Chip("lsof -i :$port", ChipTone.Neutral, mono = true, size = ChipSize.Medium)
                     CopyAction({ "lsof -i :$port" }, CopyCommandDescription)
                 }
                 Step(3) { Text("Retry.", style = body) }

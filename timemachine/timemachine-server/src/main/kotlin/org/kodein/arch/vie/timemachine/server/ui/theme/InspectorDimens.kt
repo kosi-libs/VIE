@@ -18,7 +18,6 @@ object InspectorDimens {
     val softMarker: Dp = 26.dp
     /** The Gap marker and the markers pinned to the top. */
     val topMarker: Dp = 30.dp
-    val chip: Dp = 24.dp
     val filterChip: Dp = 26.dp
     val searchField: Dp = 28.dp
 
@@ -43,6 +42,10 @@ object InspectorDimens {
     val buttonMedium: Dp = 26.dp
     val buttonLarge: Dp = 34.dp
 
+    /** The heights of a chip: a badge beside a name or in a row (`ChipSize.Small`), and a chip that stands on its own (`Medium`). */
+    val chipSmall: Dp = 18.dp
+    val chipMedium: Dp = 24.dp
+
     /** A scrollbar's thumb, and the track it lies in over the edge of what scrolls. */
     val scrollbarThumb: Dp = 6.dp
     val scrollbarTrack: Dp = 8.dp
@@ -60,8 +63,8 @@ object InspectorDimens {
     val compactRightPane: Dp = 360.dp
     val popover: Dp = 400.dp
 
+    /** The width of a kind's badge, and of the timeline's KIND column. */
     val kindBadgeWidth: Dp = 52.dp
-    val kindBadgeHeight: Dp = 18.dp
 }
 
 /**
@@ -72,10 +75,11 @@ object InspectorDimens {
  * - `medium`, 8 dp: read by the session rows and the ViewModel rows.
  * - `large` and `extraLarge`, 12 dp: read by nothing.
  *
- * The views write their other radii by hand, mostly at these values: badges and code chips at 4, the search
- * field and the type chips at 6, cards, notes and the JSON editor at 8, the type info popover at 12.
+ * The views write their other radii by hand, mostly at these values: the search field and the composer's
+ * result message at 6, cards, notes and the JSON editor at 8, the type info popover at 12.
  * Some have no slot: the filter chips at 7, the rail's tiles and the probe snippet's card at 10.
- * Buttons and pills are [InspectorPillShape].
+ * Buttons and pills are [InspectorPillShape]. Chips and badges are [InspectorChipShape]: 4 dp like
+ * `extraSmall`, but their own, so that a menu's corners can change with no chip following.
  */
 val InspectorShapes = Shapes(
     extraSmall = RoundedCornerShape(4.dp),
@@ -87,3 +91,6 @@ val InspectorShapes = Shapes(
 
 /** Buttons and pills are fully rounded. */
 val InspectorPillShape = CircleShape
+
+/** Chips and badges: an id, a status, a kind, a type. */
+val InspectorChipShape = RoundedCornerShape(4.dp)

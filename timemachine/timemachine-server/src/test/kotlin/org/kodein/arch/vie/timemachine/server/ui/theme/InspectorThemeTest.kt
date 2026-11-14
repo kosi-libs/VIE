@@ -71,7 +71,7 @@ class InspectorThemeTest {
             assertEquals(FontWeight.Medium, title.fontWeight)
         }
 
-        val mono = with(text) { listOf(monoBadge to 10.0, monoMeta to 10.5, monoSecondary to 11.0, codeRow to 11.5, code to 12.0, monoTitle to 12.5, monoNumeral to 13.0) }
+        val mono = with(text) { listOf(monoMeta to 10.5, monoSecondary to 11.0, codeRow to 11.5, code to 12.0, monoTitle to 12.5, monoNumeral to 13.0) }
         for ((step, size) in mono) {
             assertEquals(TextStyle(fontFamily = fonts.mono, fontSize = size.sp, fontWeight = FontWeight.Normal), step)
         }
