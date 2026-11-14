@@ -1,0 +1,153 @@
+= Adding the probe
+
+The probe has two parts: `TimeMachine.start`, called once when your application starts, and `TimeMachine.middleware()`, installed in each ViewModel you want to observe.
+
+
+[#start]
+== Starting the probe
+
+Start the probe once, early, before the first ViewModel it should observe is built, and behind a debug flag:
+
+[source,kotlin]
+.Main.kt
+----
+TimeMachine.start(TimeMachineConfig(appName = "Counter", enabled = isDebugBuild)) // <1>
+----
+<1> `appName` is the name the inspector shows for this application's sessions.
+
+`enabled` is a plain `Boolean`, and has no default: wire it to whatever your application already calls a debug build.
+The demo does so in each of its entry points, the way each platform allows: `ApplicationInfo.FLAG_DEBUGGABLE` on Android, `Platform.isDebugBinary` on iOS, a system property that only Gradle's `run` task sets, and that is off when missing, on the JVM, and a page served from `localhost` in the browser.
+
+While `enabled` is `false`, the probe opens no socket, allocates nothing and does no work, and `TimeMachine.middleware()` returns a middleware that does nothing.
+A probe started later only observes the ViewModels built after it.
+`TimeMachine.stop()` closes the connection, and leaves the middlewares installed and inert.
+
+
+[#host]
+== Reaching the inspector
+
+The probe looks for the inspector at `localhost:13229`, and keeps trying for as long as your application runs, so the application and the inspector can start in either order.
+It retries within seconds at first, then every 30 s once no connection has held for a minute: an inspector opened that late may wait that long for your application to show up.
+`TimeMachineConfig` takes a `host` and a `port` for anything else.
+
+* A desktop application, the iOS simulator and a page served from `localhost` reach the default as it is.
+* The Android emulator's `localhost` is the emulator itself: forward the port once with `adb reverse tcp:13229 tcp:13229`.
+* A physical device needs the address of the machine the inspector runs on, as `host`.
+
+
+[#large-models]
+== Large models
+
+The probe bounds what it sends of one observation to about `maxObservationLength` characters, 1,048,576 by default.
+Past it, the observation is sent cut, and without its JSON, and the inspector shows it as too large (see xref:protocol.adoc#truncated[Large observations]).
+
+[source,kotlin]
+----
+TimeMachine.start(TimeMachineConfig(appName = "Counter", enabled = isDebugBuild, maxObservationLength = 200_000))
+----
+
+Keep it well under the largest frame your inspector accepts: over it, a connection is closed on every attempt to send the observation.
+The limit counts characters, while the inspector in this repository accepts 32 MiB of UTF-8, where one character can take three bytes.
+So stay under a third of that, about 11 million characters, and keep a margin, since the limit is not strict (see xref:protocol.adoc#truncated[Large observations]).
+
+TIP: The limit does not spare your application the cost of rendering a heavy model, which happens before the model is measured.
+Keep decoded images and file contents out of the models you observe.
+
+
+[#output]
+== The probe's output
+
+The probe says little: a banner when it starts, the state of its connection to the inspector, and each failure it survives.
+It prints them with `println`, unless you give it a `logger`:
+
+[source,kotlin]
+.Routing the probe's messages to Logcat, on Android
+----
+TimeMachine.start(TimeMachineConfig(appName = "Counter", enabled = isDebugBuild, logger = { Log.d("TimeMachine", it) })) // <1>
+----
+<1> Each call hands the logger one message, ready to print: a line that starts with `TimeMachine:`, or the banner, a box of several lines.
+
+The logger is called from whichever thread has something to say, a ViewModel's included: keep it thread-safe and quick.
+A logger that throws does not break the probe, which then prints the message with `println` instead.
+A probe that is not `enabled` never calls it.
+
+Pass `{}` to silence the probe.
+That silences its banner too, which is one of the things that xref:safety.adoc#mitigations[keep the probe safe]: prefer routing it.
+
+
+[#middleware]
+== Installing the middleware
+
+Install `TimeMachine.middleware()` in each ViewModel you want to observe, _last_ in its `middlewares`:
+
+[source,kotlin]
+.CounterVM.kt
+----
+class CounterVM(
+    private val store: CounterStore,
+) : CounterVIE, VIEViewModel<Model, Intent, Signal>(
+    firstModel = Model(count = 0),
+    middlewares = listOf(
+        VIELoggingMiddleware("Counter"),
+        TimeMachine.middleware(), // <1>
+    ),
+) {
+    // ...
+}
+----
+<1> Last, so nearest the source: it reports models as `update { }` produced them, intents as the view posted them and signals as the ViewModel emitted them, before any other middleware filters or transforms them.
+
+Models go through the middlewares in the same order as intents and signals: a middleware installed after the probe can change or drop the models it reports.
+
+When the ViewModel takes its `middlewares` as a constructor parameter, install the middleware wherever the ViewModel is built, such as a dependency-injection definition or a factory:
+
+[source,kotlin]
+.CounterVM.kt
+----
+class CounterVM(
+    private val store: CounterStore,
+    middlewares: List<VIEMiddleware<Model, Intent, Signal>>,
+) : CounterVIE, VIEViewModel<Model, Intent, Signal>(Model(count = 0), middlewares) {
+    // ...
+}
+
+fun newCounterVM(store: CounterStore) =
+    CounterVM(store, listOf(VIELoggingMiddleware("Counter"), TimeMachine.middleware()))
+----
+
+`TimeMachine.middleware()` takes its Model, Intent and Signal types from the list it is put in.
+Where nothing gives the call an expected type, such as a local `val`, name them: `TimeMachine.middleware<Model, Intent, Signal>()`.
+
+IMPORTANT: Each call returns a middleware that serves exactly one ViewModel.
+Build the list once per ViewModel, and never share it, as a dependency-injection singleton for instance.
+
+
+[#serializable]
+== Serializable contracts
+
+The probe observes any Model, Intent and Signal, and shows each as its `toString()`.
+Its JSON, and everything the inspector can send back, needs the type to be `@Serializable`: apply the kotlinx-serialization plugin, and annotate the three types and, for a sealed one, its subtypes.
+
+[source,kotlin]
+.CounterVIE.kt
+----
+interface CounterVIE : VIE<Model, Intent, Signal> {
+
+    @Serializable
+    data class Model(val count: Int, val saving: Boolean = false) : VIE.Model
+
+    @Serializable
+    sealed interface Intent : VIE.Intent {
+        @Serializable data object Increment : Intent
+        @Serializable data object Save : Intent
+    }
+
+    @Serializable
+    sealed interface Signal : VIE.Signal {
+        @Serializable data object Saved : Signal, VIE.Signal.Event
+        @Serializable data class Error(val message: String) : Signal, VIE.Signal.Effect
+    }
+}
+----
+
+TIP: Before you enable the probe anywhere but on your own machine, read xref:safety.adoc[].
