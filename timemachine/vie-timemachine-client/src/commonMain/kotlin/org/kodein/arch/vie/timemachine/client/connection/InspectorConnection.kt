@@ -25,10 +25,10 @@ import org.kodein.arch.vie.timemachine.client.timeline.TimeMachineOutbox
 import org.kodein.arch.vie.timemachine.client.timeline.TimeMachineSink
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineClientMessage
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineConnection
+import org.kodein.arch.vie.timemachine.protocol.TimeMachineInterventionResult
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineJson
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineServerMessage
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineSession
-import org.kodein.arch.vie.timemachine.protocol.VIEInterventionResult
 
 
 /**
@@ -204,12 +204,12 @@ internal class InspectorConnection(
             is TimeMachineServerMessage.Intervene -> {
                 val live = sink.liveViewModels[message.viewModelId]
                 val result = if (live == null) {
-                    VIEInterventionResult.Failure(VIEInterventionResult.Reason.UnknownViewModel, "No live ViewModel ${message.viewModelId}")
+                    TimeMachineInterventionResult.Failure(TimeMachineInterventionResult.Reason.UnknownViewModel, "No live ViewModel ${message.viewModelId}")
                 } else {
                     // An intervener never throws, but it runs app code: whatever that throws still
                     // gets its answer.
                     log.callingApp({ "intervene with ${message.summary}" }) { live.intervener.intervene(message) }
-                        ?: VIEInterventionResult.Failure(VIEInterventionResult.Reason.ProbeFailure, "The probe failed to handle the request ${message.requestId}")
+                        ?: TimeMachineInterventionResult.Failure(TimeMachineInterventionResult.Reason.ProbeFailure, "The probe failed to handle the request ${message.requestId}")
                 }
                 sendMessage(TimeMachineClientMessage.InterventionResult(message.requestId, result))
             }

@@ -13,7 +13,7 @@ import kotlinx.serialization.Serializable
  * request's [TimeMachineServerMessage.Intervene.requestId].
  */
 @Serializable
-public sealed interface VIEInterventionResult {
+public sealed interface TimeMachineInterventionResult {
 
     /**
      * The request was valid, and the object's injection into the ViewModel was scheduled.
@@ -22,7 +22,7 @@ public sealed interface VIEInterventionResult {
      */
     @Serializable
     @SerialName("success")
-    public data object Success : VIEInterventionResult
+    public data object Success : TimeMachineInterventionResult
 
     /** The request was refused: nothing was placed into the ViewModel. */
     @Serializable
@@ -30,7 +30,7 @@ public sealed interface VIEInterventionResult {
     public data class Failure(
         val reason: Reason,
         val message: String? = null,
-    ) : VIEInterventionResult
+    ) : TimeMachineInterventionResult
 
     @Serializable
     public enum class Reason {

@@ -15,9 +15,9 @@ import org.kodein.arch.vie.timemachine.client.type.VIEObjectType
 import org.kodein.arch.vie.timemachine.client.type.displayName
 import org.kodein.arch.vie.timemachine.client.timeline.TimeMachineIntervener
 import org.kodein.arch.vie.timemachine.client.timeline.TimeMachineSink
+import org.kodein.arch.vie.timemachine.protocol.TimeMachineInterventionResult
+import org.kodein.arch.vie.timemachine.protocol.TimeMachineInterventionResult.Reason
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineServerMessage
-import org.kodein.arch.vie.timemachine.protocol.VIEInterventionResult
-import org.kodein.arch.vie.timemachine.protocol.VIEInterventionResult.Reason
 import org.kodein.arch.vie.timemachine.protocol.VIEObjectKind
 import org.kodein.arch.vie.timemachine.protocol.VIEViewModelInfo
 
@@ -43,7 +43,7 @@ import org.kodein.arch.vie.timemachine.protocol.VIEViewModelInfo
  * - The model flow runs from the start, with no view collecting, and carries every intermediate
  *   model of a burst, none conflated, starting with the first model — after *started*, since the
  *   ViewModel attaches its middlewares before it starts its model flow.
- * - Interventions go through a [VIEViewModelInjector] — the ViewModel's own public `update {}`,
+ * - Interventions go through a [TimeMachineViewModelInjector] — the ViewModel's own public `update {}`,
  *   `post()` and `signal()` — so an injected model is the one the next `update { copy(…) }` computes
  *   from. An injected object is recognised by identity when it is observed, and tagged with its
  *   request's identifier. An injected model is always tagged, equal to the current one or not: it
@@ -146,14 +146,14 @@ internal class TimeMachineMiddleware<Model : VIE.Model, Intent : VIE.Intent, Sig
     private fun intervenerOf(viewModel: () -> VIEViewModel<Model, Intent, Signal>?) = object : TimeMachineIntervener {
         override val isViewModelCollected: Boolean get() = viewModel() == null
 
-        override fun intervene(request: TimeMachineServerMessage.Intervene): VIEInterventionResult {
+        override fun intervene(request: TimeMachineServerMessage.Intervene): TimeMachineInterventionResult {
             val vm = viewModel()
-                ?: return VIEInterventionResult.Failure(Reason.ClosedViewModel, "ViewModel $viewModelId was garbage-collected without having been cleared")
-            return intervene(VIEViewModelInjector(vm), request)
+                ?: return TimeMachineInterventionResult.Failure(Reason.ClosedViewModel, "ViewModel $viewModelId was garbage-collected without having been cleared")
+            return intervene(TimeMachineViewModelInjector(vm), request)
         }
     }
 
-    private fun intervene(injector: VIEViewModelInjector<Model, Intent, Signal>, request: TimeMachineServerMessage.Intervene): VIEInterventionResult {
+    private fun intervene(injector: TimeMachineViewModelInjector<Model, Intent, Signal>, request: TimeMachineServerMessage.Intervene): TimeMachineInterventionResult {
         if (closed.load()) return closedFailure()
         val requestId = request.requestId
         return when (request.kind) {
@@ -165,20 +165,20 @@ internal class TimeMachineMiddleware<Model : VIE.Model, Intent : VIE.Intent, Sig
             }
             VIEObjectKind.Signal -> signalType.decode(request) { signal ->
                 injector.injectSignal(signal) { injectedSignals.add(Injected(signal, requestId)) }?.asResult()
-                    ?: VIEInterventionResult.Failure(Reason.UnknownType, "${request.typeName} is neither a VIE.Signal.Event nor a VIE.Signal.Effect")
+                    ?: TimeMachineInterventionResult.Failure(Reason.UnknownType, "${request.typeName} is neither a VIE.Signal.Event nor a VIE.Signal.Effect")
             }
         }
     }
 
-    private fun closedFailure() = VIEInterventionResult.Failure(Reason.ClosedViewModel, "ViewModel $viewModelId is closed")
+    private fun closedFailure() = TimeMachineInterventionResult.Failure(Reason.ClosedViewModel, "ViewModel $viewModelId is closed")
 
     // An injection launched on a cleared ViewModel's scope is cancelled from the start: its object never enters.
-    private fun Job.asResult(): VIEInterventionResult = if (isCancelled) closedFailure() else VIEInterventionResult.Success
+    private fun Job.asResult(): TimeMachineInterventionResult = if (isCancelled) closedFailure() else TimeMachineInterventionResult.Success
 
     private inline fun <T> VIEObjectType<T>.decode(
         request: TimeMachineServerMessage.Intervene,
-        inject: (T) -> VIEInterventionResult,
-    ): VIEInterventionResult =
+        inject: (T) -> TimeMachineInterventionResult,
+    ): TimeMachineInterventionResult =
         when (val decoded = decodeForIntervention(request.typeName, request.asJson)) {
             is VIEObjectType.Decoded.Value -> inject(decoded.value)
             is VIEObjectType.Decoded.Refused -> decoded.failure

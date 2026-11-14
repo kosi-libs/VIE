@@ -26,7 +26,7 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import org.kodein.arch.vie.timemachine.client.fixtures.objectType
-import org.kodein.arch.vie.timemachine.protocol.VIEInterventionResult
+import org.kodein.arch.vie.timemachine.protocol.TimeMachineInterventionResult
 
 
 private class NotSerializable
@@ -221,7 +221,7 @@ class VIEObjectTypeTest {
         assertEquals(type.typeName, info.typeName)
         assertFalse(info.isSerializable)
         assertNull(info.sealedSubTypes)
-        assertEquals(VIEInterventionResult.Reason.NotSerializable, type.decodeForIntervention(type.typeName, JsonNull).reason())
+        assertEquals(TimeMachineInterventionResult.Reason.NotSerializable, type.decodeForIntervention(type.typeName, JsonNull).reason())
     }
 
     @Test
@@ -336,7 +336,7 @@ class VIEObjectTypeTest {
         val type = objectType<ShapeIntent>()
         val json = requireNotNull(type.encode(ShapeIntent.Circle(3)))
 
-        assertEquals(VIEInterventionResult.Reason.BadJson, type.decodeForIntervention("square", json).reason())
+        assertEquals(TimeMachineInterventionResult.Reason.BadJson, type.decodeForIntervention("square", json).reason())
     }
 
     @Test
@@ -349,7 +349,7 @@ class VIEObjectTypeTest {
 
     private fun <T> VIEObjectType.Decoded<T>.value(): T = assertIs<VIEObjectType.Decoded.Value<T>>(this).value
 
-    private fun <T> VIEObjectType.Decoded<T>.reason(): VIEInterventionResult.Reason? = (this as? VIEObjectType.Decoded.Refused)?.reason
+    private fun <T> VIEObjectType.Decoded<T>.reason(): TimeMachineInterventionResult.Reason? = (this as? VIEObjectType.Decoded.Refused)?.reason
 
     @Test
     fun decodeForInterventionDecodesAKnownSubType() {
@@ -365,28 +365,28 @@ class VIEObjectTypeTest {
     fun decodeForInterventionRefusesAPayloadWhoseSerializerThrowsACancellation() {
         val type = objectType<Cancelling>()
 
-        assertEquals(VIEInterventionResult.Reason.BadJson, type.decodeForIntervention(type.typeName, JsonPrimitive("x")).reason())
+        assertEquals(TimeMachineInterventionResult.Reason.BadJson, type.decodeForIntervention(type.typeName, JsonPrimitive("x")).reason())
     }
 
     @Test
     fun decodeForInterventionRefusesAPayloadWhoseSerializerThrowsAnError() {
         val type = objectType<Unimplemented>()
 
-        assertEquals(VIEInterventionResult.Reason.BadJson, type.decodeForIntervention(type.typeName, JsonPrimitive("x")).reason())
+        assertEquals(TimeMachineInterventionResult.Reason.BadJson, type.decodeForIntervention(type.typeName, JsonPrimitive("x")).reason())
     }
 
     @Test
     fun decodeForInterventionRefusesANonSerializableType() {
         val type = objectType<NotSerializable>()
 
-        assertEquals(VIEInterventionResult.Reason.NotSerializable, type.decodeForIntervention(type.typeName, JsonNull).reason())
+        assertEquals(TimeMachineInterventionResult.Reason.NotSerializable, type.decodeForIntervention(type.typeName, JsonNull).reason())
     }
 
     @Test
     fun decodeForInterventionRefusesAPlainInterfaceType() {
         val type = objectType<PlainIntent>()
 
-        assertEquals(VIEInterventionResult.Reason.NotSerializable, type.decodeForIntervention(type.typeName, JsonNull).reason())
+        assertEquals(TimeMachineInterventionResult.Reason.NotSerializable, type.decodeForIntervention(type.typeName, JsonNull).reason())
     }
 
     @Test
@@ -394,7 +394,7 @@ class VIEObjectTypeTest {
         val type = objectType<TestIntent>()
         val json = requireNotNull(type.encode(TestIntent.Add("hi")))
 
-        assertEquals(VIEInterventionResult.Reason.UnknownType, type.decodeForIntervention("org.example.NotARegisteredType", json).reason())
+        assertEquals(TimeMachineInterventionResult.Reason.UnknownType, type.decodeForIntervention("org.example.NotARegisteredType", json).reason())
     }
 
     @Test
@@ -404,7 +404,7 @@ class VIEObjectTypeTest {
 
         val decoded = type.decodeForIntervention("org.kodein.arch.vie.timemachine.client.type.TestIntent.Remove", json)
 
-        assertEquals(VIEInterventionResult.Reason.BadJson, decoded.reason())
+        assertEquals(TimeMachineInterventionResult.Reason.BadJson, decoded.reason())
     }
 
     @Test
@@ -415,6 +415,6 @@ class VIEObjectTypeTest {
             put("cuont", 2)
         }
 
-        assertEquals(VIEInterventionResult.Reason.BadJson, type.decodeForIntervention(type.typeName, json).reason())
+        assertEquals(TimeMachineInterventionResult.Reason.BadJson, type.decodeForIntervention(type.typeName, json).reason())
     }
 }
