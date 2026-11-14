@@ -23,6 +23,7 @@ kotlin {
     sourceSets {
         commonMain.dependencies {
             implementation(projects.demo.demoShared)
+            implementation(projects.timemachine.vieTimemachineClient)
 
             implementation(libs.compose.foundation)
             implementation(libs.compose.runtime)
@@ -35,5 +36,15 @@ kotlin {
 }
 
 compose {
-    desktop.application.mainClass = "org.kodein.arch.vie.demo.MainKt"
+    desktop {
+        application {
+            mainClass = "org.kodein.arch.vie.demo.MainKt"
+        }
+    }
+}
+
+// `run` is this app's debug build: it starts the TimeMachine probe, unless -Pvie.timemachine=false.
+// Set on that task alone: the application's jvmArgs also reach the launcher of the packaged distributions.
+tasks.withType<JavaExec>().matching { it.name == "run" }.configureEach {
+    systemProperty("vie.timemachine", findProperty("vie.timemachine") ?: true)
 }
