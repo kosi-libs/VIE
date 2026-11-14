@@ -78,7 +78,7 @@ A timeline message.
 
 | inspector → probe
 | `received`
-| Every timeline message this connection carried, up to a sequence, is applied.
+| Every timeline message this connection carried, up to a sequence, is applied, or skipped for good.
 
 | inspector → probe
 | `request-vm-info`
@@ -288,9 +288,12 @@ A message that arrives late, from an evicted connection or from a resend, takes 
 A probe cannot rely on the transport to bound what it has in flight: on js and wasmJs, a browser buffers what is sent without limit.
 The inspector therefore acknowledges what it applied.
 
-* `received` carries a sequence, and means that every timeline message this connection carried, up to it, is applied.
+* `received` carries a sequence, and means that every timeline message this connection carried, up to it, is applied, or skipped for good.
 A connection carries its timeline messages in ascending order, so it is cumulative.
 The inspector sends one per connection after each batch of messages it applied, and acknowledges duplicates too, since it holds them.
+* The inspector also acknowledges a timeline message it skipped: a frame that does not decode but holds a numeric `sequence` at the top level of its JSON object, and a message it failed to apply.
+Its sequence then stays missing for good, and the timeline shows it as possibly incomplete (see <<gaps,Gaps>>).
+An inspector of your own must do the same: a message it never acknowledges is sent again on every connection, and once such messages fill the probe's window, nothing behind them gets through.
 * The probe keeps each timeline message it sent until a `received` covers it.
 It sends the next message only while at most 256 Ki characters of JSON are in flight, so a single large message can exceed that.
 * What waits meanwhile is a queue of at most `bufferSize` messages, 1,024 unless the probe's configuration says otherwise.
