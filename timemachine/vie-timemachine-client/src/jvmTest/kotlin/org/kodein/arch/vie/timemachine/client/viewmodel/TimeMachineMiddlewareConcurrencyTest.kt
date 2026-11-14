@@ -32,9 +32,9 @@ import org.kodein.arch.vie.timemachine.client.type.VIEObjectType
 import org.kodein.arch.vie.timemachine.client.timeline.TimeMachineIntervener
 import org.kodein.arch.vie.timemachine.client.timeline.TimeMachineSink
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineClientMessage
+import org.kodein.arch.vie.timemachine.protocol.TimeMachineInterventionResult
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineServerMessage
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineTimelineMessage
-import org.kodein.arch.vie.timemachine.protocol.VIEInterventionResult
 import org.kodein.arch.vie.timemachine.protocol.VIEObjectKind
 import org.kodein.arch.vie.timemachine.protocol.VIEObservation
 
@@ -95,8 +95,8 @@ class TimeMachineMiddlewareConcurrencyTest {
 
         assertTrue(dropped.intervener.isViewModelCollected)
         val request = TimeMachineServerMessage.Intervene(Uuid.random(), probe.viewModelId, VIEObjectKind.Intent, objectType<StressIntent>().typeNameOf(StressIntent.Ping), requireNotNull(objectType<StressIntent>().encode(StressIntent.Ping)))
-        val failure = assertIs<VIEInterventionResult.Failure>(dropped.intervener.intervene(request))
-        assertEquals(VIEInterventionResult.Reason.ClosedViewModel, failure.reason)
+        val failure = assertIs<TimeMachineInterventionResult.Failure>(dropped.intervener.intervene(request))
+        assertEquals(TimeMachineInterventionResult.Reason.ClosedViewModel, failure.reason)
 
         assertFalse(probe.viewModelId in sink.liveViewModels, "A collected ViewModel must leave the registry")
         assertEquals(1, messages.count { it is TimeMachineClientMessage.ViewModelClosed && it.viewModelId == probe.viewModelId })
@@ -125,7 +125,7 @@ class TimeMachineMiddlewareConcurrencyTest {
                                 1 -> intervention(probe.viewModelId, VIEObjectKind.Intent, objectType<StressIntent>(), StressIntent.Ping)
                                 else -> intervention(probe.viewModelId, VIEObjectKind.Signal, objectType<StressSignal>(), StressSignal.Pinged)
                             }
-                            assertEquals(VIEInterventionResult.Success, intervener.intervene(request))
+                            assertEquals(TimeMachineInterventionResult.Success, intervener.intervene(request))
                             request.requestId
                         }
                     }.awaitAll()

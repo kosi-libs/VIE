@@ -43,8 +43,8 @@ import org.kodein.arch.vie.timemachine.client.type.VIEObjectType
 import org.kodein.arch.vie.timemachine.client.type.displayName
 import org.kodein.arch.vie.timemachine.client.timeline.TimeMachineSink
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineClientMessage
+import org.kodein.arch.vie.timemachine.protocol.TimeMachineInterventionResult
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineServerMessage
-import org.kodein.arch.vie.timemachine.protocol.VIEInterventionResult
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineTimelineMessage
 import org.kodein.arch.vie.timemachine.protocol.VIEObjectKind
 import org.kodein.arch.vie.timemachine.protocol.VIESignalDelivery
@@ -141,7 +141,7 @@ private val List<TimeMachineTimelineMessage>.observations: List<VIEObservation>
 
 /** Asks the live ViewModel [viewModelId] to take [value], as the inspector would: returns the request's
  *  identifier and its result. */
-private fun <T : Any> TimeMachineSink.intervene(viewModelId: Uuid, kind: VIEObjectKind, type: VIEObjectType<T>, value: T): Pair<Uuid, VIEInterventionResult> {
+private fun <T : Any> TimeMachineSink.intervene(viewModelId: Uuid, kind: VIEObjectKind, type: VIEObjectType<T>, value: T): Pair<Uuid, TimeMachineInterventionResult> {
     val request = TimeMachineServerMessage.Intervene(
         requestId = Uuid.random(),
         viewModelId = viewModelId,
@@ -514,7 +514,7 @@ class TimeMachineMiddlewareTest {
             assertEquals(CountModel(5), model)
 
             val (requestId, result) = sink.intervene(probe.viewModelId, VIEObjectKind.Model, objectType<CountModel>(), CountModel(100))
-            assertEquals(VIEInterventionResult.Success, result)
+            assertEquals(TimeMachineInterventionResult.Success, result)
             advanceUntilIdle()
             post(ProbeIntent.Increment)
             advanceUntilIdle()
@@ -540,7 +540,7 @@ class TimeMachineMiddlewareTest {
             assertEquals(CountModel(5), model)
 
             val (requestId, result) = sink.intervene(probe.viewModelId, VIEObjectKind.Model, objectType<CountModel>(), CountModel(5))
-            assertEquals(VIEInterventionResult.Success, result)
+            assertEquals(TimeMachineInterventionResult.Success, result)
             advanceUntilIdle()
 
             val models = messages.observations.filter { it.kind == VIEObjectKind.Model }
@@ -562,8 +562,8 @@ class TimeMachineMiddlewareTest {
             // inspector's send button would: the update loop then applies them back to back.
             val (firstId, firstResult) = sink.intervene(probe.viewModelId, VIEObjectKind.Model, objectType<CountModel>(), CountModel(10))
             val (secondId, secondResult) = sink.intervene(probe.viewModelId, VIEObjectKind.Model, objectType<CountModel>(), CountModel(20))
-            assertEquals(VIEInterventionResult.Success, firstResult)
-            assertEquals(VIEInterventionResult.Success, secondResult)
+            assertEquals(TimeMachineInterventionResult.Success, firstResult)
+            assertEquals(TimeMachineInterventionResult.Success, secondResult)
             advanceUntilIdle()
 
             assertEquals(CountModel(20), model)
@@ -584,7 +584,7 @@ class TimeMachineMiddlewareTest {
             newVM = { ProbeVM(CountModel(0), { copy(count = count + 1) }, listOf(probe)) },
         ) {
             val (requestId, result) = sink.intervene(probe.viewModelId, VIEObjectKind.Intent, objectType<ProbeIntent>(), ProbeIntent.Increment)
-            assertEquals(VIEInterventionResult.Success, result)
+            assertEquals(TimeMachineInterventionResult.Success, result)
             advanceUntilIdle()
             post(ProbeIntent.Increment)
             advanceUntilIdle()
@@ -604,7 +604,7 @@ class TimeMachineMiddlewareTest {
             newVM = { ProbeVM(CountModel(0), { copy(count = count + 1) }, listOf(probe)) },
         ) {
             val (requestId, result) = sink.intervene(probe.viewModelId, VIEObjectKind.Signal, objectType<ProbeSignal>(), ProbeSignal.Incremented)
-            assertEquals(VIEInterventionResult.Success, result)
+            assertEquals(TimeMachineInterventionResult.Success, result)
             advanceUntilIdle()
 
             assertEquals(listOf<ProbeSignal>(ProbeSignal.Incremented), pendingSignals())
@@ -622,7 +622,7 @@ class TimeMachineMiddlewareTest {
             val (_, result) = sink.intervene(probe.viewModelId, VIEObjectKind.Signal, objectType<ProbeSignal>(), ProbeSignal.Untyped)
             advanceUntilIdle()
 
-            assertEquals(VIEInterventionResult.Reason.UnknownType, assertIs<VIEInterventionResult.Failure>(result).reason)
+            assertEquals(TimeMachineInterventionResult.Reason.UnknownType, assertIs<TimeMachineInterventionResult.Failure>(result).reason)
             assertTrue(pendingSignals().isEmpty())
         }
     }
@@ -638,7 +638,7 @@ class TimeMachineMiddlewareTest {
             val request = TimeMachineServerMessage.Intervene(Uuid.random(), probe.viewModelId, VIEObjectKind.Model, live.info.model.typeName, JsonNull)
             val result = live.intervener.intervene(request)
 
-            assertEquals(VIEInterventionResult.Reason.NotSerializable, assertIs<VIEInterventionResult.Failure>(result).reason)
+            assertEquals(TimeMachineInterventionResult.Reason.NotSerializable, assertIs<TimeMachineInterventionResult.Failure>(result).reason)
         }
     }
 
@@ -683,14 +683,14 @@ class TimeMachineMiddlewareTest {
         val request = TimeMachineServerMessage.Intervene(
             Uuid.random(), probe.viewModelId, VIEObjectKind.Model, live.info.model.typeName, requireNotNull(objectType<CountModel>().encode(CountModel(1))),
         )
-        assertEquals(VIEInterventionResult.Reason.ClosedViewModel, assertIs<VIEInterventionResult.Failure>(live.intervener.intervene(request)).reason)
+        assertEquals(TimeMachineInterventionResult.Reason.ClosedViewModel, assertIs<TimeMachineInterventionResult.Failure>(live.intervener.intervene(request)).reason)
         assertTrue(probe.viewModelId !in sink.liveViewModels)
     }
 
     @Test
     fun anInjectionLaunchedOnAClearedViewModelIsCancelled() = runTest {
         withoutView({ ProbeVM(CountModel(0), { copy(count = count + 1) }, emptyList()) }) { vm ->
-            val injector = VIEViewModelInjector(vm)
+            val injector = TimeMachineViewModelInjector(vm)
             // Cleared: what `intervene()` sees when the clear comes between its `closed` check and the launch.
             val store = ViewModelStore().apply { put("other", vm) }
             store.clear()
@@ -704,7 +704,7 @@ class TimeMachineMiddlewareTest {
     @Test
     fun anInjectionLaunchedOnALiveViewModelIsNotCancelled() = runTest {
         withoutView({ ProbeVM(CountModel(0), { copy(count = count + 1) }, emptyList()) }) { vm ->
-            val injector = VIEViewModelInjector(vm)
+            val injector = TimeMachineViewModelInjector(vm)
 
             assertTrue(!injector.injectModel(CountModel(1)) {}.isCancelled)
             assertNull(injector.injectSignal(ProbeSignal.Untyped) {})

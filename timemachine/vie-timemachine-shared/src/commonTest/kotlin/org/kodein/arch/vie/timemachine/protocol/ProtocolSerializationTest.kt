@@ -162,14 +162,14 @@ class ProtocolSerializationTest {
 
     @Test
     fun interventionResultRoundTripsOnSuccess() = assertRoundTrip<TimeMachineClientMessage>(
-        TimeMachineClientMessage.InterventionResult(requestId, VIEInterventionResult.Success)
+        TimeMachineClientMessage.InterventionResult(requestId, TimeMachineInterventionResult.Success)
     )
 
     @Test
     fun interventionResultRoundTripsOnFailure() = assertRoundTrip<TimeMachineClientMessage>(
         TimeMachineClientMessage.InterventionResult(
             requestId,
-            VIEInterventionResult.Failure(VIEInterventionResult.Reason.BadJson, "unexpected token"),
+            TimeMachineInterventionResult.Failure(TimeMachineInterventionResult.Reason.BadJson, "unexpected token"),
         )
     )
 
@@ -177,13 +177,13 @@ class ProtocolSerializationTest {
     fun interventionResultRoundTripsOnAProbeFailure() = assertRoundTrip<TimeMachineClientMessage>(
         TimeMachineClientMessage.InterventionResult(
             requestId,
-            VIEInterventionResult.Failure(VIEInterventionResult.Reason.ProbeFailure, "The probe failed to handle the request"),
+            TimeMachineInterventionResult.Failure(TimeMachineInterventionResult.Reason.ProbeFailure, "The probe failed to handle the request"),
         )
     )
 
     @Test
     fun interventionResultRoundTripsOnFailureWithoutAMessage() = assertRoundTrip<TimeMachineClientMessage>(
-        TimeMachineClientMessage.InterventionResult(requestId, VIEInterventionResult.Failure(VIEInterventionResult.Reason.UnknownType)),
+        TimeMachineClientMessage.InterventionResult(requestId, TimeMachineInterventionResult.Failure(TimeMachineInterventionResult.Reason.UnknownType)),
     )
 
     @Test
@@ -191,7 +191,7 @@ class ProtocolSerializationTest {
         assertEquals(
             Json.parseToJsonElement("""{"#type":"failure","reason":"BadJson","message":null}"""),
             Json.parseToJsonElement(
-                TimeMachineJson.encodeToString<VIEInterventionResult>(VIEInterventionResult.Failure(VIEInterventionResult.Reason.BadJson))
+                TimeMachineJson.encodeToString<TimeMachineInterventionResult>(TimeMachineInterventionResult.Failure(TimeMachineInterventionResult.Reason.BadJson))
             ),
         )
         assertEquals(

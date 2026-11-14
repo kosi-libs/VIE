@@ -1,7 +1,7 @@
 package org.kodein.arch.vie.timemachine.client.timeline
 
+import org.kodein.arch.vie.timemachine.protocol.TimeMachineInterventionResult
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineServerMessage
-import org.kodein.arch.vie.timemachine.protocol.VIEInterventionResult
 
 
 /**
@@ -12,7 +12,7 @@ import org.kodein.arch.vie.timemachine.protocol.VIEInterventionResult
  */
 internal fun interface TimeMachineIntervener {
     /** Injects [request]'s object, or says why it cannot. Never throws nor suspends. */
-    fun intervene(request: TimeMachineServerMessage.Intervene): VIEInterventionResult
+    fun intervene(request: TimeMachineServerMessage.Intervene): TimeMachineInterventionResult
 
     /** Whether the ViewModel was garbage-collected without ever being cleared: it then reports nothing
      *  more, its close included, and nothing can be injected into it. */

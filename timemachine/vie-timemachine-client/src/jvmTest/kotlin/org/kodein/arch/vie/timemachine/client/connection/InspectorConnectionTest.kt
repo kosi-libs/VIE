@@ -48,9 +48,9 @@ import org.kodein.arch.vie.timemachine.client.timeline.TimeMachineOutbox
 import org.kodein.arch.vie.timemachine.client.timeline.TimeMachineSink
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineClientMessage
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineConnection
+import org.kodein.arch.vie.timemachine.protocol.TimeMachineInterventionResult
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineServerMessage
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineSession
-import org.kodein.arch.vie.timemachine.protocol.VIEInterventionResult
 import org.kodein.arch.vie.timemachine.protocol.VIEObjectKind
 
 
@@ -423,7 +423,7 @@ class InspectorConnectionTest {
         withConnection(inspector) { probed ->
             val vm = Uuid.random()
             val requests = mutableListOf<TimeMachineServerMessage.Intervene>()
-            probed.sink.started(info(vm)) { requests += it; VIEInterventionResult.Success }
+            probed.sink.started(info(vm)) { requests += it; TimeMachineInterventionResult.Success }
             probed.start()
             val connection = inspector.welcomed.receive()
             inspector.receiveAnnounce(vm)
@@ -431,14 +431,14 @@ class InspectorConnectionTest {
 
             val request = TimeMachineServerMessage.Intervene(Uuid.random(), vm, VIEObjectKind.Intent, "T", JsonNull)
             connection.send(TimeMachineServerMessage.serializer(), request)
-            assertEquals(TimeMachineClientMessage.InterventionResult(request.requestId, VIEInterventionResult.Success), inspector.received.receive())
+            assertEquals(TimeMachineClientMessage.InterventionResult(request.requestId, TimeMachineInterventionResult.Success), inspector.received.receive())
             assertEquals(listOf(request), requests)
 
             val unknown = request.copy(requestId = Uuid.random(), viewModelId = Uuid.random())
             connection.send(TimeMachineServerMessage.serializer(), unknown)
             val answer = assertIs<TimeMachineClientMessage.InterventionResult>(inspector.received.receive())
             assertEquals(unknown.requestId, answer.requestId)
-            assertEquals(VIEInterventionResult.Reason.UnknownViewModel, assertIs<VIEInterventionResult.Failure>(answer.result).reason)
+            assertEquals(TimeMachineInterventionResult.Reason.UnknownViewModel, assertIs<TimeMachineInterventionResult.Failure>(answer.result).reason)
         }
     }
 
@@ -457,7 +457,7 @@ class InspectorConnectionTest {
             connection.send(TimeMachineServerMessage.serializer(), request)
             val answer = assertIs<TimeMachineClientMessage.InterventionResult>(inspector.received.receive())
             assertEquals(request.requestId, answer.requestId)
-            assertEquals(VIEInterventionResult.Reason.ProbeFailure, assertIs<VIEInterventionResult.Failure>(answer.result).reason)
+            assertEquals(TimeMachineInterventionResult.Reason.ProbeFailure, assertIs<TimeMachineInterventionResult.Failure>(answer.result).reason)
 
             // Still streaming: the next request is answered.
             connection.send(TimeMachineServerMessage.serializer(), TimeMachineServerMessage.RequestViewModelInfo(vm))
@@ -481,7 +481,7 @@ class InspectorConnectionTest {
             connection.send(TimeMachineServerMessage.serializer(), request)
             val answer = assertIs<TimeMachineClientMessage.InterventionResult>(inspector.received.receive())
             assertEquals(request.requestId, answer.requestId)
-            assertEquals(VIEInterventionResult.Reason.ProbeFailure, assertIs<VIEInterventionResult.Failure>(answer.result).reason)
+            assertEquals(TimeMachineInterventionResult.Reason.ProbeFailure, assertIs<TimeMachineInterventionResult.Failure>(answer.result).reason)
 
             // The failure names the request by its identifiers, and never prints the object it carries.
             val failure = notices.receive()
@@ -510,7 +510,7 @@ class InspectorConnectionTest {
             connection.send(TimeMachineServerMessage.serializer(), request)
             val answer = assertIs<TimeMachineClientMessage.InterventionResult>(inspector.received.receive())
             assertEquals(request.requestId, answer.requestId)
-            assertEquals(VIEInterventionResult.Reason.ProbeFailure, assertIs<VIEInterventionResult.Failure>(answer.result).reason)
+            assertEquals(TimeMachineInterventionResult.Reason.ProbeFailure, assertIs<TimeMachineInterventionResult.Failure>(answer.result).reason)
 
             // Still streaming: the next request is answered.
             connection.send(TimeMachineServerMessage.serializer(), TimeMachineServerMessage.RequestViewModelInfo(vm))
@@ -526,7 +526,7 @@ class InspectorConnectionTest {
             val type = objectType<Undecodable>()
             probed.sink.started(info(vm)) { request ->
                 when (val decoded = type.decodeForIntervention(request.typeName, request.asJson)) {
-                    is VIEObjectType.Decoded.Value -> VIEInterventionResult.Success
+                    is VIEObjectType.Decoded.Value -> TimeMachineInterventionResult.Success
                     is VIEObjectType.Decoded.Refused -> decoded.failure
                 }
             }
@@ -539,7 +539,7 @@ class InspectorConnectionTest {
             connection.send(TimeMachineServerMessage.serializer(), request)
             val answer = assertIs<TimeMachineClientMessage.InterventionResult>(inspector.received.receive())
             assertEquals(request.requestId, answer.requestId)
-            assertEquals(VIEInterventionResult.Reason.BadJson, assertIs<VIEInterventionResult.Failure>(answer.result).reason)
+            assertEquals(TimeMachineInterventionResult.Reason.BadJson, assertIs<TimeMachineInterventionResult.Failure>(answer.result).reason)
 
             // Still streaming: the next request is answered.
             connection.send(TimeMachineServerMessage.serializer(), TimeMachineServerMessage.RequestViewModelInfo(vm))

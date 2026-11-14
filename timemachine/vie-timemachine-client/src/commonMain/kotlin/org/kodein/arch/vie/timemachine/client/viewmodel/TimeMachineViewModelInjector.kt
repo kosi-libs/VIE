@@ -19,7 +19,7 @@ import org.kodein.arch.vie.VIEViewModel
  * Each injection returns the `Job` it launched: one that is already cancelled tells that the ViewModel
  * was cleared before the injection was launched, so its object will never enter it.
  */
-internal class VIEViewModelInjector<Model : VIE.Model, Intent : VIE.Intent, Signal : VIE.Signal>(
+internal class TimeMachineViewModelInjector<Model : VIE.Model, Intent : VIE.Intent, Signal : VIE.Signal>(
     private val vm: VIEViewModel<Model, Intent, Signal>,
 ) {
 

@@ -22,8 +22,8 @@ import org.kodein.arch.vie.timemachine.client.fixtures.testConnectionTuning
 import org.kodein.arch.vie.timemachine.client.fixtures.testLog
 import org.kodein.arch.vie.timemachine.client.timeline.TimeMachineIntervener
 import org.kodein.arch.vie.timemachine.client.timeline.TimeMachineSink
+import org.kodein.arch.vie.timemachine.protocol.TimeMachineInterventionResult
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineServerMessage
-import org.kodein.arch.vie.timemachine.protocol.VIEInterventionResult
 
 
 /**
@@ -62,7 +62,7 @@ class TimeMachineProbeTest {
         // ViewModels, as soon as the inspector welcomes it.
         val failingLookup = object : TimeMachineIntervener {
             override val isViewModelCollected: Boolean get() = throw LinkageError("from the test")
-            override fun intervene(request: TimeMachineServerMessage.Intervene): VIEInterventionResult = error("No intervention expected")
+            override fun intervene(request: TimeMachineServerMessage.Intervene): TimeMachineInterventionResult = error("No intervention expected")
         }
         withProbe(
             inspector,

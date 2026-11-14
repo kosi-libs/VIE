@@ -96,7 +96,7 @@ public sealed interface TimeMachineClientMessage {
     @SerialName("intervention-result")
     public data class InterventionResult(
         val requestId: Uuid,
-        val result: VIEInterventionResult,
+        val result: TimeMachineInterventionResult,
     ) : TimeMachineClientMessage
 
     /**

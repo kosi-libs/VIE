@@ -20,9 +20,9 @@ import kotlinx.serialization.modules.SerializersModule
 import kotlinx.serialization.serializerOrNull
 import org.kodein.arch.vie.timemachine.client.ProbeLog
 import org.kodein.arch.vie.timemachine.client.callingApp
+import org.kodein.arch.vie.timemachine.protocol.TimeMachineInterventionResult
+import org.kodein.arch.vie.timemachine.protocol.TimeMachineInterventionResult.Reason
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineJson
-import org.kodein.arch.vie.timemachine.protocol.VIEInterventionResult
-import org.kodein.arch.vie.timemachine.protocol.VIEInterventionResult.Reason
 import org.kodein.arch.vie.timemachine.protocol.VIETypeInfo
 
 
@@ -107,17 +107,17 @@ internal class VIEObjectType<T> private constructor(
     }
 
     /**
-     * Decodes [json] as [typeName], or reports why it cannot as the [VIEInterventionResult.Reason]
+     * Decodes [json] as [typeName], or reports why it cannot as the [TimeMachineInterventionResult.Reason]
      * the inspector expects — not as an exception, since a `SerializationException` *is* an
      * `IllegalArgumentException`, and the reasons could not be told apart by type.
      *
-     * - [T] is not `@Serializable`: [VIEInterventionResult.Reason.NotSerializable].
+     * - [T] is not `@Serializable`: [TimeMachineInterventionResult.Reason.NotSerializable].
      * - [typeName] is none of [sealedSubTypes] (nor this type's own [typeName] when not sealed):
-     *   [VIEInterventionResult.Reason.UnknownType].
-     * - [json]'s own class discriminator names another type: [VIEInterventionResult.Reason.BadJson].
+     *   [TimeMachineInterventionResult.Reason.UnknownType].
+     * - [json]'s own class discriminator names another type: [TimeMachineInterventionResult.Reason.BadJson].
      *   kotlinx-serialization dispatches decoding purely on that embedded field, and would otherwise
      *   silently decode [json] as whatever type it actually encodes, ignoring [typeName].
-     * - [json] does not decode: [VIEInterventionResult.Reason.BadJson]. Decoding is strict: a key
+     * - [json] does not decode: [TimeMachineInterventionResult.Reason.BadJson]. Decoding is strict: a key
      *   [json] has but the type doesn't declare fails, rather than being dropped. So does anything the
      *   app's code throws while decoding, an `Error` or a `CancellationException` included.
      */
@@ -138,7 +138,7 @@ internal class VIEObjectType<T> private constructor(
     sealed interface Decoded<out T> {
         class Value<T>(val value: T) : Decoded<T>
         class Refused(val reason: Reason, val message: String) : Decoded<Nothing> {
-            val failure: VIEInterventionResult.Failure get() = VIEInterventionResult.Failure(reason, message)
+            val failure: TimeMachineInterventionResult.Failure get() = TimeMachineInterventionResult.Failure(reason, message)
         }
     }
 
