@@ -22,7 +22,6 @@ import org.kodein.arch.vie.timemachine.server.ui.common.ScrollbarBox
 import org.kodein.arch.vie.timemachine.server.ui.common.TreeRawSwitch
 import org.kodein.arch.vie.timemachine.server.ui.common.jsonTree
 import org.kodein.arch.vie.timemachine.server.ui.common.rawJson
-import org.kodein.arch.vie.timemachine.server.ui.common.rememberJsonLines
 import org.kodein.arch.vie.timemachine.server.ui.common.treeLines
 
 
@@ -73,7 +72,8 @@ internal fun JsonViewer(
     val raw = controls.raw
     // The lines of the one that shows, the tree or the text: the other has none.
     val treeLines = remember(json, controls.expanded, raw) { if (json == null || raw) emptyList() else treeLines(json, controls.expanded) }
-    val textLines = rememberJsonLines(if (raw) rawText.orEmpty() else "")
+    // The text's lines, split but not coloured: each row colours its own as it comes into view.
+    val textLines = remember(raw, rawText) { if (raw) rawText.orEmpty().lines() else emptyList() }
     val rawSwitch: @Composable () -> Unit = { TreeRawSwitch(raw, onChange = onRawChange) }
     val framed = variant == JsonViewerVariant.Framed
     // The tree's lines are given it from the list's block, which remembers nothing: one lambda for the

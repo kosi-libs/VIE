@@ -108,7 +108,11 @@ internal fun colorJsonLine(line: String, colors: InspectorColors) = buildAnnotat
     append(line.substring(last))
 }
 
-/** The lines of [text], coloured as JSON, kept for as long as the text and the colours are the same. */
+/**
+ * The lines of [text], coloured as JSON, kept for as long as the text and the colours are the same. It
+ * colours them all at once, in the composition: for a text of a few lines only, such as an expanded
+ * timeline row's forty. The raw view colours each of its lines as it comes into view, see [rawJson].
+ */
 @Composable
 internal fun rememberJsonLines(text: String): List<AnnotatedString> {
     val colors = InspectorTheme.colors

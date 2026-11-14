@@ -13,6 +13,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Immutable
 import androidx.compose.runtime.State
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
@@ -26,7 +27,6 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipRect
 import androidx.compose.ui.node.DrawModifierNode
 import androidx.compose.ui.node.ModifierNodeElement
-import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
@@ -161,12 +161,15 @@ internal fun LazyListScope.jsonTree(
     }
 }
 
-/** [lines] of JSON text (see [rememberJsonLines]), numbered, a lazy item per line. */
-internal fun LazyListScope.rawJson(lines: List<AnnotatedString>, framed: Boolean = false) {
-    itemsIndexed(lines, key = { index, _ -> "json-text:$index" }, contentType = { _, _ -> JsonLineContent.Text }) { index, line ->
+/**
+ * [lines] of JSON text, numbered, a lazy item per line. A line is only read, and coloured, once its row
+ * is composed, that is in view: the items' keys and content types do not read it.
+ */
+internal fun LazyListScope.rawJson(lines: List<String>, framed: Boolean = false) {
+    items(lines.size, key = { "json-text:$it" }, contentType = { JsonLineContent.Text }) { index ->
         val scheme = MaterialTheme.colorScheme
         TextLineRow(
-            index + 1, line,
+            index + 1, lines[index],
             if (framed) Modifier.codeFrame(first = index == 0, last = index == lines.lastIndex, fill = scheme.surfaceContainer, stroke = scheme.outlineVariant) else Modifier,
         )
     }
@@ -215,12 +218,15 @@ private fun TreeLineRow(line: TreeLine, highlight: State<Float>?, modifier: Modi
     }
 }
 
+/** Line [number] of a JSON text, [line], coloured as JSON when composed, and again only when the line or the theme changes. */
 @Composable
-private fun TextLineRow(number: Int, line: AnnotatedString, modifier: Modifier) {
+private fun TextLineRow(number: Int, line: String, modifier: Modifier) {
     val scheme = MaterialTheme.colorScheme
+    val colors = InspectorTheme.colors
+    val coloured = remember(line, colors) { colorJsonLine(line, colors) }
     Row(modifier.fillMaxWidth().height(InspectorDimens.codeLine)) {
         Text(number.toString(), style = InspectorTheme.text.code, color = scheme.outline, textAlign = TextAlign.End, maxLines = 1, modifier = Modifier.width(34.dp).padding(end = 10.dp))
-        Text(line, style = InspectorTheme.text.code, color = scheme.onSurfaceVariant, softWrap = false, maxLines = 1)
+        Text(coloured, style = InspectorTheme.text.code, color = scheme.onSurfaceVariant, softWrap = false, maxLines = 1)
     }
 }
 
