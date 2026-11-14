@@ -1,36 +1,22 @@
 package org.kodein.arch.vie.timemachine.server.ui.rightpane
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.drawBehind
-import androidx.compose.ui.geometry.CornerRadius
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
-import org.kodein.arch.vie.timemachine.server.ui.common.action
 import org.kodein.arch.vie.timemachine.server.ui.core.InspectorPane
 import org.kodein.arch.vie.timemachine.server.ui.core.InspectorScope
 import org.kodein.arch.vie.timemachine.server.ui.core.LocalInspector
 import org.kodein.arch.vie.timemachine.server.ui.core.RightTab
-import org.kodein.arch.vie.timemachine.server.ui.designsystem.Chip
-import org.kodein.arch.vie.timemachine.server.ui.designsystem.ChipTone
-import org.kodein.arch.vie.timemachine.server.ui.designsystem.HorizontalRule
-import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorDimens
+import org.kodein.arch.vie.timemachine.server.ui.designsystem.TabRow
 import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorTheme
 import kotlin.uuid.Uuid
 
@@ -85,7 +71,11 @@ private fun RightPaneLayout(
             return@Column
         }
         currentModel(target.sessionId, target.viewModelId)
-        RightTabs(tab, target.interventions, onSelectTab)
+        TabRow(
+            RightTab.entries, selected = tab, onSelect = onSelectTab,
+            label = { when (it) { RightTab.Detail -> "Detail"; RightTab.Composer -> "Intervene" } },
+            badge = { when (it) { RightTab.Detail -> null; RightTab.Composer -> target.interventions.takeIf { n -> n > 0 }?.toString() } },
+        )
         Box(Modifier.weight(1f).fillMaxWidth()) {
             if (tab == RightTab.Composer) composer(target.sessionId, target.viewModelId) else detail()
         }
@@ -95,43 +85,3 @@ private fun RightPaneLayout(
 private fun rightEmptyText(scope: InspectorScope?): String =
     if (scope is InspectorScope.Session) "Select a row — the current model and details of its ViewModel appear here."
     else "The current model and entry details appear here."
-
-/** The tabs, the Composer's with a badge of the [interventions] asked of the ViewModel, when there are any. */
-@Composable
-private fun RightTabs(tab: RightTab, interventions: Int, onSelect: (RightTab) -> Unit) {
-    val scheme = MaterialTheme.colorScheme
-    Column {
-        Row(
-            Modifier.fillMaxWidth().height(InspectorDimens.tabRow).padding(horizontal = 6.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            for (entry in RightTab.entries) {
-                val on = tab == entry
-                val badge = if (entry == RightTab.Composer) interventions.takeIf { it > 0 }?.toString() else null
-                Box(
-                    Modifier.fillMaxHeight().action(role = Role.Tab, selected = on) { onSelect(entry) }
-                        .drawBehind {
-                            if (on) drawRoundRect(
-                                scheme.primary,
-                                topLeft = Offset(10.dp.toPx(), size.height - 3.dp.toPx()),
-                                size = Size(size.width - 20.dp.toPx(), 3.dp.toPx()),
-                                cornerRadius = CornerRadius(3.dp.toPx()),
-                            )
-                        }
-                        .padding(horizontal = 12.dp),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Text(
-                            if (entry == RightTab.Detail) "Detail" else "Intervene",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = if (on) scheme.primary else scheme.onSurfaceVariant,
-                        )
-                        badge?.let { Chip(it, ChipTone.Neutral, mono = true) }
-                    }
-                }
-            }
-        }
-        HorizontalRule()
-    }
-}

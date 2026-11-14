@@ -35,7 +35,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.focus.onFocusChanged
@@ -104,6 +103,7 @@ import org.kodein.arch.vie.timemachine.server.ui.designsystem.HorizontalRule
 import org.kodein.arch.vie.timemachine.server.ui.designsystem.IconAction
 import org.kodein.arch.vie.timemachine.server.ui.designsystem.InspectorButton
 import org.kodein.arch.vie.timemachine.server.ui.designsystem.LinkAction
+import org.kodein.arch.vie.timemachine.server.ui.designsystem.ToggleChip
 import org.kodein.arch.vie.timemachine.server.ui.theme.Glyph
 import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorDimens
 import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorPillShape
@@ -363,9 +363,15 @@ private fun FilterBar(
                 itemVerticalAlignment = Alignment.CenterVertically,
             ) {
                 for (kind in VIEObjectKind.entries) {
-                    KindFilterChip(kind, on = kind in filter.kinds, count = projection.kindCounts[kind] ?: 0) { post(TimelineVIE.Intent.ToggleKind(kind)) }
+                    ToggleChip(
+                        kind.name, selected = kind in filter.kinds, onClick = { post(TimelineVIE.Intent.ToggleKind(kind)) },
+                        tone = ChipTone.Kind(kind.style()), count = projection.kindCounts[kind] ?: 0,
+                    )
                 }
-                IntervenedFilterChip(on = filter.intervenedOnly, count = projection.intervenedCount) { post(TimelineVIE.Intent.SetIntervenedOnly(!filter.intervenedOnly)) }
+                ToggleChip(
+                    "Intervened only", selected = filter.intervenedOnly, onClick = { post(TimelineVIE.Intent.SetIntervenedOnly(!filter.intervenedOnly)) },
+                    tone = ChipTone.Intervened, count = projection.intervenedCount, glyph = Glyph.TouchApp,
+                )
                 SearchField(filter.query, onSearchFocus) { post(TimelineVIE.Intent.SetQuery(it)) }
                 if (projection.filterActive) FilterSummary(projection.hidden) { post(TimelineVIE.Intent.ClearFilters) }
             }
@@ -373,33 +379,6 @@ private fun FilterBar(
         }
         HorizontalRule()
     }
-}
-
-/** A kind's filter chip: lit in the kind's colors, with a check, when the kind is shown; outlined and plain when it is not. */
-@Composable
-private fun KindFilterChip(kind: VIEObjectKind, on: Boolean, count: Int, onClick: () -> Unit) {
-    val scheme = MaterialTheme.colorScheme
-    val colors = InspectorTheme.colors
-    val kindStyle = kind.style()
-    FilterChip(
-        kind.name, count, glyph = if (on) Glyph.Check else null,
-        fg = if (on) kindStyle.color(colors) else scheme.onSurfaceVariant,
-        container = if (on) kindStyle.container(colors) else Color.Transparent,
-        outlined = !on, onClick = onClick,
-    )
-}
-
-/** The "Intervened only" chip, in the intervened colors when it is on, and with the touch glyph when it is off. */
-@Composable
-private fun IntervenedFilterChip(on: Boolean, count: Int, onClick: () -> Unit) {
-    val scheme = MaterialTheme.colorScheme
-    val colors = InspectorTheme.colors
-    FilterChip(
-        "Intervened only", count, glyph = if (on) Glyph.Check else Glyph.TouchApp, glyphColor = colors.intervened,
-        fg = if (on) colors.intervened else scheme.onSurfaceVariant,
-        container = if (on) colors.intervenedContainer else Color.Transparent,
-        outlined = !on, onClick = onClick,
-    )
 }
 
 /** What the filters hide, and the way to show it again: only there while a filter is on. */
@@ -415,35 +394,6 @@ private fun FilterSummary(hidden: Int, onClear: () -> Unit) {
             )
         }
         InspectorButton("Clear filters", onClick = onClear, variant = ButtonVariant.Text)
-    }
-}
-
-@Composable
-private fun FilterChip(
-    label: String,
-    count: Int,
-    glyph: Glyph?,
-    fg: Color,
-    container: Color,
-    outlined: Boolean,
-    glyphColor: Color = fg,
-    onClick: () -> Unit,
-) {
-    val scheme = MaterialTheme.colorScheme
-    val shape = RoundedCornerShape(7.dp)
-    Row(
-        Modifier
-            .height(InspectorDimens.filterChip)
-            .background(container, shape)
-            .then(if (outlined) Modifier.border(1.dp, InspectorTheme.colors.strongOutline, shape) else Modifier)
-            .action(onClick = onClick)
-            .padding(start = if (glyph != null) 6.dp else 9.dp, end = 9.dp),
-        horizontalArrangement = Arrangement.spacedBy(4.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        glyph?.let { Symbol(it, size = 15.dp, tint = glyphColor) }
-        Text(label, style = InspectorTheme.text.label, color = fg, maxLines = 1)
-        Text(count.toString(), style = InspectorTheme.text.monoMeta, color = fg, modifier = Modifier.alpha(0.8f))
     }
 }
 
