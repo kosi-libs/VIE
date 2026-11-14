@@ -21,7 +21,7 @@ TimeMachine relies on conventions, not on access control:
 
 * the probe looks for the inspector at `localhost` unless you choose another host;
 * the probe prints a banner when it starts, saying what it streams;
-* a disabled probe opens no socket and does no work, which is how it stays out of a release build.
+* a disabled probe opens no socket and does no work, which is how it stays inactive in a release build, though its code, Ktor and Ktor's engine still ship in the binary.
 
 WARNING: Never leave the probe enabled in a release build: tie `enabled` to a debug flag (see xref:setup.adoc#start[Starting the probe]).
 Run the inspector on a network you trust.
