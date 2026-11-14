@@ -106,13 +106,13 @@ private fun AddressLine(status: StatusBarVIE.Model) {
 internal const val CopyAddressDescription = "Copy the address"
 internal const val CopyCommandDescription = "Copy the command"
 
-private const val ProbeSnippet = """TimeMachine.start(TimeMachineConfig(appName = "MyApp", enabled = true))
+private const val ProbeSnippet = """TimeMachine.start(TimeMachineConfig(appName = "MyApp", enabled = isDebugBuild))
 
 class TaskListVM : VIEViewModel<…>(
     middlewares = listOf(TimeMachine.middleware()),
 )"""
 
-private val SnippetKeyword = Regex("\\b(class|true)\\b")
+private val SnippetKeyword = Regex("\\bclass\\b")
 
 /** [ProbeSnippet] with its strings and its keywords coloured. */
 private fun probeSnippetText(colors: InspectorColors): AnnotatedString = buildAnnotatedString {
