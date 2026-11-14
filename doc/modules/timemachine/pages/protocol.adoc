@@ -430,10 +430,11 @@ So the inspector works out the status of an intervention from the facts it has, 
 | An observation tagged with the `requestId` arrived, whatever the result said.
 
 | Failed
-| The probe refused the request.
+| The result is a `failure`, whatever its reason: a refusal, or a `ProbeFailure`, after which the object may still have arrived.
 
 | Pending
-| Neither has arrived, and the deadline has not passed.
+| No tagged observation and no `failure` arrived, and the deadline has not passed.
+An accepted request stays pending until its tagged observation arrives, or the deadline passes.
 
 | Accepted, not observed
 | The probe accepted the request, but no tagged observation arrived by the deadline.
@@ -442,8 +443,10 @@ So the inspector works out the status of an intervention from the facts it has, 
 | Neither a result nor a tagged observation arrived by the deadline.
 |===
 
-A late answer can therefore change a status: a late row turns _timed out_ or _accepted, not observed_ into _success_.
-Eviction never changes one.
+A late answer can therefore change a status.
+A late row turns any of the last four into _success_, _failed_ included, as after a `ProbeFailure` that did not stop the object.
+A late result turns _timed out_ into _failed_ or into _accepted, not observed_.
+Eviction never changes a status.
 
 The probe can drive its ViewModel at all because a middleware is handed the ViewModel it is installed on, through `onAttached` (see xref:core:middlewares.adoc[]).
 
