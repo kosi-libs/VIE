@@ -21,11 +21,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import org.kodein.arch.vie.timemachine.server.ui.common.action
 import org.kodein.arch.vie.timemachine.server.ui.theme.Glyph
+import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorPillShape
 import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorTheme
 import org.kodein.arch.vie.timemachine.server.ui.theme.Symbol
 
@@ -48,8 +48,8 @@ internal fun SessionsRail(model: SessionsVIE.Model, modifier: Modifier = Modifie
             verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
             Box(
-                Modifier.size(width = 40.dp, height = 36.dp).clip(RoundedCornerShape(18.dp))
-                    .action(description = RailMenuDescription, onClick = onMenu),
+                Modifier.size(width = 40.dp, height = 36.dp)
+                    .action(shape = InspectorPillShape, description = RailMenuDescription, onClick = onMenu),
                 contentAlignment = Alignment.Center,
             ) {
                 Symbol(Glyph.Menu, size = 20.dp, tint = scheme.onSurfaceVariant)
@@ -70,8 +70,7 @@ private fun RailTile(item: RailItem, onClick: () -> Unit) {
         Modifier.size(width = 40.dp, height = 36.dp)
             .alpha(if (item.dimmed) 0.55f else 1f)
             .background(if (item.selected) scheme.primaryContainer else scheme.surfaceContainerHigh, shape)
-            .clip(shape)
-            .action(description = item.description, selected = item.selected, onClick = onClick),
+            .action(shape = shape, description = item.description, selected = item.selected, onClick = onClick),
         contentAlignment = Alignment.Center,
     ) {
         Text(

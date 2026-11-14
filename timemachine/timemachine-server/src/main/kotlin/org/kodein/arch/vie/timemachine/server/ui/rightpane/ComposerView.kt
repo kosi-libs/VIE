@@ -187,6 +187,7 @@ private fun KindReason(kind: VIEObjectKind, typeName: String) {
 @Composable
 private fun TypeField(type: String, types: List<String>, open: Boolean, blocked: Boolean, post: (ComposerVIE.Intent) -> Unit) {
     val scheme = MaterialTheme.colorScheme
+    val shape = MaterialTheme.shapes.small
     val name = splitSerialName(type)
     val choosable = types.size > 1 && !blocked
     // The field's width, for its menu: written when the field is laid out and read when the menu is
@@ -195,8 +196,8 @@ private fun TypeField(type: String, types: List<String>, open: Boolean, blocked:
     Box(Modifier.fillMaxWidth().padding(top = 4.dp).onSizeChanged { width = it.width }) {
         Row(
             Modifier.fillMaxWidth().height(36.dp)
-                .border(if (open) 2.dp else 1.dp, if (open) scheme.primary else InspectorTheme.colors.strongOutline, MaterialTheme.shapes.small)
-                .action(enabled = choosable) { post(ComposerVIE.Intent.SetTypeMenu(!open)) }
+                .border(if (open) 2.dp else 1.dp, if (open) scheme.primary else InspectorTheme.colors.strongOutline, shape)
+                .action(shape = shape, enabled = choosable) { post(ComposerVIE.Intent.SetTypeMenu(!open)) }
                 .padding(start = 12.dp, end = 6.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {

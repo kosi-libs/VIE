@@ -61,6 +61,8 @@ internal class GalleryRow(val label: String, val cells: List<@Composable () -> U
 /** The states an interactive specimen is shown in, a column each: what it is given, and the column's head. */
 internal enum class SpecimenState(val label: String, val enabled: Boolean) {
     Enabled("enabled", true),
+    Hovered("hovered", true),
+    Pressed("pressed", true),
     Disabled("disabled", false),
 }
 

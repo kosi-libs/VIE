@@ -22,7 +22,6 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.unit.Dp
@@ -203,8 +202,8 @@ private fun CollapsedRightPane(onOpen: () -> Unit) {
         Box(Modifier.width(1.dp).fillMaxHeight().background(scheme.outlineVariant))
         Box(Modifier.weight(1f).height(InspectorDimens.paneHeader), contentAlignment = Alignment.Center) {
             Box(
-                Modifier.size(26.dp).clip(CircleShape)
-                    .action(description = ShowRightPaneDescription, onClick = onOpen),
+                Modifier.size(26.dp)
+                    .action(shape = CircleShape, description = ShowRightPaneDescription, onClick = onOpen),
                 contentAlignment = Alignment.Center,
             ) {
                 Symbol(Glyph.RightPanelOpen, size = 18.dp, tint = scheme.onSurfaceVariant)
