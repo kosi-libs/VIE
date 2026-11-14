@@ -14,7 +14,8 @@ Code that uses them, such as an inspector reading `VIEObservation`, must opt in 
 == Transport
 
 The probe connects to the inspector over a WebSocket, at `ws://<host>:13229/timemachine`.
-The port and the path are part of the protocol, and the host is the probe's configuration: `localhost` unless it says otherwise.
+The path is part of the protocol.
+The host and the port are the probe's configuration: `localhost` and 13229 unless it says otherwise.
 The probe is the only side that connects, and both sides send.
 
 Every frame is a text frame holding one JSON object, written with the `TimeMachineJson` configuration.
