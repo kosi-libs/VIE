@@ -14,7 +14,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollbarAdapter
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -122,6 +121,7 @@ internal fun VIEViewScope<SessionsVIE.Intent, NoSignal>.SessionsContent(model: S
 @Composable
 private fun SessionBlock(session: SessionItem, selected: InspectorScope?, collapsed: Boolean, post: (SessionsVIE.Intent) -> Unit) {
     val scheme = MaterialTheme.colorScheme
+    val shape = MaterialTheme.shapes.medium
     val onSession = selected == InspectorScope.Session(session.id)
     Column(
         Modifier.fillMaxWidth().alpha(if (session.connected) 1f else 0.62f).padding(bottom = 6.dp),
@@ -130,8 +130,8 @@ private fun SessionBlock(session: SessionItem, selected: InspectorScope?, collap
         Row(
             Modifier
                 .fillMaxWidth().height(InspectorDimens.sessionItem)
-                .background(if (onSession) scheme.primaryContainer else Color.Transparent, RoundedCornerShape(8.dp))
-                .action { post(SessionsVIE.Intent.SelectScope(InspectorScope.Session(session.id))) }
+                .background(if (onSession) scheme.primaryContainer else Color.Transparent, shape)
+                .action(shape = shape) { post(SessionsVIE.Intent.SelectScope(InspectorScope.Session(session.id))) }
                 .padding(start = 6.dp, end = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(6.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -185,14 +185,15 @@ private fun SessionBlock(session: SessionItem, selected: InspectorScope?, collap
 @Composable
 private fun ViewModelRow(vm: ViewModelItem, session: SessionItem, selected: Boolean, onClick: () -> Unit) {
     val scheme = MaterialTheme.colorScheme
+    val shape = MaterialTheme.shapes.medium
     val closed = vm.status == ViewModelStatus.Closed
     val name = viewModelName(vm.typeName, vm.id)
     Row(
         Modifier
             .fillMaxWidth().height(InspectorDimens.viewModelItem)
             .alpha(if (closed && session.connected) 0.6f else 1f)
-            .background(if (selected) scheme.primaryContainer else Color.Transparent, RoundedCornerShape(8.dp))
-            .action(onClick = onClick)
+            .background(if (selected) scheme.primaryContainer else Color.Transparent, shape)
+            .action(shape = shape, onClick = onClick)
             .padding(start = 30.dp, end = 10.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically,

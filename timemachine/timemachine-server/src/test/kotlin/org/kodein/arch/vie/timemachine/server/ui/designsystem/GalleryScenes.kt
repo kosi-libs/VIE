@@ -6,5 +6,6 @@ package org.kodein.arch.vie.timemachine.server.ui.designsystem
  * commit that adds the component, and removed in the one that deletes it.
  */
 internal val GalleryScenes: List<GalleryScene> = listOf(
+    ActionScene,
     TextActionScene,
 )

@@ -31,5 +31,6 @@ internal val TextActionScene: GalleryScene = galleryMatrix(
         color = if (specimen.error) InspectorTheme.colors.error else MaterialTheme.colorScheme.primary,
         enabled = state.enabled,
         height = specimen.height,
+        interactionSource = rememberSpecimenInteraction(state),
     ) {}
 }
