@@ -8,9 +8,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -33,12 +31,12 @@ import kotlinx.coroutines.flow.map
 import org.kodein.arch.vie.timemachine.server.ui.common.CompactBelow
 import org.kodein.arch.vie.timemachine.server.ui.common.LocalCompact
 import org.kodein.arch.vie.timemachine.server.ui.common.ProvideCompact
-import org.kodein.arch.vie.timemachine.server.ui.common.action
 import org.kodein.arch.vie.timemachine.server.ui.core.InspectorPane
 import org.kodein.arch.vie.timemachine.server.ui.core.InspectorScope
 import org.kodein.arch.vie.timemachine.server.ui.core.LocalInspector
 import org.kodein.arch.vie.timemachine.server.ui.core.LocalInspectorViewState
 import org.kodein.arch.vie.timemachine.server.ui.core.releaseDroppedScopes
+import org.kodein.arch.vie.timemachine.server.ui.designsystem.IconAction
 import org.kodein.arch.vie.timemachine.server.ui.designsystem.VerticalRule
 import org.kodein.arch.vie.timemachine.server.ui.rightpane.RightPane
 import org.kodein.arch.vie.timemachine.server.ui.sessions.SessionsPresentation
@@ -202,13 +200,7 @@ private fun CollapsedRightPane(onOpen: () -> Unit) {
     Row(Modifier.width(CollapsedWidth).fillMaxHeight().background(scheme.surfaceContainerLow)) {
         VerticalRule()
         Box(Modifier.weight(1f).height(InspectorDimens.paneHeader), contentAlignment = Alignment.Center) {
-            Box(
-                Modifier.size(26.dp)
-                    .action(shape = CircleShape, description = ShowRightPaneDescription, onClick = onOpen),
-                contentAlignment = Alignment.Center,
-            ) {
-                Symbol(Glyph.RightPanelOpen, size = 18.dp, tint = scheme.onSurfaceVariant)
-            }
+            IconAction(Glyph.RightPanelOpen, ShowRightPaneDescription, onClick = onOpen, size = 18.dp)
         }
     }
 }

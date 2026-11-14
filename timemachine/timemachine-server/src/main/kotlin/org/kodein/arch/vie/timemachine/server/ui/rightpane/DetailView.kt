@@ -47,13 +47,14 @@ import org.kodein.arch.vie.timemachine.server.ui.common.formatTime
 import org.kodein.arch.vie.timemachine.server.ui.common.jsonTree
 import org.kodein.arch.vie.timemachine.server.ui.common.pretty
 import org.kodein.arch.vie.timemachine.server.ui.common.rawJson
-import org.kodein.arch.vie.timemachine.server.ui.common.rememberCopy
 import org.kodein.arch.vie.timemachine.server.ui.common.rememberJsonLines
 import org.kodein.arch.vie.timemachine.server.ui.common.splitSerialName
 import org.kodein.arch.vie.timemachine.server.ui.common.style
 import org.kodein.arch.vie.timemachine.server.ui.common.treeLines
 import org.kodein.arch.vie.timemachine.server.ui.core.InspectorPane
 import org.kodein.arch.vie.timemachine.server.ui.core.LocalInspector
+import org.kodein.arch.vie.timemachine.server.ui.designsystem.LinkAction
+import org.kodein.arch.vie.timemachine.server.ui.designsystem.rememberCopyFeedback
 import org.kodein.arch.vie.timemachine.server.ui.theme.Glyph
 import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorDimens
 import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorPillShape
@@ -142,7 +143,7 @@ private fun DetailContent(model: DetailVIE.Model, observation: VIEObservation, s
 private fun DetailHeader(observation: VIEObservation, sequence: TimeMachineSequence, projection: DetailProjection, post: (DetailVIE.Intent) -> Unit) {
     val scheme = MaterialTheme.colorScheme
     val colors = InspectorTheme.colors
-    val copy = rememberCopy()
+    val copied = rememberCopyFeedback()
     val kind = observation.kind
     val kindStyle = kind.style()
     val name = splitSerialName(observation.typeName)
@@ -176,16 +177,13 @@ private fun DetailHeader(observation: VIEObservation, sequence: TimeMachineSeque
                     },
                     style = InspectorTheme.text.body, color = scheme.onSurface, modifier = Modifier.weight(1f),
                 )
-                Text(
-                    "Show", style = InspectorTheme.text.label, color = colors.intervened,
-                    modifier = Modifier.action { post(DetailVIE.Intent.ShowInterventions) },
-                )
+                LinkAction("Show", onClick = { post(DetailVIE.Intent.ShowInterventions) }, color = colors.intervened)
             }
         }
         if (json != null) {
             Row(Modifier.padding(top = 2.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                 if (projection.canIntervene) PillButton("Edit & intervene", Glyph.EditNote, filled = true) { post(DetailVIE.Intent.EditAndIntervene) }
-                PillButton("Copy JSON", Glyph.ContentCopy, filled = false) { copy(json.pretty()) }
+                PillButton("Copy JSON", copied.glyph, filled = false) { copied.copy(json.pretty()) }
             }
         }
     }

@@ -16,12 +16,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableIntStateOf
-import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.AnnotatedString
@@ -31,16 +26,16 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import kotlinx.coroutines.delay
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineConnection
 import org.kodein.arch.vie.timemachine.server.store.ListenerState
 import org.kodein.arch.vie.timemachine.server.ui.common.LiveDot
 import org.kodein.arch.vie.timemachine.server.ui.common.TextAction
 import org.kodein.arch.vie.timemachine.server.ui.common.action
-import org.kodein.arch.vie.timemachine.server.ui.common.rememberCopy
 import org.kodein.arch.vie.timemachine.server.ui.core.InspectorPane
 import org.kodein.arch.vie.timemachine.server.ui.core.LocalInspector
+import org.kodein.arch.vie.timemachine.server.ui.designsystem.CopyAction
 import org.kodein.arch.vie.timemachine.server.ui.designsystem.HorizontalRule
+import org.kodein.arch.vie.timemachine.server.ui.designsystem.rememberCopyFeedback
 import org.kodein.arch.vie.timemachine.server.ui.theme.AppLockup
 import org.kodein.arch.vie.timemachine.server.ui.theme.Glyph
 import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorColors
@@ -90,7 +85,7 @@ private fun AddressLine(status: StatusBarVIE.Model) {
             LiveDot(true)
             Text("Listening on", style = body)
             Text(address, style = InspectorTheme.text.monoTitle, color = scheme.onSurface, modifier = Modifier.background(scheme.surfaceContainerHigh, RoundedCornerShape(4.dp)).padding(horizontal = 8.dp, vertical = 2.dp))
-            CopyGlyph(address, CopyAddressDescription)
+            CopyAction({ address }, CopyAddressDescription)
             Text(
                 buildAnnotatedString {
                     append("· protocol ")
@@ -105,32 +100,6 @@ private fun AddressLine(status: StatusBarVIE.Model) {
 /** What the copy glyphs of the screens say they copy. */
 internal const val CopyAddressDescription = "Copy the address"
 internal const val CopyCommandDescription = "Copy the command"
-
-/** How long a copy glyph stays a check. */
-private const val CopiedMillis = 1500L
-
-/**
- * A copy glyph that is a check for a moment once it has copied [text]; [description] is what it says
- * it copies. The check is of this text: another text starts on the copy glyph.
- */
-@Composable
-private fun CopyGlyph(text: String, description: String) {
-    val copy = rememberCopy()
-    var copied by remember(text) { mutableStateOf(false) }
-    // Counted, so that a click while the check shows starts its moment again.
-    var copies by remember(text) { mutableIntStateOf(0) }
-    LaunchedEffect(text, copies) {
-        if (copies > 0) {
-            delay(CopiedMillis)
-            copied = false
-        }
-    }
-    Symbol(
-        if (copied) Glyph.Check else Glyph.ContentCopy, size = 16.dp,
-        tint = if (copied) InspectorTheme.colors.success else MaterialTheme.colorScheme.onSurfaceVariant,
-        modifier = Modifier.action(description = description) { copy(text); copied = true; copies++ },
-    )
-}
 
 private const val ProbeSnippet = """TimeMachine.start(TimeMachineConfig(appName = "MyApp", enabled = true))
 
@@ -170,13 +139,13 @@ private fun probeSnippetText(colors: InspectorColors): AnnotatedString = buildAn
 @Composable
 private fun SnippetCard() {
     val scheme = MaterialTheme.colorScheme
-    val copy = rememberCopy()
+    val copied = rememberCopyFeedback()
     val colors = InspectorTheme.colors
     val shape = RoundedCornerShape(10.dp)
     Column(Modifier.fillMaxWidth().background(scheme.surfaceContainer, shape).border(1.dp, scheme.outlineVariant, shape)) {
         Row(Modifier.fillMaxWidth().height(34.dp).padding(start = 14.dp, end = 8.dp), verticalAlignment = Alignment.CenterVertically) {
             Text("Add the probe to your app", style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Normal), color = scheme.onSurfaceVariant, modifier = Modifier.weight(1f))
-            TextAction("Copy", glyph = Glyph.ContentCopy) { copy(ProbeSnippet) }
+            TextAction("Copy", glyph = copied.glyph) { copied.copy(ProbeSnippet) }
         }
         HorizontalRule()
         Text(
@@ -222,7 +191,7 @@ internal fun CannotListenScreen(reason: ListenerState.Failed.Reason, message: St
                 Step(2) {
                     Text("Not sure what holds it? Run", style = body)
                     Text("lsof -i :$port", style = InspectorTheme.text.code, color = scheme.onSurface, modifier = Modifier.background(scheme.surfaceContainerHigh, RoundedCornerShape(4.dp)).padding(horizontal = 8.dp, vertical = 2.dp))
-                    CopyGlyph("lsof -i :$port", CopyCommandDescription)
+                    CopyAction({ "lsof -i :$port" }, CopyCommandDescription)
                 }
                 Step(3) { Text("Retry.", style = body) }
             } else Text(

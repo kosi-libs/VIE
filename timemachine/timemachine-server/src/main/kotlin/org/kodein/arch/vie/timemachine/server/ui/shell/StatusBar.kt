@@ -20,11 +20,11 @@ import androidx.compose.ui.unit.dp
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineConnection
 import org.kodein.arch.vie.timemachine.server.store.ListenerState
 import org.kodein.arch.vie.timemachine.server.ui.common.LocalCompact
-import org.kodein.arch.vie.timemachine.server.ui.common.action
 import org.kodein.arch.vie.timemachine.server.ui.core.InspectorPane
 import org.kodein.arch.vie.timemachine.server.ui.core.LocalInspector
 import org.kodein.arch.vie.timemachine.server.ui.core.LocalInspectorViewState
 import org.kodein.arch.vie.timemachine.server.ui.designsystem.HorizontalRule
+import org.kodein.arch.vie.timemachine.server.ui.designsystem.IconAction
 import org.kodein.arch.vie.timemachine.server.ui.theme.Glyph
 import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorDimens
 import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorTheme
@@ -72,9 +72,10 @@ internal fun StatusBarContent(status: StatusBarVIE.Model, dark: Boolean, onToggl
                 if (status.sessions == 0) "No sessions" else "${status.connectedSessions} of ${status.sessions} sessions connected",
                 style = StatusText, color = scheme.onSurfaceVariant, maxLines = 1,
             )
-            Symbol(
-                if (dark) Glyph.DarkMode else Glyph.LightMode, size = 15.dp, tint = scheme.outline,
-                modifier = Modifier.action(description = if (dark) LightThemeDescription else DarkThemeDescription, onClick = onToggleTheme),
+            IconAction(
+                if (dark) Glyph.DarkMode else Glyph.LightMode,
+                description = if (dark) LightThemeDescription else DarkThemeDescription,
+                onClick = onToggleTheme, size = 15.dp, tint = scheme.outline,
             )
         }
     }

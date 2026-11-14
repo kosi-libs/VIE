@@ -85,7 +85,6 @@ import org.kodein.arch.vie.timemachine.server.ui.common.action
 import org.kodein.arch.vie.timemachine.server.ui.common.clock
 import org.kodein.arch.vie.timemachine.server.ui.common.formatTime
 import org.kodein.arch.vie.timemachine.server.ui.common.pretty
-import org.kodein.arch.vie.timemachine.server.ui.common.rememberCopy
 import org.kodein.arch.vie.timemachine.server.ui.common.rememberJsonLines
 import org.kodein.arch.vie.timemachine.server.ui.common.type
 import org.kodein.arch.vie.timemachine.server.ui.common.splitSerialName
@@ -95,7 +94,10 @@ import org.kodein.arch.vie.timemachine.server.ui.core.InspectorPane
 import org.kodein.arch.vie.timemachine.server.ui.core.InspectorScope
 import org.kodein.arch.vie.timemachine.server.ui.core.LocalInspector
 import org.kodein.arch.vie.timemachine.server.ui.core.ViewModelStatus
+import org.kodein.arch.vie.timemachine.server.ui.designsystem.CopyAction
 import org.kodein.arch.vie.timemachine.server.ui.designsystem.HorizontalRule
+import org.kodein.arch.vie.timemachine.server.ui.designsystem.IconAction
+import org.kodein.arch.vie.timemachine.server.ui.designsystem.LinkAction
 import org.kodein.arch.vie.timemachine.server.ui.theme.Glyph
 import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorDimens
 import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorPillShape
@@ -113,6 +115,12 @@ internal const val CopyRowDescription = "Copy this entry's JSON"
 private val SeqWidth = 40.dp
 private val TimeWidth = 88.dp
 private val SourceWidth = 180.dp
+
+/** Where a row starts: its chevron's glyph stays centred 14 dp from the edge, in its larger target. */
+private val RowStart = 14.dp - InspectorDimens.iconAction / 2
+
+/** Where an expanded row's sections start: 6 dp past the end of the SEQ column. */
+private val ExpandedStart = RowStart + InspectorDimens.iconAction + 8.dp + SeqWidth + 6.dp
 
 /**
  * The centre pane for [scope], over what the store holds: [TimelineContent] on the pane's model, its
@@ -496,7 +504,7 @@ private fun SearchField(query: String, onFocus: (Boolean) -> Unit, onChange: (St
             )
         }
         if (query.isNotEmpty()) {
-            Symbol(Glyph.Close, size = 16.dp, tint = scheme.outline, modifier = Modifier.action(description = ClearSearchDescription) { onChange("") })
+            IconAction(Glyph.Close, ClearSearchDescription, onClick = { onChange("") }, tint = scheme.outline)
         }
     }
 }
@@ -529,11 +537,11 @@ private fun ColumnHeads(merged: Boolean) {
     val style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium)
     Column {
         Row(
-            Modifier.fillMaxWidth().height(22.dp).padding(start = 6.dp, end = 10.dp),
+            Modifier.fillMaxWidth().height(22.dp).padding(start = RowStart, end = 10.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Box(Modifier.width(16.dp))
+            Box(Modifier.width(InspectorDimens.iconAction))
             Text("SEQ", style = style, color = scheme.outline, textAlign = TextAlign.End, modifier = Modifier.width(SeqWidth))
             Text("TIME", style = style, color = scheme.outline, modifier = Modifier.width(TimeWidth))
             Box(Modifier.width(16.dp))
@@ -657,10 +665,7 @@ private fun NoMatch(hidden: Int, onClear: () -> Unit) {
         Text("No entry matches the filters", style = InspectorTheme.text.emptyTitle, color = scheme.onSurfaceVariant)
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text("$hidden ${if (hidden == 1) "entry" else "entries"} hidden · ", style = InspectorTheme.text.body, color = scheme.outline)
-            Text(
-                "Clear filters", style = InspectorTheme.text.label, color = scheme.primary,
-                modifier = Modifier.action(onClick = onClear),
-            )
+            LinkAction("Clear filters", onClick = onClear)
         }
     }
 }
@@ -696,13 +701,15 @@ private fun ObservationRow(
                 .background(if (selected) colors.selectedRow else if (intervened) colors.intervenedRow else Color.Transparent)
                 .then(if (selected) Modifier.border(BorderStroke(1.dp, scheme.primary)) else Modifier)
                 .action { post(TimelineVIE.Intent.SelectRow(sequence)) }
-                .padding(start = 6.dp, end = 10.dp),
+                .padding(start = RowStart, end = 10.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Symbol(
-                if (expanded) Glyph.ExpandMore else Glyph.ChevronRight, size = 16.dp, tint = scheme.outline,
-                modifier = Modifier.action(description = if (expanded) CollapseRowDescription else ExpandRowDescription) { post(TimelineVIE.Intent.ToggleExpanded(sequence)) },
+            IconAction(
+                if (expanded) Glyph.ExpandMore else Glyph.ChevronRight,
+                description = if (expanded) CollapseRowDescription else ExpandRowDescription,
+                onClick = { post(TimelineVIE.Intent.ToggleExpanded(sequence)) },
+                tint = scheme.outline,
             )
             Text(
                 "#$sequence", textAlign = TextAlign.End, maxLines = 1, modifier = Modifier.width(SeqWidth),
@@ -794,7 +801,6 @@ private fun InterventionChip(number: Int) {
 @Composable
 private fun RowActions(observation: VIEObservation, onEdit: () -> Unit) {
     val scheme = MaterialTheme.colorScheme
-    val copy = rememberCopy()
     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
         Row(
             Modifier.height(22.dp).background(scheme.primary, InspectorPillShape)
@@ -805,7 +811,7 @@ private fun RowActions(observation: VIEObservation, onEdit: () -> Unit) {
             Text("Edit & intervene", style = InspectorTheme.text.actionSmall, color = scheme.onPrimary, maxLines = 1)
         }
         observation.asJson?.let { json ->
-            Symbol(Glyph.ContentCopy, size = 16.dp, tint = scheme.onSurfaceVariant, modifier = Modifier.action(description = CopyRowDescription) { copy(json.pretty()) })
+            CopyAction({ json.pretty() }, CopyRowDescription)
         }
     }
 }
@@ -819,7 +825,7 @@ private fun ExpandedRow(observation: VIEObservation) {
     val colors = InspectorTheme.colors
     val label = MaterialTheme.typography.labelSmall.copy(letterSpacing = 0.06.sp)
     Column(
-        Modifier.fillMaxWidth().background(scheme.surfaceContainerLowest).padding(start = 76.dp, end = 14.dp, top = 8.dp, bottom = 10.dp),
+        Modifier.fillMaxWidth().background(scheme.surfaceContainerLowest).padding(start = ExpandedStart, end = 14.dp, top = 8.dp, bottom = 10.dp),
         verticalArrangement = Arrangement.spacedBy(5.dp),
     ) {
         Text("TOSTRING", style = label, color = scheme.outline)
@@ -895,10 +901,10 @@ private fun Bookend(sequence: TimeMachineSequence, at: Instant, started: Boolean
     val colors = InspectorTheme.colors
     Column {
         Row(
-            Modifier.fillMaxWidth().height(InspectorDimens.softMarker).padding(start = 6.dp, end = 10.dp),
+            Modifier.fillMaxWidth().height(InspectorDimens.softMarker).padding(start = RowStart, end = 10.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically,
         ) {
-            Box(Modifier.width(16.dp))
+            Box(Modifier.width(InspectorDimens.iconAction))
             Text("#$sequence", style = InspectorTheme.text.codeRow, color = scheme.outline, textAlign = TextAlign.End, maxLines = 1, modifier = Modifier.width(SeqWidth))
             Text(formatTime(at), style = InspectorTheme.text.codeRow, color = scheme.outline, maxLines = 1, modifier = Modifier.width(TimeWidth))
             Symbol(if (started) Glyph.PlayCircle else Glyph.StopCircle, size = 16.dp, tint = if (started) colors.success else scheme.outline)
