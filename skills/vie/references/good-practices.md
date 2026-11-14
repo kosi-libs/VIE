@@ -366,8 +366,9 @@ observe the truly raw values (before any other middleware can filter or transfor
 last; one that should reflect what actually reaches the view (or `process`) goes first.
 
 `TimeMachine.middleware()` — the probe that streams a ViewModel to the TimeMachine inspector — is
-the example of a middleware that goes last: it reports intents as the view posted them and signals
-as the ViewModel emitted them, before any other middleware can filter or transform them. Start the
+the example of a middleware that goes last: it reports models as `update {}` produced them, intents
+as the view posted them and signals as the ViewModel emitted them, before any other middleware can
+filter or transform them. Start the
 probe once, early, with `enabled` tied to a debug flag, then build the list wherever the ViewModel
 is built:
 

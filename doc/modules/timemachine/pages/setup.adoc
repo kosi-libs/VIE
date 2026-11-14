@@ -92,9 +92,9 @@ class CounterVM(
     // ...
 }
 ----
-<1> Last, so nearest the source: it reports intents as the view posted them and signals as the ViewModel emitted them, before any other middleware filters or transforms them.
+<1> Last, so nearest the source: it reports models as `update { }` produced them, intents as the view posted them and signals as the ViewModel emitted them, before any other middleware filters or transforms them.
 
-Models are reported as `update { }` produced them, wherever the middleware sits.
+Models go through the middlewares in the same order as intents and signals: a middleware installed after the probe can change or drop the models it reports.
 
 When the ViewModel takes its `middlewares` as a constructor parameter, install the middleware wherever the ViewModel is built, such as a dependency-injection definition or a factory:
 
