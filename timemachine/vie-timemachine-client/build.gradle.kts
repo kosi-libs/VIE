@@ -1,11 +1,9 @@
 plugins {
     alias(libs.plugins.kotlin.multiplatform)
     alias(libs.plugins.android.kotlin.multiplatform.library)
-    alias(libs.plugins.kotlin.plugin.compose)
-    alias(libs.plugins.compose.multiplatform)
-    // TimeMachine is still in development: these modules keep the published-module naming and
-    // will be published once they are ready.
-//    alias(libs.plugins.mavenPublish)
+    alias(libs.plugins.kotlin.plugin.serialization)
+    // Not published yet: see mavenPublishing at the end of this file.
+    // alias(libs.plugins.mavenPublish)
 }
 
 kotlin {
@@ -14,7 +12,7 @@ kotlin {
     jvm()
 
     android {
-        namespace = "org.kodein.arch.vie.tm.client"
+        namespace = "org.kodein.arch.vie.timemachine.client"
         compileSdk = findProperty("android.compileSdk")!!.toString().toInt()
         minSdk = findProperty("android.minSdk")!!.toString().toInt()
     }
@@ -35,41 +33,61 @@ kotlin {
 
     sourceSets {
         commonMain.dependencies {
-            implementation(projects.timemachine.vieTimemachineShared)
-            implementation(projects.vieMvi)
+            api(projects.timemachine.vieTimemachineShared)
 
-            implementation(libs.androidx.jb.lifecycle.viewmodel.compose)
+            // TimeMachine.middleware() returns a VIEMiddleware, so vie-mvi is part of this module's
+            // public signatures.
+            api(projects.vieMvi)
 
-            implementation(libs.compose.foundation)
-            implementation(libs.compose.material3)
-            implementation(libs.compose.materialIcons)
-            implementation(libs.compose.runtime)
+            // Core holds the WebSockets plugin and the Js engine, which the web targets use:
+            // ktor-client-websockets and ktor-client-js are empty shims.
+            //
+            // The other platforms each add an engine below, and every platform names its own
+            // (timeMachineEngine): ktor would otherwise discover the host app's, whatever its WebSocket
+            // support. An engine dependency also registers itself for the host app's own HttpClient(),
+            // so each platform takes the one least likely to change that app's default.
+            implementation(libs.ktor.client.core)
 
+            implementation(libs.kotlinx.serialization.json)
             implementation(libs.kotlinx.coroutines)
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
             implementation(libs.kotlinx.coroutines.test)
+            implementation(projects.vieTest)
+        }
+        jvmMain.dependencies {
+            // CIO's priority (0.0) is below every other engine's.
+            implementation(libs.ktor.client.cio)
+        }
+        jvmTest.dependencies {
+            implementation(libs.ktor.server.cio)
+            implementation(libs.ktor.server.websockets)
+        }
+        androidMain.dependencies {
+            // CIO, as on the jvm.
+            implementation(libs.ktor.client.cio)
+        }
+        iosMain.dependencies {
+            // Darwin, which an iOS app most likely ships already: every native engine registers at
+            // the same priority, so any other one would tie with the app's.
+            implementation(libs.ktor.client.darwin)
         }
     }
 
     compilerOptions {
-        freeCompilerArgs.add("-Xwarning-level=ERROR_SUPPRESSION:disabled")
+        optIn.addAll(
+            "kotlinx.serialization.ExperimentalSerializationApi",
+            "kotlin.concurrent.atomics.ExperimentalAtomicApi",
+        )
     }
 }
 
-// The Compose plugin fails the build unless a web target that could run Compose UI tests declares
-// binaries.executable(), to bundle the Skiko runtime (https://youtrack.jetbrains.com/issue/CMP-4906).
-// This module has no Compose UI test, so there is nothing to bundle, and a published library has
-// no business producing a webpack executable. The tasks are registered late by the Compose plugin,
-// hence matching rather than named().
-tasks.matching { it.name.startsWith("checkComposeUiTestConfiguration") }.configureEach { enabled = false }
-
-// TimeMachine is still in development: these modules keep the published-module naming and
-// will be published once they are ready.
-//mavenPublishing {
-//    pom {
-//        name = "vie-timemachine-client"
-//        description = "VIE TimeMachine client"
-//    }
-//}
+// TimeMachine is still in development: this module keeps its published name, and will be
+// published, with the plugin commented out above, once it is ready.
+// mavenPublishing {
+//     pom {
+//         name = "vie-timemachine-client"
+//         description = "VIE TimeMachine client"
+//     }
+// }
