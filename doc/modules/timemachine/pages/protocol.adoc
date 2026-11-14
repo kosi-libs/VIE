@@ -249,14 +249,16 @@ An object it fails to describe is still reported, without its JSON.
 
 An inspector closes a connection on a frame larger than it accepts, and a probe sends again what it has not seen acknowledged.
 An observation that large would then be sent and refused on every connection, and nothing behind it would get through.
-The probe therefore bounds each observation to `maxObservationLength` characters, 1,048,576 unless its configuration says otherwise.
+The probe therefore bounds each observation to about `maxObservationLength` characters, 1,048,576 unless its configuration says otherwise.
 
 * `asString` is cut at half of that, and ends with `… (N more characters)`, `N` being what was left out.
-* When the encoded observation is still longer, the probe sends it without `asJson`, in the place its sequence gave it.
+* The probe then measures the whole frame, envelope included.
+When it is still longer, the probe sends it without `asJson`, in the place its sequence gave it, and does not measure it again: escaped in JSON, a cut `asString` can still make the frame longer than the limit.
 * Either way, `truncated` is `true`.
 
-On a `@Serializable` type, `asJson` absent with `truncated` set means that the object was too large, not that it cannot be encoded.
-The inspector labels such a row "too large", where it labels a type that cannot be encoded "toString only", and it offers no intervention on it, since there is no JSON to edit.
+On a `@Serializable` type, `asJson` absent with `truncated` set most often means that the object was too large.
+It can also mean that the object failed to encode and that its `toString()` was cut: the two look the same on the wire.
+The inspector labels such a row "too large" either way, where it labels a type that cannot be encoded "toString only", and it offers no intervention on it, since there is no JSON to edit.
 
 The limit bounds what is sent, not what is rendered: the probe still describes the object in full before it measures it.
 A model that holds a decoded image or a file's bytes is better kept out of the observed models, or its content out of its `toString()`.
