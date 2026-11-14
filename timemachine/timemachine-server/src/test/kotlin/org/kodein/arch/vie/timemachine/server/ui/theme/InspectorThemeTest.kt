@@ -76,4 +76,13 @@ class InspectorThemeTest {
             assertEquals(TextStyle(fontFamily = fonts.mono, fontSize = size.sp, fontWeight = FontWeight.Normal), step)
         }
     }
+
+    @Test
+    fun `a section label is labelSmall with its own letter spacing`() {
+        val fonts = InspectorFonts(plex = FontFamily.Serif, mono = FontFamily.Monospace, symbols = FontFamily.Cursive)
+        val typography = inspectorTypography(fonts)
+        val label = inspectorTextStyles(fonts, typography).sectionLabel
+        assertEquals(0.06.sp, label.letterSpacing)
+        assertEquals(typography.labelSmall, label.copy(letterSpacing = typography.labelSmall.letterSpacing), "a section label changes labelSmall's letter spacing, and nothing else")
+    }
 }

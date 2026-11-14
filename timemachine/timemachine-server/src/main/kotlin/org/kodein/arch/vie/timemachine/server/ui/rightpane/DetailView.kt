@@ -22,7 +22,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.SpanStyle
-import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -52,6 +51,7 @@ import org.kodein.arch.vie.timemachine.server.ui.core.LocalInspector
 import org.kodein.arch.vie.timemachine.server.ui.designsystem.ButtonVariant
 import org.kodein.arch.vie.timemachine.server.ui.designsystem.InspectorButton
 import org.kodein.arch.vie.timemachine.server.ui.designsystem.LinkAction
+import org.kodein.arch.vie.timemachine.server.ui.designsystem.SectionLabel
 import org.kodein.arch.vie.timemachine.server.ui.designsystem.SerialName
 import org.kodein.arch.vie.timemachine.server.ui.designsystem.rememberCopyFeedback
 import org.kodein.arch.vie.timemachine.server.ui.theme.Glyph
@@ -90,7 +90,6 @@ private fun DetailContent(model: DetailVIE.Model, observation: VIEObservation, s
     val scheme = MaterialTheme.colorScheme
     val projection = model.projection
     val kind = observation.kind
-    val label = MaterialTheme.typography.labelSmall.copy(letterSpacing = 0.06.sp)
     // The lines of the one that shows, the tree or the text: the other has none.
     val json = observation.asJson
     val raw = model.controls.raw
@@ -107,10 +106,10 @@ private fun DetailContent(model: DetailVIE.Model, observation: VIEObservation, s
             contentPadding = PaddingValues(start = InspectorDimens.paneHorizontalPadding, end = InspectorDimens.paneHorizontalPadding, top = 12.dp, bottom = 16.dp),
         ) {
             item(key = "header", contentType = "header") { DetailHeader(observation, sequence, projection, post) }
-            projection.diff?.let { diff -> item(key = "changes", contentType = "changes") { DetailChanges(diff, label, Modifier.padding(top = SectionGap)) } }
+            projection.diff?.let { diff -> item(key = "changes", contentType = "changes") { DetailChanges(diff, Modifier.padding(top = SectionGap)) } }
             item(key = "toString", contentType = "toString") {
                 Column(Modifier.padding(top = SectionGap), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text("TOSTRING", style = label, color = scheme.outline)
+                    SectionLabel("TOSTRING")
                     Text(observation.asString, style = InspectorTheme.text.codeRow.copy(lineHeight = 17.sp), color = scheme.onSurface)
                 }
             }
@@ -125,7 +124,7 @@ private fun DetailContent(model: DetailVIE.Model, observation: VIEObservation, s
             if (json != null) {
                 item(key = "json-title", contentType = "json-title") {
                     Row(Modifier.padding(top = SectionGap, bottom = 6.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                        Text(if (kind == VIEObjectKind.Model) "FULL MODEL" else "JSON", style = label, color = scheme.outline, modifier = Modifier.weight(1f))
+                        SectionLabel(if (kind == VIEObjectKind.Model) "FULL MODEL" else "JSON", Modifier.weight(1f))
                         TreeRawSwitch(raw) { post(DetailVIE.Intent.SetRaw(it)) }
                     }
                 }
@@ -184,10 +183,10 @@ private fun DetailHeader(observation: VIEObservation, sequence: TimeMachineSeque
 
 /** What differs from the Model observed before. */
 @Composable
-private fun DetailChanges(diff: ModelDiff, label: TextStyle, modifier: Modifier = Modifier) {
+private fun DetailChanges(diff: ModelDiff, modifier: Modifier = Modifier) {
     val scheme = MaterialTheme.colorScheme
     Column(modifier, verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text("CHANGES VS #${diff.previous}", style = label, color = scheme.outline)
+        SectionLabel("CHANGES VS #${diff.previous}")
         Column(
             Modifier.fillMaxWidth().background(scheme.surfaceContainer, RoundedCornerShape(8.dp))
                 .border(1.dp, scheme.outlineVariant, RoundedCornerShape(8.dp)).padding(vertical = 6.dp),

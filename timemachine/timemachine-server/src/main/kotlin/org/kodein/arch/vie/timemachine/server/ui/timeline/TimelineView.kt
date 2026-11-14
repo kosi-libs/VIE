@@ -58,7 +58,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.unit.sp
 import androidx.compose.ui.window.Popup
 import androidx.compose.ui.window.PopupProperties
 import kotlin.time.Instant
@@ -103,6 +102,7 @@ import org.kodein.arch.vie.timemachine.server.ui.designsystem.HorizontalRule
 import org.kodein.arch.vie.timemachine.server.ui.designsystem.IconAction
 import org.kodein.arch.vie.timemachine.server.ui.designsystem.InspectorButton
 import org.kodein.arch.vie.timemachine.server.ui.designsystem.LinkAction
+import org.kodein.arch.vie.timemachine.server.ui.designsystem.SectionLabel
 import org.kodein.arch.vie.timemachine.server.ui.designsystem.SerialName
 import org.kodein.arch.vie.timemachine.server.ui.designsystem.ToggleChip
 import org.kodein.arch.vie.timemachine.server.ui.theme.Glyph
@@ -435,8 +435,6 @@ private fun FollowToggle(follow: FollowState, newCount: Int, onClick: () -> Unit
 
 @Composable
 private fun ColumnHeads(merged: Boolean) {
-    val scheme = MaterialTheme.colorScheme
-    val style = MaterialTheme.typography.labelSmall.copy(fontWeight = FontWeight.Medium)
     Column {
         Row(
             Modifier.fillMaxWidth().height(22.dp).padding(start = RowStart, end = 10.dp),
@@ -444,12 +442,12 @@ private fun ColumnHeads(merged: Boolean) {
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Box(Modifier.width(InspectorDimens.iconAction))
-            Text("SEQ", style = style, color = scheme.outline, textAlign = TextAlign.End, modifier = Modifier.width(SeqWidth))
-            Text("TIME", style = style, color = scheme.outline, modifier = Modifier.width(TimeWidth))
+            SectionLabel("SEQ", Modifier.width(SeqWidth), textAlign = TextAlign.End)
+            SectionLabel("TIME", Modifier.width(TimeWidth))
             Box(Modifier.width(16.dp))
-            Text("KIND", style = style, color = scheme.outline, textAlign = TextAlign.Center, modifier = Modifier.width(InspectorDimens.kindBadgeWidth))
-            if (merged) Text("VIEWMODEL", style = style, color = scheme.outline, modifier = Modifier.width(SourceWidth))
-            Text("TYPE · CHANGE / TOSTRING", style = style, color = scheme.outline, modifier = Modifier.weight(1f))
+            SectionLabel("KIND", Modifier.width(InspectorDimens.kindBadgeWidth), textAlign = TextAlign.Center)
+            if (merged) SectionLabel("VIEWMODEL", Modifier.width(SourceWidth))
+            SectionLabel("TYPE · CHANGE / TOSTRING", Modifier.weight(1f))
         }
         HorizontalRule()
     }
@@ -683,15 +681,14 @@ private const val MaxExpandedLines = 40
 private fun ExpandedRow(observation: VIEObservation) {
     val scheme = MaterialTheme.colorScheme
     val colors = InspectorTheme.colors
-    val label = MaterialTheme.typography.labelSmall.copy(letterSpacing = 0.06.sp)
     Column(
         Modifier.fillMaxWidth().background(scheme.surfaceContainerLowest).padding(start = ExpandedStart, end = 14.dp, top = 8.dp, bottom = 10.dp),
         verticalArrangement = Arrangement.spacedBy(5.dp),
     ) {
-        Text("TOSTRING", style = label, color = scheme.outline)
+        SectionLabel("TOSTRING")
         Text(observation.asString, style = InspectorTheme.text.codeRow, color = scheme.onSurface)
         observation.asJson?.let { json ->
-            Text("JSON", style = label, color = scheme.outline, modifier = Modifier.padding(top = 4.dp))
+            SectionLabel("JSON", Modifier.padding(top = 4.dp))
             // The row is one item of the list, composed whole: a long document is cut, and Detail has it all.
             val (shown, more) = remember(json) {
                 val lines = json.pretty().lines()

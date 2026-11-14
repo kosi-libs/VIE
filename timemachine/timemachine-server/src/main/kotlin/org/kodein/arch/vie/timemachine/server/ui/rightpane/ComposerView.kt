@@ -76,6 +76,7 @@ import org.kodein.arch.vie.timemachine.server.ui.designsystem.HorizontalRule
 import org.kodein.arch.vie.timemachine.server.ui.designsystem.IconAction
 import org.kodein.arch.vie.timemachine.server.ui.designsystem.InspectorButton
 import org.kodein.arch.vie.timemachine.server.ui.designsystem.LinkAction
+import org.kodein.arch.vie.timemachine.server.ui.designsystem.SectionLabel
 import org.kodein.arch.vie.timemachine.server.ui.designsystem.SegmentedControl
 import org.kodein.arch.vie.timemachine.server.ui.designsystem.SerialName
 import org.kodein.arch.vie.timemachine.server.ui.theme.Glyph
@@ -476,10 +477,7 @@ private fun ResultCard(view: InterventionView, projection: ComposerProjection, p
 private fun RecentInterventions(history: List<InterventionView>, older: Int, post: (ComposerVIE.Intent) -> Unit) {
     val scheme = MaterialTheme.colorScheme
     Column(Modifier.padding(top = 4.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-        Text(
-            "RECENT INTERVENTIONS", style = MaterialTheme.typography.labelSmall.copy(letterSpacing = 0.06.sp), color = scheme.outline,
-            modifier = Modifier.padding(bottom = 4.dp),
-        )
+        SectionLabel("RECENT INTERVENTIONS", Modifier.padding(bottom = 4.dp))
         if (history.isEmpty()) Text("None yet for this ViewModel.", style = InspectorTheme.text.body, color = scheme.outline)
         history.forEach { view ->
             val tone = toneOf(view.status)
