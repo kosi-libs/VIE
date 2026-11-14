@@ -4,7 +4,7 @@ import kotlin.time.Duration
 import kotlin.time.Duration.Companion.hours
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.Instant
-import org.kodein.arch.vie.timemachine.protocol.VIEInterventionResult
+import org.kodein.arch.vie.timemachine.protocol.TimeMachineInterventionResult
 import org.kodein.arch.vie.timemachine.server.store.ListenerState
 import org.kodein.arch.vie.timemachine.server.store.TimeMachineEvent
 
@@ -50,11 +50,11 @@ internal class ScenarioData(
             "compApplied" -> ScenarioData(id, base(), ProbeScript(intervene = { ProbeAnswer.AcceptedNotObserved }))
             "compFailure" -> ScenarioData(
                 id, base(),
-                ProbeScript(intervene = { ProbeAnswer.refused(VIEInterventionResult.Failure(VIEInterventionResult.Reason.BadJson, "Unexpected JSON token at offset 61: Expected string literal for 'taskId'")) }),
+                ProbeScript(intervene = { ProbeAnswer.refused(TimeMachineInterventionResult.Failure(TimeMachineInterventionResult.Reason.BadJson, "Unexpected JSON token at offset 61: Expected string literal for 'taskId'")) }),
             )
             "compFailType" -> ScenarioData(
                 id, base(),
-                ProbeScript(intervene = { ProbeAnswer.refused(VIEInterventionResult.Failure(VIEInterventionResult.Reason.UnknownType, "${it.typeName} is not a subtype of the Intent")) }),
+                ProbeScript(intervene = { ProbeAnswer.refused(TimeMachineInterventionResult.Failure(TimeMachineInterventionResult.Reason.UnknownType, "${it.typeName} is not a subtype of the Intent")) }),
             )
             "disconnected" -> ScenarioData(id, base(disconnected = true))
             "compNotSent" -> ScenarioData(id, base(disconnected = true, notSent = true))

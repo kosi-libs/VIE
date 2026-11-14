@@ -60,7 +60,7 @@ import androidx.compose.ui.unit.sp
 import kotlin.uuid.Uuid
 import org.kodein.arch.vie.VIE.NoSignal
 import org.kodein.arch.vie.VIEViewScope
-import org.kodein.arch.vie.timemachine.protocol.VIEInterventionResult
+import org.kodein.arch.vie.timemachine.protocol.TimeMachineInterventionResult
 import org.kodein.arch.vie.timemachine.protocol.VIEObjectKind
 import org.kodein.arch.vie.timemachine.server.store.InterventionStatus
 import org.kodein.arch.vie.timemachine.server.ui.common.ScrollbarBox
@@ -372,13 +372,13 @@ private fun PendingIndicator() {
     CircularProgressIndicator(Modifier.size(14.dp), color = MaterialTheme.colorScheme.primary, trackColor = InspectorTheme.colors.strongOutline, strokeWidth = 2.dp)
 }
 
-private fun VIEInterventionResult.Reason.plain(): String = when (this) {
-    VIEInterventionResult.Reason.UnknownViewModel -> "Unknown ViewModel"
-    VIEInterventionResult.Reason.ClosedViewModel -> "ViewModel closed"
-    VIEInterventionResult.Reason.NotSerializable -> "Not serializable"
-    VIEInterventionResult.Reason.UnknownType -> "Unknown type"
-    VIEInterventionResult.Reason.BadJson -> "Bad JSON"
-    VIEInterventionResult.Reason.ProbeFailure -> "Probe failure"
+private fun TimeMachineInterventionResult.Reason.plain(): String = when (this) {
+    TimeMachineInterventionResult.Reason.UnknownViewModel -> "Unknown ViewModel"
+    TimeMachineInterventionResult.Reason.ClosedViewModel -> "ViewModel closed"
+    TimeMachineInterventionResult.Reason.NotSerializable -> "Not serializable"
+    TimeMachineInterventionResult.Reason.UnknownType -> "Unknown type"
+    TimeMachineInterventionResult.Reason.BadJson -> "Bad JSON"
+    TimeMachineInterventionResult.Reason.ProbeFailure -> "Probe failure"
 }
 
 @Composable
@@ -417,14 +417,14 @@ private fun ResultCard(view: InterventionView, projection: ComposerProjection, p
         is InterventionStatus.Failed -> {
             title = "Failed · ${status.failure.reason.plain()}"
             body = when (status.failure.reason) {
-                VIEInterventionResult.Reason.BadJson -> "$app couldn’t read this JSON as $type."
-                VIEInterventionResult.Reason.UnknownType -> "$app doesn’t know a type with this name, so nothing was posted."
-                VIEInterventionResult.Reason.UnknownViewModel -> "$app no longer knows this ViewModel, so nothing was posted."
-                VIEInterventionResult.Reason.ClosedViewModel -> "The ViewModel closed before the request reached it."
-                VIEInterventionResult.Reason.NotSerializable -> "The ${view.kind.name} of this ViewModel isn’t serializable, so nothing was posted."
-                VIEInterventionResult.Reason.ProbeFailure -> "$app failed while handling this request. It may or may not have been applied; its output says why."
+                TimeMachineInterventionResult.Reason.BadJson -> "$app couldn’t read this JSON as $type."
+                TimeMachineInterventionResult.Reason.UnknownType -> "$app doesn’t know a type with this name, so nothing was posted."
+                TimeMachineInterventionResult.Reason.UnknownViewModel -> "$app no longer knows this ViewModel, so nothing was posted."
+                TimeMachineInterventionResult.Reason.ClosedViewModel -> "The ViewModel closed before the request reached it."
+                TimeMachineInterventionResult.Reason.NotSerializable -> "The ${view.kind.name} of this ViewModel isn’t serializable, so nothing was posted."
+                TimeMachineInterventionResult.Reason.ProbeFailure -> "$app failed while handling this request. It may or may not have been applied; its output says why."
             }
-            message = status.failure.message ?: view.typeName.takeIf { status.failure.reason == VIEInterventionResult.Reason.UnknownType }
+            message = status.failure.message ?: view.typeName.takeIf { status.failure.reason == TimeMachineInterventionResult.Reason.UnknownType }
         }
         InterventionStatus.TimedOut -> {
             title = "Timed out · nothing after $timeout"

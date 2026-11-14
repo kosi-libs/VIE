@@ -7,8 +7,8 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineClientMessage
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineConnection
+import org.kodein.arch.vie.timemachine.protocol.TimeMachineInterventionResult
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineSession
-import org.kodein.arch.vie.timemachine.protocol.VIEInterventionResult
 import org.kodein.arch.vie.timemachine.protocol.VIEObjectKind
 import org.kodein.arch.vie.timemachine.protocol.VIESignalDelivery
 import org.kodein.arch.vie.timemachine.protocol.VIEViewModelInfo
@@ -116,7 +116,7 @@ internal object SampleWorld {
         // Intervention 1: a Model, whose row (202) the bounds evict.
         val replaced = Demo.taskListModel(listOf(Demo.Milk to Demo.milk, Demo.Brief to Demo.brief))
         b.intervene(vm, Demo.request1, model, Demo.TaskListModel, replaced, t(201))
-        b.result(Demo.request1, VIEInterventionResult.Success, t(201))
+        b.result(Demo.request1, TimeMachineInterventionResult.Success, t(201))
         b.observed(vm, 202, t(202), model, Demo.TaskListModel, replaced, interventionId = Demo.request1)
         b.observed(vm, 203, t(203), intent, Demo.UpdateTaskCompletion, Demo.updateCompletion(Demo.Milk, true))
         b.observed(vm, 204, t(204), model, Demo.TaskListModel, Demo.taskListModel(listOf(Demo.Milk to Demo.milkDone, Demo.Brief to Demo.brief)))
@@ -161,7 +161,7 @@ internal object SampleWorld {
             229L -> {
                 // Intervention 2: an Intent.
                 b.intervene(vm, Demo.request2, intent, Demo.DeleteTask, Demo.deleteTask(Demo.Brief), t(228))
-                b.result(Demo.request2, VIEInterventionResult.Success, t(228))
+                b.result(Demo.request2, TimeMachineInterventionResult.Success, t(228))
                 b.observed(vm, 229, t(229), intent, Demo.DeleteTask, Demo.deleteTask(Demo.Brief), interventionId = Demo.request2)
             }
             230L -> b.observed(vm, 230, t(230), model, Demo.TaskListModel, Demo.taskListModel(emptyList()))
@@ -169,7 +169,7 @@ internal object SampleWorld {
                 // Intervention 3: a Model.
                 val three = Demo.taskListModel(listOf(Demo.Milk to Demo.milk, Demo.Brief to Demo.brief))
                 b.intervene(vm, Demo.request3, model, Demo.TaskListModel, three, t(237))
-                b.result(Demo.request3, VIEInterventionResult.Success, t(237))
+                b.result(Demo.request3, TimeMachineInterventionResult.Success, t(237))
                 b.observed(vm, 238, t(238), model, Demo.TaskListModel, three, interventionId = Demo.request3)
             }
             else -> type(Demo.editTaskClosed, sequence)
@@ -178,7 +178,7 @@ internal object SampleWorld {
         b.intervene(vm, Demo.request4, intent, Demo.DeleteTask, buildJsonObject { put("#type", Demo.DeleteTask); put("taskId", 12) }, t(250))
         b.result(
             Demo.request4,
-            VIEInterventionResult.Failure(VIEInterventionResult.Reason.BadJson, "Unexpected JSON token at offset 61: Expected string literal for 'taskId'"),
+            TimeMachineInterventionResult.Failure(TimeMachineInterventionResult.Reason.BadJson, "Unexpected JSON token at offset 61: Expected string literal for 'taskId'"),
             t(250),
         )
         b.observed(
@@ -205,21 +205,21 @@ internal object SampleWorld {
             when (extra) {
                 ExtraIntervention.Pending -> Unit
                 ExtraIntervention.Succeeded -> {
-                    b.result(request, VIEInterventionResult.Success, asked)
+                    b.result(request, TimeMachineInterventionResult.Success, asked)
                     b.observed(vm, Demo.NextSequence, asked, intent, Demo.DeleteTask, json, interventionId = request)
                 }
                 ExtraIntervention.AcceptedNotObserved -> {
-                    b.result(request, VIEInterventionResult.Success, asked)
+                    b.result(request, TimeMachineInterventionResult.Success, asked)
                     b.events += TimeMachineEvent.DeadlinePassed(request, asked + 5.seconds)
                 }
                 ExtraIntervention.BadJson -> b.result(
                     request,
-                    VIEInterventionResult.Failure(VIEInterventionResult.Reason.BadJson, "Unexpected JSON token at offset 61: Expected string literal for 'taskId'"),
+                    TimeMachineInterventionResult.Failure(TimeMachineInterventionResult.Reason.BadJson, "Unexpected JSON token at offset 61: Expected string literal for 'taskId'"),
                     asked,
                 )
                 ExtraIntervention.UnknownType -> b.result(
                     request,
-                    VIEInterventionResult.Failure(VIEInterventionResult.Reason.UnknownType, "${Demo.UpdateTaskCompletion} is not a subtype of the Intent"),
+                    TimeMachineInterventionResult.Failure(TimeMachineInterventionResult.Reason.UnknownType, "${Demo.UpdateTaskCompletion} is not a subtype of the Intent"),
                     asked,
                 )
                 ExtraIntervention.TimedOut -> b.events += TimeMachineEvent.DeadlinePassed(request, asked + 5.seconds)

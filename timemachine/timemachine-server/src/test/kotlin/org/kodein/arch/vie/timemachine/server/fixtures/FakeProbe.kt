@@ -7,9 +7,9 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.JsonElement
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineClientMessage
+import org.kodein.arch.vie.timemachine.protocol.TimeMachineInterventionResult
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineSequence
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineServerMessage
-import org.kodein.arch.vie.timemachine.protocol.VIEInterventionResult
 import org.kodein.arch.vie.timemachine.protocol.VIEObjectKind
 import org.kodein.arch.vie.timemachine.protocol.VIEObservation
 import org.kodein.arch.vie.timemachine.protocol.VIESignalDelivery
@@ -37,21 +37,21 @@ internal data class InterventionRequest(
  * for a real probe, so a late [rowAfter] or [resultAfter] shows the transitions of the card.
  */
 internal class ProbeAnswer(
-    val result: VIEInterventionResult?,
+    val result: TimeMachineInterventionResult?,
     val resultAfter: Duration = Duration.ZERO,
     val rowAfter: Duration? = null,
 ) {
     companion object {
         /** Success, and the object enters the ViewModel. */
-        val Accepted = ProbeAnswer(VIEInterventionResult.Success, rowAfter = Duration.ZERO)
+        val Accepted = ProbeAnswer(TimeMachineInterventionResult.Success, rowAfter = Duration.ZERO)
 
         /** Success, but no row ever follows: the ViewModel closed first, or the Model was equal. */
-        val AcceptedNotObserved = ProbeAnswer(VIEInterventionResult.Success)
+        val AcceptedNotObserved = ProbeAnswer(TimeMachineInterventionResult.Success)
 
         /** Not a word: the deadline settles it. */
         val Silent = ProbeAnswer(null)
 
-        fun refused(failure: VIEInterventionResult.Failure, after: Duration = Duration.ZERO) = ProbeAnswer(failure, after)
+        fun refused(failure: TimeMachineInterventionResult.Failure, after: Duration = Duration.ZERO) = ProbeAnswer(failure, after)
     }
 }
 
