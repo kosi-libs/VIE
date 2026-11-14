@@ -31,6 +31,14 @@ import org.kodein.arch.vie.timemachine.protocol.VIEInterventionResult
 
 private class NotSerializable
 
+/** Holds the most common type that is not `@Serializable`: a screen's nested `Model`. */
+private class NotSerializableVIE {
+    class Model
+}
+
+/** Not `@Serializable`, with a type argument that its name must not carry. */
+private class NotSerializableGeneric<T>
+
 /** Not `@Serializable`: kotlinx-serialization still hands out an open polymorphic serializer for it. */
 private sealed interface PlainIntent {
     data object A : PlainIntent
@@ -288,6 +296,20 @@ class VIEObjectTypeTest {
         val typeName = type.typeNameOf(NotSerializable())
 
         assertTrue(typeName.endsWith("NotSerializable"), typeName)
+    }
+
+    @Test
+    fun nestedNonSerializableTypeIsNamedLikeItsValues() {
+        val type = objectType<NotSerializableVIE.Model>()
+
+        assertEquals(type.typeNameOf(NotSerializableVIE.Model()), type.typeName)
+    }
+
+    @Test
+    fun genericNonSerializableTypeIsNamedLikeItsValues() {
+        val type = objectType<NotSerializableGeneric<Int>>()
+
+        assertEquals(type.typeNameOf(NotSerializableGeneric<Int>()), type.typeName)
     }
 
     @Test
