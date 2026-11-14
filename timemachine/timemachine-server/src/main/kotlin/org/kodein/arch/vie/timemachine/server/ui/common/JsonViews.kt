@@ -11,6 +11,8 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.Immutable
+import androidx.compose.runtime.State
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
@@ -19,8 +21,11 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawOutline
+import androidx.compose.ui.graphics.drawscope.ContentDrawScope
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipRect
+import androidx.compose.ui.node.DrawModifierNode
+import androidx.compose.ui.node.ModifierNodeElement
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.style.TextAlign
@@ -46,11 +51,16 @@ internal enum class ValueKind { Punctuation, String, Number, Literal }
 /**
  * One line of a JSON tree.
  *
+ * Immutable: [treeLines] builds its path once and never changes it. Without the annotation the compiler,
+ * which cannot tell that of a `List`, would compare two lines by identity, and every line of a tree
+ * rebuilt by a toggle would compose again.
+ *
  * @property path The node's path from the root; a closing bracket has its container's.
  * @property key The object key or array index, `null` for the root and a closing bracket.
  * @property openable Whether the line is a container with children, which a click opens or closes.
  * @property closer Whether it is a closing bracket.
  */
+@Immutable
 internal data class TreeLine(
     val path: JsonPath,
     val depth: Int,
@@ -124,23 +134,28 @@ private fun InspectorColors.value(kind: ValueKind, punctuation: Color): Color = 
 
 /**
  * A collapsible JSON tree, a lazy item per line of [lines] (see [treeLines]): a list only composes the
- * lines in view, however large the document. The nodes in [changed] sit on the model-container tint,
- * which fades with [highlight] (1 to 0): the highlight is an animation, the set is the model's. It is
- * read when a line is drawn, so a fade redraws the changed lines and composes nothing.
+ * lines in view, however large the document. The nodes in [changed] sit on the model-container tint, at
+ * the strength of [highlight] (1 to 0), read when a line is drawn: a fade redraws the changed lines and
+ * composes nothing; without a highlight, nothing is tinted.
+ *
+ * This block is not composable and remembers nothing: what it gives a line must be the same, or equal,
+ * from one run to the next, or the line composes again however unchanged. [onToggle] is passed on as is.
  *
  * @param framed Whether the lines are drawn in a code frame of their own, see [codeFrame].
  */
 internal fun LazyListScope.jsonTree(
     lines: List<TreeLine>,
     changed: Set<JsonPath> = emptySet(),
-    highlight: () -> Float = { 0f },
+    highlight: State<Float>? = null,
     framed: Boolean = false,
     onToggle: (JsonPath) -> Unit,
 ) {
     itemsIndexed(lines, key = { _, line -> line.itemKey() }, contentType = { _, _ -> JsonLineContent.Tree }) { index, line ->
+        val scheme = MaterialTheme.colorScheme
         TreeLineRow(
-            line, tinted = line.path in changed && !line.closer, highlight = highlight,
-            modifier = if (framed) codeFrame(first = index == 0, last = index == lines.lastIndex) else Modifier,
+            line,
+            highlight = highlight?.takeIf { line.path in changed && !line.closer },
+            modifier = if (framed) Modifier.codeFrame(first = index == 0, last = index == lines.lastIndex, fill = scheme.surfaceContainer, stroke = scheme.outlineVariant) else Modifier,
             onToggle = onToggle,
         )
     }
@@ -149,7 +164,11 @@ internal fun LazyListScope.jsonTree(
 /** [lines] of JSON text (see [rememberJsonLines]), numbered, a lazy item per line. */
 internal fun LazyListScope.rawJson(lines: List<AnnotatedString>, framed: Boolean = false) {
     itemsIndexed(lines, key = { index, _ -> "json-text:$index" }, contentType = { _, _ -> JsonLineContent.Text }) { index, line ->
-        TextLineRow(index + 1, line, if (framed) codeFrame(first = index == 0, last = index == lines.lastIndex) else Modifier)
+        val scheme = MaterialTheme.colorScheme
+        TextLineRow(
+            index + 1, line,
+            if (framed) Modifier.codeFrame(first = index == 0, last = index == lines.lastIndex, fill = scheme.surfaceContainer, stroke = scheme.outlineVariant) else Modifier,
+        )
     }
 }
 
@@ -165,16 +184,17 @@ private fun TreeLine.itemKey(): String = buildString {
     for (segment in path) append(segment.length).append(':').append(segment)
 }
 
+/** One line of a tree: tinted as changed when it has a [highlight], at its strength, read when drawn. */
 @Composable
-private fun TreeLineRow(line: TreeLine, tinted: Boolean, highlight: () -> Float, modifier: Modifier, onToggle: (JsonPath) -> Unit) {
+private fun TreeLineRow(line: TreeLine, highlight: State<Float>?, modifier: Modifier, onToggle: (JsonPath) -> Unit) {
     val scheme = MaterialTheme.colorScheme
     val colors = InspectorTheme.colors
     val shape = MaterialTheme.shapes.extraSmall
     Row(
         modifier.fillMaxWidth().height(InspectorDimens.codeLine)
             .then(
-                if (tinted) Modifier.drawBehind {
-                    drawOutline(shape.createOutline(size, layoutDirection, this), colors.modelContainer.copy(alpha = highlight()))
+                if (highlight != null) Modifier.drawBehind {
+                    drawOutline(shape.createOutline(size, layoutDirection, this), colors.modelContainer.copy(alpha = highlight.value))
                 } else Modifier,
             )
             .then(if (line.openable) Modifier.action { onToggle(line.path) } else Modifier)
@@ -205,32 +225,43 @@ private fun TextLineRow(number: Int, line: AnnotatedString, modifier: Modifier) 
 }
 
 /**
- * The part of a code frame that one of its lines draws: the frame is a rounded, outlined container
- * around lines that are each an item of a lazy list, so no node spans it. Each line draws the whole
- * frame's outline where it would be if the frame ended at this line's edges only when it is the [first]
- * or the [last], and is clipped to its own bounds; the first and the last also keep the frame's vertical
- * padding.
+ * The part of a code frame that one of its lines draws behind it: the frame is a rounded, outlined
+ * container around lines that are each an item of a lazy list, so no node spans it. A line draws the
+ * whole frame's outline where it would be if the frame ended at this line's edges only when it is the
+ * [first] or the [last], and is clipped to its own bounds; the first and the last also keep the frame's
+ * vertical padding. Two frames of the same part and colours are equal, so a line whose part did not
+ * change is given an equal modifier, and can skip.
  */
-@Composable
-private fun codeFrame(first: Boolean, last: Boolean): Modifier {
-    val fill = MaterialTheme.colorScheme.surfaceContainer
-    val stroke = MaterialTheme.colorScheme.outlineVariant
-    return Modifier
-        .drawBehind {
-            val radius = CodeFrameRadius.toPx()
-            val width = 1.dp.toPx()
-            // Beyond this line's bounds where the frame goes on: its corners are then out of the clip.
-            val top = if (first) 0f else -2 * radius
-            val bottom = if (last) size.height else size.height + 2 * radius
-            clipRect {
-                drawRoundRect(fill, Offset(0f, top), Size(size.width, bottom - top), CornerRadius(radius))
-                drawRoundRect(
-                    stroke, Offset(width / 2, top + width / 2), Size(size.width - width, bottom - top - width),
-                    CornerRadius(radius - width / 2), style = Stroke(width),
-                )
-            }
+private fun Modifier.codeFrame(first: Boolean, last: Boolean, fill: Color, stroke: Color): Modifier = this
+    .then(CodeFrameElement(first, last, fill, stroke))
+    .padding(start = 4.dp, end = 4.dp, top = if (first) 6.dp else 0.dp, bottom = if (last) 6.dp else 0.dp)
+
+private data class CodeFrameElement(val first: Boolean, val last: Boolean, val fill: Color, val stroke: Color) : ModifierNodeElement<CodeFrameNode>() {
+    override fun create() = CodeFrameNode(first, last, fill, stroke)
+    override fun update(node: CodeFrameNode) {
+        node.first = first
+        node.last = last
+        node.fill = fill
+        node.stroke = stroke
+    }
+}
+
+private class CodeFrameNode(var first: Boolean, var last: Boolean, var fill: Color, var stroke: Color) : Modifier.Node(), DrawModifierNode {
+    override fun ContentDrawScope.draw() {
+        val radius = CodeFrameRadius.toPx()
+        val width = 1.dp.toPx()
+        // Beyond this line's bounds where the frame goes on: its corners are then out of the clip.
+        val top = if (first) 0f else -2 * radius
+        val bottom = if (last) size.height else size.height + 2 * radius
+        clipRect {
+            drawRoundRect(fill, Offset(0f, top), Size(size.width, bottom - top), CornerRadius(radius))
+            drawRoundRect(
+                stroke, Offset(width / 2, top + width / 2), Size(size.width - width, bottom - top - width),
+                CornerRadius(radius - width / 2), style = Stroke(width),
+            )
         }
-        .padding(start = 4.dp, end = 4.dp, top = if (first) 6.dp else 0.dp, bottom = if (last) 6.dp else 0.dp)
+        drawContent()
+    }
 }
 
 private val CodeFrameRadius = 8.dp

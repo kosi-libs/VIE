@@ -74,7 +74,9 @@ internal fun VIEViewScope<CurrentModelVIE.Intent, NoSignal>.CurrentModelContent(
     val projection = model.projection
     val compact = LocalCompact.current
     Column(Modifier.fillMaxWidth().height(if (compact) CompactPinnedHeight else PinnedHeight)) {
-        val fade = remember(projection.sequence) { Animatable(1f) }
+        // One highlight for as long as the pane is shown: a new Model restarts its fade rather than making a
+        // new one, so that the tree's lines keep the same State and those that did not change can skip.
+        val fade = remember { Animatable(1f) }
         LaunchedEffect(projection.sequence) {
             fade.snapTo(1f)
             delay(HighlightHoldMillis)
