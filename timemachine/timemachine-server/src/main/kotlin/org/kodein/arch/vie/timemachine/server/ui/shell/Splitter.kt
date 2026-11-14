@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
@@ -19,6 +18,7 @@ import androidx.compose.ui.input.pointer.pointerHoverIcon
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import org.kodein.arch.vie.timemachine.server.ui.designsystem.VerticalRule
 import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorDimens
 import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorTheme
 import java.awt.Cursor
@@ -36,7 +36,7 @@ internal fun Splitter(onDrag: (Dp) -> Unit, modifier: Modifier = Modifier) {
             .draggable(rememberDraggableState { with(density) { latest.value(it.toDp()) } }, Orientation.Horizontal),
         contentAlignment = Alignment.Center,
     ) {
-        Box(Modifier.width(1.dp).fillMaxHeight().background(MaterialTheme.colorScheme.outlineVariant))
+        VerticalRule()
         Box(Modifier.size(width = 5.dp, height = 28.dp).background(InspectorTheme.colors.strongOutline, RoundedCornerShape(3.dp)))
     }
 }

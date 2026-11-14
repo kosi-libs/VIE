@@ -64,7 +64,6 @@ import org.kodein.arch.vie.VIEViewScope
 import org.kodein.arch.vie.timemachine.protocol.VIEInterventionResult
 import org.kodein.arch.vie.timemachine.protocol.VIEObjectKind
 import org.kodein.arch.vie.timemachine.server.store.InterventionStatus
-import org.kodein.arch.vie.timemachine.server.ui.common.HorizontalRule
 import org.kodein.arch.vie.timemachine.server.ui.common.ScrollbarBox
 import org.kodein.arch.vie.timemachine.server.ui.common.action
 import org.kodein.arch.vie.timemachine.server.ui.common.colorJsonLine
@@ -74,6 +73,8 @@ import org.kodein.arch.vie.timemachine.server.ui.common.splitSerialName
 import org.kodein.arch.vie.timemachine.server.ui.common.style
 import org.kodein.arch.vie.timemachine.server.ui.core.InspectorPane
 import org.kodein.arch.vie.timemachine.server.ui.core.LocalInspector
+import org.kodein.arch.vie.timemachine.server.ui.designsystem.HorizontalRule
+import org.kodein.arch.vie.timemachine.server.ui.designsystem.VerticalRule
 import org.kodein.arch.vie.timemachine.server.ui.theme.Glyph
 import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorColors
 import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorDimens
@@ -154,7 +155,7 @@ private fun KindSegments(kind: VIEObjectKind, enabled: Set<VIEObjectKind>, block
         VIEObjectKind.entries.forEachIndexed { index, entry ->
             val ok = entry in enabled
             val on = entry == kind && ok
-            if (index > 0) Box(Modifier.width(1.dp).fillMaxHeight().background(InspectorTheme.colors.strongOutline))
+            if (index > 0) VerticalRule(color = InspectorTheme.colors.strongOutline)
             val foreground = if (on) scheme.onPrimaryContainer else if (ok) scheme.onSurface else scheme.outline
             Row(
                 Modifier.weight(1f).fillMaxHeight().background(if (on) scheme.primaryContainer else Color.Transparent)

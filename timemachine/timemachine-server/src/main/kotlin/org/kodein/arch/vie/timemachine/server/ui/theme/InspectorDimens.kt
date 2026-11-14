@@ -37,6 +37,9 @@ object InspectorDimens {
     val scrollbarThumb: Dp = 6.dp
     val scrollbarTrack: Dp = 8.dp
 
+    /** The thickness of a rule: between panes, rows and segments, and on each side of a marker's label. */
+    val rule: Dp = 1.dp
+
     val dividerHitArea: Dp = 8.dp
     val minSessionsPane: Dp = 200.dp
     val minRightPane: Dp = 320.dp

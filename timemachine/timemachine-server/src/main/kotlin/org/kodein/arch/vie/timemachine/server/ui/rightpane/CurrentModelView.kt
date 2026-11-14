@@ -32,7 +32,6 @@ import kotlin.uuid.Uuid
 import kotlinx.coroutines.delay
 import org.kodein.arch.vie.VIE.NoSignal
 import org.kodein.arch.vie.VIEViewScope
-import org.kodein.arch.vie.timemachine.server.ui.common.HorizontalRule
 import org.kodein.arch.vie.timemachine.server.ui.common.LocalCompact
 import org.kodein.arch.vie.timemachine.server.ui.common.ScrollbarBox
 import org.kodein.arch.vie.timemachine.server.ui.common.TreeRawSwitch
@@ -47,6 +46,7 @@ import org.kodein.arch.vie.timemachine.server.ui.common.treeLines
 import org.kodein.arch.vie.timemachine.server.ui.core.InspectorPane
 import org.kodein.arch.vie.timemachine.server.ui.core.LocalInspector
 import org.kodein.arch.vie.timemachine.server.ui.core.LocalInspectorViewState
+import org.kodein.arch.vie.timemachine.server.ui.designsystem.HorizontalRule
 import org.kodein.arch.vie.timemachine.server.ui.theme.Glyph
 import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorDimens
 import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorPillShape
