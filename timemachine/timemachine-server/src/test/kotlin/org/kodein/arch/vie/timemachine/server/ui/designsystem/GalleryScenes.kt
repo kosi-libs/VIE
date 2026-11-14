@@ -20,4 +20,5 @@ internal val GalleryScenes: List<GalleryScene> = listOf(
     SerialNameScene,
     SectionLabelScene,
     PaneHeaderScene,
+    EmptyStateScene,
 )

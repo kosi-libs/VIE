@@ -1,7 +1,6 @@
 package org.kodein.arch.vie.timemachine.server.ui.shell
 
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -9,8 +8,8 @@ import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -36,6 +35,7 @@ import org.kodein.arch.vie.timemachine.server.ui.core.InspectorScope
 import org.kodein.arch.vie.timemachine.server.ui.core.LocalInspector
 import org.kodein.arch.vie.timemachine.server.ui.core.LocalInspectorViewState
 import org.kodein.arch.vie.timemachine.server.ui.core.releaseDroppedScopes
+import org.kodein.arch.vie.timemachine.server.ui.designsystem.EmptyState
 import org.kodein.arch.vie.timemachine.server.ui.designsystem.IconAction
 import org.kodein.arch.vie.timemachine.server.ui.designsystem.VerticalRule
 import org.kodein.arch.vie.timemachine.server.ui.rightpane.RightPane
@@ -45,8 +45,6 @@ import org.kodein.arch.vie.timemachine.server.ui.sessions.SessionsView
 import org.kodein.arch.vie.timemachine.server.ui.sessions.sessionsPane
 import org.kodein.arch.vie.timemachine.server.ui.theme.Glyph
 import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorDimens
-import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorTheme
-import org.kodein.arch.vie.timemachine.server.ui.theme.Symbol
 import org.kodein.arch.vie.timemachine.server.ui.timeline.TimelineView
 
 
@@ -248,17 +246,18 @@ private fun NoViewModel(modifier: Modifier) {
     InspectorPane(LocalInspector.current.sessionsPane()) { model -> NoViewModelContent(model, modifier) }
 }
 
-/** No ViewModel is selected: what to do, and how many the connected session has. */
+/** No ViewModel is selected: what to do, and how many the connected session has, in the middle of the pane. */
 @Composable
 internal fun NoViewModelContent(model: SessionsVIE.Model, modifier: Modifier) {
-    val scheme = MaterialTheme.colorScheme
     val session = model.sessions.firstOrNull { it.connected } ?: model.sessions.firstOrNull()
-    Column(modifier, horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp, Alignment.CenterVertically)) {
-        Symbol(Glyph.ViewTimeline, size = 28.dp, tint = scheme.outline)
-        Text("Select a ViewModel to see its timeline", style = InspectorTheme.text.emptyTitle, color = scheme.onSurfaceVariant)
-        session?.let {
+    EmptyState(
+        "Select a ViewModel to see its timeline",
+        // The pane is the caller's; the state stands in its middle.
+        modifier.wrapContentHeight(),
+        glyph = Glyph.ViewTimeline,
+        description = session?.let {
             val count = it.viewModels.size
-            Text("${it.name} has $count ViewModel${if (count == 1) "" else "s"} · pick one on the left", style = InspectorTheme.text.body, color = scheme.outline)
-        }
-    }
+            "${it.name} has $count ViewModel${if (count == 1) "" else "s"} · pick one on the left"
+        },
+    )
 }

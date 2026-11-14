@@ -24,7 +24,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -49,6 +48,7 @@ import org.kodein.arch.vie.timemachine.server.ui.common.treeLines
 import org.kodein.arch.vie.timemachine.server.ui.core.InspectorPane
 import org.kodein.arch.vie.timemachine.server.ui.core.LocalInspector
 import org.kodein.arch.vie.timemachine.server.ui.designsystem.ButtonVariant
+import org.kodein.arch.vie.timemachine.server.ui.designsystem.EmptyState
 import org.kodein.arch.vie.timemachine.server.ui.designsystem.InspectorButton
 import org.kodein.arch.vie.timemachine.server.ui.designsystem.LinkAction
 import org.kodein.arch.vie.timemachine.server.ui.designsystem.SectionLabel
@@ -78,11 +78,7 @@ internal fun VIEViewScope<DetailVIE.Intent, NoSignal>.DetailPaneContent(model: D
 
 @Composable
 private fun NoEntrySelected() {
-    val scheme = MaterialTheme.colorScheme
-    Column(Modifier.fillMaxSize().padding(horizontal = 20.dp, vertical = 40.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text("No entry selected", style = MaterialTheme.typography.bodyMedium, color = scheme.onSurfaceVariant)
-        Text("Click a row, or use ↑ ↓ to step through the timeline.", style = InspectorTheme.text.body, color = scheme.outline, textAlign = TextAlign.Center)
-    }
+    EmptyState("No entry selected", Modifier.fillMaxSize(), description = "Click a row, or use ↑ ↓ to step through the timeline.")
 }
 
 @Composable

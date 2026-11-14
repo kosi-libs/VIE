@@ -3,21 +3,16 @@ package org.kodein.arch.vie.timemachine.server.ui.rightpane
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.unit.dp
 import org.kodein.arch.vie.timemachine.server.ui.core.InspectorPane
 import org.kodein.arch.vie.timemachine.server.ui.core.InspectorScope
 import org.kodein.arch.vie.timemachine.server.ui.core.LocalInspector
 import org.kodein.arch.vie.timemachine.server.ui.core.RightTab
+import org.kodein.arch.vie.timemachine.server.ui.designsystem.EmptyState
 import org.kodein.arch.vie.timemachine.server.ui.designsystem.TabRow
-import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorTheme
 import kotlin.uuid.Uuid
 
 /** What the button that folds the right pane away says it is; the shell has the one that unfolds it. */
@@ -61,13 +56,7 @@ private fun RightPaneLayout(
 ) {
     Column(modifier.background(MaterialTheme.colorScheme.surfaceContainerLow)) {
         if (target == null) {
-            Text(
-                rightEmptyText(scope),
-                style = InspectorTheme.text.body,
-                color = MaterialTheme.colorScheme.outline,
-                textAlign = TextAlign.Center,
-                modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp, vertical = 40.dp),
-            )
+            EmptyState(rightEmptyText(scope), Modifier.fillMaxWidth())
             return@Column
         }
         currentModel(target.sessionId, target.viewModelId)
