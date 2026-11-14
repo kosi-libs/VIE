@@ -65,3 +65,19 @@ private fun SpecimenLines(tone: CalloutTone, lines: CalloutLines) {
         }
     }
 }
+
+/** [Banner] in each tone, across a pane; the error one with its action, as a rejected probe's. */
+internal val BannerScene: GalleryScene = galleryMatrix(
+    name = "banner",
+    rows = CalloutTone.entries,
+    columns = listOf("pane"),
+    rowLabel = { it.name.lowercase() },
+    columnLabel = { it },
+    cellWidth = 520.dp,
+) { tone, _ ->
+    val action: (@Composable () -> Unit)? =
+        if (tone == CalloutTone.Error) { { LinkAction("Dismiss", onClick = {}, color = InspectorTheme.colors.error) } } else null
+    Banner(tone, tone.specimenGlyph(), action = action) {
+        Text("Demo disconnected at 12:00:01. The timeline stays readable.", style = InspectorTheme.text.bodyEmphasis, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
