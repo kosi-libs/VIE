@@ -27,6 +27,7 @@ A probe started later only observes the ViewModels built after it.
 == Reaching the inspector
 
 The probe looks for the inspector at `localhost:13229`, and keeps trying for as long as your application runs, so the application and the inspector can start in either order.
+It retries within seconds at first, then every 30 s once no connection has held for a minute: an inspector opened that late may wait that long for your application to show up.
 `TimeMachineConfig` takes a `host` and a `port` for anything else.
 
 * A desktop application, the iOS simulator and a page served from `localhost` reach the default as it is.
