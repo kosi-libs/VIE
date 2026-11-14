@@ -123,6 +123,8 @@ A session is one run of an application.
 The probe picks its `id`, a random UUID, when it starts, and its `name`, the application's name, is what the developer chose: several sessions may share one.
 
 The probe keeps one connection at a time, and reconnects for as long as it runs, waiting 0.5 s after the first failure, then twice as long after each, up to 5 s.
+Once no connection has held for a minute, it waits up to 30 s instead: an inspector opened long after the application can take that long to see it.
+A connection holds once it has lasted 5 s, and only that starts the delay again from 0.5 s: a connection welcomed then dropped at once counts as one more failure.
 A rejection is retried too, since the inspector may be restarted with a compatible version.
 The inspector and the application can therefore start in either order.
 
