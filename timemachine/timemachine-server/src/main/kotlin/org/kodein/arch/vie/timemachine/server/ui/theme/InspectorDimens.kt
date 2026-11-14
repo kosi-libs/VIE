@@ -50,6 +50,15 @@ object InspectorDimens {
     val emptyStateGap: Dp = 8.dp
     /** The glyph over an empty state's title. */
     val emptyStateGlyph: Dp = 28.dp
+    /** What a callout keeps inside its box, across and above and below; a banner keeps [paneHorizontalPadding] across. */
+    val calloutHorizontalPadding: Dp = 12.dp
+    val calloutVerticalPadding: Dp = 8.dp
+    /** Between a callout's glyph, what it says, and its action. */
+    val calloutGap: Dp = 8.dp
+    /** Between the lines of what a callout says. */
+    val calloutLineGap: Dp = 4.dp
+    /** A callout's glyph, and the least height of what it says, so that a single line stands level with it. */
+    val calloutGlyph: Dp = 18.dp
     val sessionItem: Dp = 42.dp
     val viewModelItem: Dp = 40.dp
     val navigationRail: Dp = 56.dp
@@ -94,11 +103,11 @@ object InspectorDimens {
  *
  * - `extraSmall`, 4 dp: read by Material's menus (the composer's type menu), by a highlighted JSON tree line and by a text link's hover.
  * - `small`, 6 dp: read by the composer's type field and the toggle chips.
- * - `medium`, 8 dp: read by the session rows and the ViewModel rows.
+ * - `medium`, 8 dp: read by the session rows, the ViewModel rows and the callouts.
  * - `large` and `extraLarge`, 12 dp: read by nothing.
  *
  * The views write their other radii by hand, mostly at these values: the search field and the composer's
- * result message at 6, cards, notes and the JSON editor at 8, the type info popover at 12.
+ * result message at 6, the changes card, the listener's message and the JSON editor at 8, the type info popover at 12.
  * Some have no slot: the rail's tiles and the probe snippet's card at 10.
  * Buttons and pills are [InspectorPillShape]. Chips and badges are [InspectorChipShape]: 4 dp like
  * `extraSmall`, but their own, so that a menu's corners can change with no chip following.

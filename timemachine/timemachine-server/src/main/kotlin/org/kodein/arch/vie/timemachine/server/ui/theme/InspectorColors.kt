@@ -41,10 +41,6 @@ data class InspectorColors(
     val errorContainer: Color,
     val timeout: Color,
     val timeoutContainer: Color,
-    /** The background of an "accepted, not observed" result; its icon is [success]. */
-    val notObserved: Color,
-    /** The icon of a "not sent" result, on `surfaceContainerHigh`. */
-    val notSent: Color,
 
     val selectedRow: Color,
     val rowLine: Color,
@@ -70,7 +66,6 @@ internal val DarkInspectorColors = InspectorColors(
     success = hex(0x72D59E), successContainer = hex(0x163426),
     error = hex(0xFF6F66), errorContainer = hex(0x3A1715),
     timeout = hex(0xD9C08A), timeoutContainer = hex(0x2F2A1C),
-    notObserved = hex(0x22262C), notSent = hex(0x7F8793),
     selectedRow = hex(0x17332F), rowLine = hex(0x191C21), strongOutline = hex(0x3A4049),
     jsonKey = hex(0xD5DAE1), jsonString = hex(0x8FD6C6), jsonNumber = hex(0xE9B98F), jsonLiteral = hex(0xB9A8F0),
 )
@@ -86,7 +81,6 @@ internal val LightInspectorColors = InspectorColors(
     success = hex(0x1A7043), successContainer = hex(0xD4EFDF),
     error = hex(0xB3261E), errorContainer = hex(0xF9DEDC),
     timeout = hex(0x6B5823), timeoutContainer = hex(0xF2EBD7),
-    notObserved = hex(0xECEEF2), notSent = hex(0x646C78),
     selectedRow = hex(0xDCF1EC), rowLine = hex(0xEEF0F3), strongOutline = hex(0xBEC4CC),
     jsonKey = hex(0x1A1D22), jsonString = hex(0x0B6E5F), jsonNumber = hex(0x9A4B12), jsonLiteral = hex(0x6B3FB5),
 )

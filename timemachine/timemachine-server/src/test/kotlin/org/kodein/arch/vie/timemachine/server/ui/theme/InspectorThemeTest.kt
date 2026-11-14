@@ -85,4 +85,13 @@ class InspectorThemeTest {
         assertEquals(0.06.sp, label.letterSpacing)
         assertEquals(typography.labelSmall, label.copy(letterSpacing = typography.labelSmall.letterSpacing), "a section label changes labelSmall's letter spacing, and nothing else")
     }
+
+    @Test
+    fun `a strong label is labelMedium in semi-bold`() {
+        val fonts = InspectorFonts(plex = FontFamily.Serif, mono = FontFamily.Monospace, symbols = FontFamily.Cursive)
+        val typography = inspectorTypography(fonts)
+        val strong = inspectorTextStyles(fonts, typography).labelStrong
+        assertEquals(FontWeight.SemiBold, strong.fontWeight)
+        assertEquals(typography.labelMedium, strong.copy(fontWeight = typography.labelMedium.fontWeight), "a strong label changes labelMedium's weight, and nothing else")
+    }
 }
