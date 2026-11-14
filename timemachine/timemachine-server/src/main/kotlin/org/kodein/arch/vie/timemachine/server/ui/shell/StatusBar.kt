@@ -13,6 +13,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
@@ -34,8 +35,10 @@ import org.kodein.arch.vie.timemachine.server.ui.theme.Symbol
 /** The bottom bar of the window: [StatusBarContent] over what the store holds, its theme toggle the window's. */
 @Composable
 internal fun StatusBar() {
+    val inspector = LocalInspector.current
     val viewState = LocalInspectorViewState.current
-    InspectorPane(LocalInspector.current.statusBarPane()) { status ->
+    val pane = remember(inspector) { inspector.statusBarPane() }
+    InspectorPane(pane) { status ->
         StatusBarContent(status, dark = viewState.dark, onToggleTheme = { viewState.dark = !viewState.dark })
     }
 }

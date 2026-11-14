@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import org.kodein.arch.vie.timemachine.server.ui.core.InspectorPane
 import org.kodein.arch.vie.timemachine.server.ui.core.InspectorScope
@@ -25,7 +26,9 @@ internal const val HideRightPaneDescription = "Hide the right pane"
  */
 @Composable
 internal fun RightPane(modifier: Modifier = Modifier) {
-    InspectorPane(LocalInspector.current.rightPane()) { model ->
+    val inspector = LocalInspector.current
+    val pane = remember(inspector) { inspector.rightPane() }
+    InspectorPane(pane) { model ->
         RightPaneLayout(
             scope = model.scope,
             target = model.target,

@@ -16,6 +16,7 @@ import androidx.compose.foundation.rememberScrollbarAdapter
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -64,7 +65,8 @@ internal enum class SessionsPresentation { Pane, Rail, Drawer }
 /** The sessions, in [presentation]: [SessionsContent] or [SessionsRail], over what the store holds. */
 @Composable
 internal fun SessionsView(modifier: Modifier = Modifier, presentation: SessionsPresentation = SessionsPresentation.Pane) {
-    val pane = LocalInspector.current.sessionsPane()
+    val inspector = LocalInspector.current
+    val pane = remember(inspector) { inspector.sessionsPane() }
     InspectorPane(pane) { model -> SessionsSlot(model, presentation, modifier) }
 }
 
