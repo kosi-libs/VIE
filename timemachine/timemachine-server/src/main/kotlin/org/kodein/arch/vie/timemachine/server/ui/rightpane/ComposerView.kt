@@ -72,6 +72,7 @@ import org.kodein.arch.vie.timemachine.server.ui.common.style
 import org.kodein.arch.vie.timemachine.server.ui.core.InspectorPane
 import org.kodein.arch.vie.timemachine.server.ui.core.LocalInspector
 import org.kodein.arch.vie.timemachine.server.ui.designsystem.ButtonSize
+import org.kodein.arch.vie.timemachine.server.ui.designsystem.EmptyState
 import org.kodein.arch.vie.timemachine.server.ui.designsystem.HorizontalRule
 import org.kodein.arch.vie.timemachine.server.ui.designsystem.IconAction
 import org.kodein.arch.vie.timemachine.server.ui.designsystem.InspectorButton
@@ -478,7 +479,7 @@ private fun RecentInterventions(history: List<InterventionView>, older: Int, pos
     val scheme = MaterialTheme.colorScheme
     Column(Modifier.padding(top = 4.dp), verticalArrangement = Arrangement.spacedBy(2.dp)) {
         SectionLabel("RECENT INTERVENTIONS", Modifier.padding(bottom = 4.dp))
-        if (history.isEmpty()) Text("None yet for this ViewModel.", style = InspectorTheme.text.body, color = scheme.outline)
+        if (history.isEmpty()) EmptyState("None yet for this ViewModel", Modifier.fillMaxWidth())
         history.forEach { view ->
             val tone = toneOf(view.status)
             Row(

@@ -43,6 +43,13 @@ object InspectorDimens {
     val paneHeaderGlyph: Dp = 16.dp
     /** Above and below the timeline's header; the rule under it is counted in the space below. */
     val timelineHeaderVerticalPadding: Dp = 10.dp
+    /** What an empty state keeps on each side of it, and above and below it. */
+    val emptyStateHorizontalPadding: Dp = 20.dp
+    val emptyStateVerticalPadding: Dp = 40.dp
+    /** Between an empty state's glyph, title, description and action. */
+    val emptyStateGap: Dp = 8.dp
+    /** The glyph over an empty state's title. */
+    val emptyStateGlyph: Dp = 28.dp
     val sessionItem: Dp = 42.dp
     val viewModelItem: Dp = 40.dp
     val navigationRail: Dp = 56.dp

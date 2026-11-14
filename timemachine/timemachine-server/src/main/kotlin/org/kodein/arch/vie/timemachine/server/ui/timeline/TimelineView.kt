@@ -98,6 +98,7 @@ import org.kodein.arch.vie.timemachine.server.ui.designsystem.ChipSize
 import org.kodein.arch.vie.timemachine.server.ui.designsystem.ChipSquareDot
 import org.kodein.arch.vie.timemachine.server.ui.designsystem.ChipTone
 import org.kodein.arch.vie.timemachine.server.ui.designsystem.CopyAction
+import org.kodein.arch.vie.timemachine.server.ui.designsystem.EmptyState
 import org.kodein.arch.vie.timemachine.server.ui.designsystem.HorizontalRule
 import org.kodein.arch.vie.timemachine.server.ui.designsystem.IconAction
 import org.kodein.arch.vie.timemachine.server.ui.designsystem.InspectorButton
@@ -562,24 +563,17 @@ private fun Rows(
 
 @Composable
 private fun NoMatch(hidden: Int, onClear: () -> Unit) {
-    val scheme = MaterialTheme.colorScheme
-    Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 48.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        Symbol(Glyph.FilterAltOff, size = 26.dp, tint = scheme.outline)
-        Text("No entry matches the filters", style = InspectorTheme.text.emptyTitle, color = scheme.onSurfaceVariant)
-        Row(verticalAlignment = Alignment.CenterVertically) {
-            Text("$hidden ${if (hidden == 1) "entry" else "entries"} hidden · ", style = InspectorTheme.text.body, color = scheme.outline)
-            LinkAction("Clear filters", onClick = onClear)
-        }
-    }
+    EmptyState(
+        "No entry matches the filters", Modifier.fillMaxWidth(),
+        glyph = Glyph.FilterAltOff,
+        description = "$hidden ${if (hidden == 1) "entry" else "entries"} hidden",
+        action = { LinkAction("Clear filters", onClick = onClear) },
+    )
 }
 
 @Composable
 private fun NoEntries() {
-    val scheme = MaterialTheme.colorScheme
-    Column(Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 40.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.spacedBy(6.dp)) {
-        Text("No observations yet", style = InspectorTheme.text.emptyTitle, color = scheme.onSurfaceVariant)
-        Text("Use the app — its Models, Intents and Signals appear here.", style = InspectorTheme.text.body, color = scheme.outline)
-    }
+    EmptyState("No observations yet", Modifier.fillMaxWidth(), description = "Use the app — its Models, Intents and Signals appear here.")
 }
 
 @Composable
