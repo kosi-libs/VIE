@@ -65,6 +65,24 @@ class DetailPaneTest {
         }
 
     @Test
+    fun `raw asks for the row's text, and a tree node toggles`() = detail { inspector ->
+        inspector.selection.selectScope(taskListScope)
+        inspector.selection.selectRow(TimeMachineSequence(208))
+        runCurrent()
+        assertNull(model.projection.rawText)
+
+        post(DetailVIE.Intent.SetRaw(true))
+        post(DetailVIE.Intent.ToggleNode(listOf("tasks")))
+        runCurrent()
+        assertTrue(model.projection.rawText!!.contains("\"tasks\""))
+        assertEquals(setOf(emptyList(), listOf("tasks")), model.controls.jsonView.expanded)
+
+        post(DetailVIE.Intent.ToggleNode(listOf("tasks")))
+        runCurrent()
+        assertEquals(setOf(emptyList()), model.controls.jsonView.expanded)
+    }
+
+    @Test
     fun `Edit and intervene opens the Composer on the selected row, and only when it can intervene`() =
         detail { inspector ->
             inspector.selection.selectScope(taskListScope)

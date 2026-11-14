@@ -10,6 +10,7 @@ import org.kodein.arch.vie.timemachine.protocol.VIEObservation
 import org.kodein.arch.vie.timemachine.server.store.Row
 import org.kodein.arch.vie.timemachine.server.store.TimeMachineState
 import org.kodein.arch.vie.timemachine.server.ui.common.JsonPath
+import org.kodein.arch.vie.timemachine.server.ui.common.JsonViewControls
 import org.kodein.arch.vie.timemachine.server.ui.common.ModelDiff
 import org.kodein.arch.vie.timemachine.server.ui.common.ModelDiffs
 import org.kodein.arch.vie.timemachine.server.ui.common.interventionNumber
@@ -26,14 +27,8 @@ import kotlin.uuid.Uuid
 
 internal interface DetailVIE : VIE<DetailVIE.Model, DetailVIE.Intent, VIE.NoSignal> {
 
-    /**
-     * @property raw Whether the JSON shows as text rather than as a tree.
-     * @property expanded The tree nodes that are open; the root is, to begin with.
-     */
-    data class Controls(
-        val raw: Boolean = false,
-        val expanded: Set<JsonPath> = setOf(emptyList()),
-    )
+    /** @property jsonView What the row's JSON shows as: the text or the tree, and the tree's open nodes. */
+    data class Controls(val jsonView: JsonViewControls = JsonViewControls())
 
     data class Model(val controls: Controls = Controls(), val projection: DetailProjection = DetailProjection()) : VIE.Model
 
@@ -103,15 +98,15 @@ internal class DetailVM(
         val inputs = combine(
             inspector.store.state,
             inspector.selection.state,
-            modelFlow.map { it.controls.raw }.distinctUntilChanged(),
+            modelFlow.map { it.controls.jsonView.raw }.distinctUntilChanged(),
         ) { state, selection, raw -> Triple(state, selection.resolvedIn(state), raw) }
         project(inspector.whileShown(Key, inputs) { { (state, selection, raw) -> detailProjection(state, selection, raw, inspector.modelDiffs) } }) { copy(projection = it) }
     }
 
     override suspend fun process(intent: DetailVIE.Intent) {
         when (intent) {
-            is DetailVIE.Intent.SetRaw -> update { copy(controls = controls.copy(raw = intent.raw)) }
-            is DetailVIE.Intent.ToggleNode -> update { copy(controls = controls.copy(expanded = controls.expanded.toggled(intent.path))) }
+            is DetailVIE.Intent.SetRaw -> update { copy(controls = controls.copy(jsonView = controls.jsonView.copy(raw = intent.raw))) }
+            is DetailVIE.Intent.ToggleNode -> update { copy(controls = controls.copy(jsonView = controls.jsonView.toggled(intent.path))) }
             DetailVIE.Intent.EditAndIntervene -> {
                 val projection = model.projection
                 if (projection.canIntervene) inspector.selection.composeFrom(projection.viewModelId ?: return, projection.observation ?: return)

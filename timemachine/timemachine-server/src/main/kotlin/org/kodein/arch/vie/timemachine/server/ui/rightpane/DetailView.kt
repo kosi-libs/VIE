@@ -90,8 +90,8 @@ private fun DetailContent(model: DetailVIE.Model, observation: VIEObservation, s
     val kind = observation.kind
     // The lines of the one that shows, the tree or the text: the other has none.
     val json = observation.asJson
-    val raw = model.controls.raw
-    val expanded = model.controls.expanded
+    val raw = model.controls.jsonView.raw
+    val expanded = model.controls.jsonView.expanded
     val treeLines = remember(json, expanded, raw) { if (json == null || raw) emptyList() else treeLines(json, expanded) }
     val textLines = rememberJsonLines(if (raw) projection.rawText.orEmpty() else "")
     // One lazy list for the whole tab: its sections are an item each, and the JSON an item per line, so

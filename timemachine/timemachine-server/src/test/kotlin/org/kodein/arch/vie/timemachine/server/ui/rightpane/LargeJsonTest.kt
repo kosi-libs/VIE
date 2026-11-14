@@ -19,6 +19,7 @@ import org.kodein.arch.vie.timemachine.server.fixtures.Demo
 import org.kodein.arch.vie.timemachine.server.fixtures.Rendered
 import org.kodein.arch.vie.timemachine.server.fixtures.contentTest
 import org.kodein.arch.vie.timemachine.server.store.Row
+import org.kodein.arch.vie.timemachine.server.ui.common.JsonViewControls
 import org.kodein.arch.vie.timemachine.server.ui.common.pretty
 
 
@@ -40,7 +41,7 @@ class LargeJsonTest {
 
     private fun currentModel(raw: Boolean) = MockVIE<CurrentModelVIE.Model, CurrentModelVIE.Intent, NoSignal>(
         CurrentModelVIE.Model(
-            controls = CurrentModelVIE.Controls(raw = raw),
+            controls = CurrentModelVIE.Controls(JsonViewControls(raw = raw)),
             projection = CurrentModelProjection(
                 typeName = Demo.TaskListModel, sequence = TimeMachineSequence(1), asString = "Model", json = large,
                 rawText = if (raw) large.pretty() else null,
@@ -53,7 +54,7 @@ class LargeJsonTest {
         val row = Row(TimeMachineClientMessage.Observed(observation, TimeMachineSequence(1)), length = 0)
         return MockVIE(
             DetailVIE.Model(
-                controls = DetailVIE.Controls(raw = raw),
+                controls = DetailVIE.Controls(JsonViewControls(raw = raw)),
                 projection = DetailProjection(row = row, viewModelId = Demo.taskList, rawText = if (raw) large.pretty() else null),
             ),
         )

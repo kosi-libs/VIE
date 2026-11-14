@@ -60,11 +60,11 @@ class CurrentModelPaneTest {
         post(CurrentModelVIE.Intent.ToggleNode(listOf("tasks")))
         runCurrent()
         assertTrue(model.projection.rawText!!.contains("\"tasks\""))
-        assertEquals(setOf(emptyList(), listOf("tasks")), model.controls.expanded)
+        assertEquals(setOf(emptyList(), listOf("tasks")), model.controls.jsonView.expanded)
 
         post(CurrentModelVIE.Intent.ToggleNode(listOf("tasks")))
         runCurrent()
-        assertEquals(setOf(emptyList()), model.controls.expanded)
+        assertEquals(setOf(emptyList()), model.controls.jsonView.expanded)
     }
 
     @Test

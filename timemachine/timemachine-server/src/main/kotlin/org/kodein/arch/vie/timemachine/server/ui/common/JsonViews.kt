@@ -97,6 +97,24 @@ internal fun treeLines(root: JsonElement, expanded: Set<JsonPath>): List<TreeLin
     walk(root, null, emptyList(), 0, false)
 }
 
+/**
+ * What a JSON viewer shows of its document, which its pane keeps: the text or the tree, and the nodes
+ * of the tree that are open.
+ *
+ * @property raw Whether the JSON shows as text rather than as a tree.
+ * @property expanded The tree nodes that are open; the root is, to begin with.
+ */
+internal data class JsonViewControls(
+    val raw: Boolean = false,
+    val expanded: Set<JsonPath> = setOf(emptyList()),
+) {
+    /**
+     * These controls with the node at [path] open if it was closed, and closed if it was open.
+     * (A path is a list, which `+` and `-` would take for the elements to add or remove: hence `plusElement`.)
+     */
+    fun toggled(path: JsonPath): JsonViewControls = copy(expanded = if (path in expanded) expanded.minusElement(path) else expanded.plusElement(path))
+}
+
 private fun InspectorColors.value(kind: ValueKind, punctuation: Color): Color = when (kind) {
     ValueKind.Punctuation -> punctuation
     ValueKind.String -> jsonString
