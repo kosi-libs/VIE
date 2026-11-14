@@ -35,7 +35,6 @@ import org.kodein.arch.vie.VIEViewScope
 import org.kodein.arch.vie.timemachine.server.ui.common.LocalCompact
 import org.kodein.arch.vie.timemachine.server.ui.common.ScrollbarBox
 import org.kodein.arch.vie.timemachine.server.ui.common.TreeRawSwitch
-import org.kodein.arch.vie.timemachine.server.ui.common.action
 import org.kodein.arch.vie.timemachine.server.ui.common.formatTime
 import org.kodein.arch.vie.timemachine.server.ui.common.jsonTree
 import org.kodein.arch.vie.timemachine.server.ui.common.pretty
@@ -45,12 +44,13 @@ import org.kodein.arch.vie.timemachine.server.ui.common.treeLines
 import org.kodein.arch.vie.timemachine.server.ui.core.InspectorPane
 import org.kodein.arch.vie.timemachine.server.ui.core.LocalInspector
 import org.kodein.arch.vie.timemachine.server.ui.core.LocalInspectorViewState
+import org.kodein.arch.vie.timemachine.server.ui.designsystem.ButtonVariant
 import org.kodein.arch.vie.timemachine.server.ui.designsystem.CopyAction
 import org.kodein.arch.vie.timemachine.server.ui.designsystem.HorizontalRule
 import org.kodein.arch.vie.timemachine.server.ui.designsystem.IconAction
+import org.kodein.arch.vie.timemachine.server.ui.designsystem.InspectorButton
 import org.kodein.arch.vie.timemachine.server.ui.theme.Glyph
 import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorDimens
-import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorPillShape
 import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorTheme
 import org.kodein.arch.vie.timemachine.server.ui.theme.Symbol
 
@@ -100,7 +100,11 @@ internal fun VIEViewScope<CurrentModelVIE.Intent, NoSignal>.CurrentModelContent(
             if (projection.json != null) {
                 TreeRawSwitch(model.controls.raw) { post(CurrentModelVIE.Intent.SetRaw(it)) }
                 CopyAction({ projection.json.pretty() }, CopyModelDescription)
-                EditButton(if (compact) "Edit" else "Edit & replace", projection.canReplace) { post(CurrentModelVIE.Intent.EditAndReplace) }
+                InspectorButton(
+                    if (compact) "Edit" else "Edit & replace",
+                    onClick = { post(CurrentModelVIE.Intent.EditAndReplace) },
+                    glyph = Glyph.Edit, variant = ButtonVariant.Tonal, enabled = projection.canReplace,
+                )
             }
             if (compact) {
                 val viewState = LocalInspectorViewState.current
@@ -154,20 +158,5 @@ internal fun VIEViewScope<CurrentModelVIE.Intent, NoSignal>.CurrentModelContent(
             }
         }
         HorizontalRule(color = InspectorTheme.colors.strongOutline)
-    }
-}
-
-@Composable
-private fun EditButton(label: String, enabled: Boolean, onClick: () -> Unit) {
-    val scheme = MaterialTheme.colorScheme
-    val foreground = if (enabled) scheme.onPrimaryContainer else scheme.outline
-    Row(
-        Modifier.height(26.dp).background(if (enabled) scheme.primaryContainer else scheme.surfaceContainerHigh, InspectorPillShape)
-            .action(enabled = enabled, onClick = onClick)
-            .padding(start = 8.dp, end = 10.dp),
-        horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Symbol(Glyph.Edit, size = 14.dp, tint = foreground)
-        Text(label, style = InspectorTheme.text.action, color = foreground, maxLines = 1)
     }
 }

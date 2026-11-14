@@ -4,19 +4,13 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -32,13 +26,9 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
-import org.kodein.arch.vie.timemachine.server.ui.theme.Glyph
-import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorPillShape
 import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorTheme
-import org.kodein.arch.vie.timemachine.server.ui.theme.Symbol
 import java.awt.datatransfer.StringSelection
 import kotlin.time.Instant
 
@@ -105,36 +95,4 @@ internal fun LiveDot(live: Boolean, modifier: Modifier = Modifier) {
             .background(dot, CircleShape)
             .then(if (live) Modifier else Modifier.border(1.5.dp, ring, CircleShape)),
     )
-}
-
-/**
- * A pill action with an optional leading glyph: "Clear disconnected", "Clear filters", "Dismiss". Under
- * the pointer and pressed, it is tinted to its pill. Disabled, it is drawn in the outline's colour
- * whatever its [color].
- *
- * @param interactionSource What it reports its hover and press to, and shows them from; see [action].
- */
-@Composable
-internal fun TextAction(
-    label: String,
-    modifier: Modifier = Modifier,
-    glyph: Glyph? = null,
-    color: Color = MaterialTheme.colorScheme.primary,
-    enabled: Boolean = true,
-    height: Dp = 26.dp,
-    interactionSource: MutableInteractionSource? = null,
-    onClick: () -> Unit,
-) {
-    val tint = if (enabled) color else MaterialTheme.colorScheme.outline
-    Row(
-        modifier
-            .height(height)
-            .action(shape = InspectorPillShape, enabled = enabled, interactionSource = interactionSource, onClick = onClick)
-            .padding(horizontal = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(4.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        glyph?.let { Symbol(it, size = 15.dp, tint = tint) }
-        Text(label, style = InspectorTheme.text.action, color = tint, maxLines = 1)
-    }
 }

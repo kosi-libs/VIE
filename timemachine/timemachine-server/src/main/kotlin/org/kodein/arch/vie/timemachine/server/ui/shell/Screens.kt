@@ -29,17 +29,17 @@ import androidx.compose.ui.unit.sp
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineConnection
 import org.kodein.arch.vie.timemachine.server.store.ListenerState
 import org.kodein.arch.vie.timemachine.server.ui.common.LiveDot
-import org.kodein.arch.vie.timemachine.server.ui.common.TextAction
-import org.kodein.arch.vie.timemachine.server.ui.common.action
 import org.kodein.arch.vie.timemachine.server.ui.core.InspectorPane
 import org.kodein.arch.vie.timemachine.server.ui.core.LocalInspector
+import org.kodein.arch.vie.timemachine.server.ui.designsystem.ButtonSize
+import org.kodein.arch.vie.timemachine.server.ui.designsystem.ButtonVariant
 import org.kodein.arch.vie.timemachine.server.ui.designsystem.CopyAction
 import org.kodein.arch.vie.timemachine.server.ui.designsystem.HorizontalRule
+import org.kodein.arch.vie.timemachine.server.ui.designsystem.InspectorButton
 import org.kodein.arch.vie.timemachine.server.ui.designsystem.rememberCopyFeedback
 import org.kodein.arch.vie.timemachine.server.ui.theme.AppLockup
 import org.kodein.arch.vie.timemachine.server.ui.theme.Glyph
 import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorColors
-import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorPillShape
 import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorTheme
 import org.kodein.arch.vie.timemachine.server.ui.theme.Symbol
 
@@ -145,7 +145,7 @@ private fun SnippetCard() {
     Column(Modifier.fillMaxWidth().background(scheme.surfaceContainer, shape).border(1.dp, scheme.outlineVariant, shape)) {
         Row(Modifier.fillMaxWidth().height(34.dp).padding(start = 14.dp, end = 8.dp), verticalAlignment = Alignment.CenterVertically) {
             Text("Add the probe to your app", style = MaterialTheme.typography.titleSmall.copy(fontWeight = FontWeight.Normal), color = scheme.onSurfaceVariant, modifier = Modifier.weight(1f))
-            TextAction("Copy", glyph = copied.glyph) { copied.copy(ProbeSnippet) }
+            InspectorButton("Copy", onClick = { copied.copy(ProbeSnippet) }, glyph = copied.glyph, variant = ButtonVariant.Text)
         }
         HorizontalRule()
         Text(
@@ -198,14 +198,7 @@ internal fun CannotListenScreen(reason: ListenerState.Failed.Reason, message: St
                 message, style = InspectorTheme.text.code, color = scheme.onSurface,
                 modifier = Modifier.fillMaxWidth().background(scheme.surfaceContainerHigh, RoundedCornerShape(8.dp)).padding(horizontal = 12.dp, vertical = 10.dp),
             )
-            Row(
-                Modifier.height(34.dp).background(scheme.primary, InspectorPillShape)
-                    .action(onClick = onRetry).padding(start = 14.dp, end = 18.dp),
-                horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Symbol(Glyph.Refresh, size = 18.dp, tint = scheme.onPrimary)
-                Text("Retry", style = InspectorTheme.text.actionLarge, color = scheme.onPrimary)
-            }
+            InspectorButton("Retry", onClick = onRetry, glyph = Glyph.Refresh, size = ButtonSize.Large)
             Text(if (inUse) "$message · 0.0.0.0:$port" else "0.0.0.0:$port", style = InspectorTheme.text.codeRow, color = scheme.outline)
         }
     }

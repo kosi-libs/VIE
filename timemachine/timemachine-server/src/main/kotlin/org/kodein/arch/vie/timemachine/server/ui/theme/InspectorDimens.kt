@@ -37,7 +37,11 @@ object InspectorDimens {
     val viewModelItem: Dp = 40.dp
     val navigationRail: Dp = 56.dp
     val tabRow: Dp = 38.dp
-    val sendButton: Dp = 34.dp
+
+    /** The heights of a button: in a row (`ButtonSize.Small`), in a header or a bar (`Medium`), for a main action (`Large`). */
+    val buttonSmall: Dp = 22.dp
+    val buttonMedium: Dp = 26.dp
+    val buttonLarge: Dp = 34.dp
 
     /** A scrollbar's thumb, and the track it lies in over the edge of what scrolls. */
     val scrollbarThumb: Dp = 6.dp
@@ -45,6 +49,9 @@ object InspectorDimens {
 
     /** The thickness of a rule: between panes, rows and segments, and on each side of a marker's label. */
     val rule: Dp = 1.dp
+
+    /** The thickness of an outline: an outlined button's, chip's or control's. */
+    val outline: Dp = 1.dp
 
     val dividerHitArea: Dp = 8.dp
     val minSessionsPane: Dp = 200.dp

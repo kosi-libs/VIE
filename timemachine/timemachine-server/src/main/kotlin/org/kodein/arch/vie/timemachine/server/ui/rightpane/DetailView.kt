@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
@@ -22,7 +21,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -42,7 +40,6 @@ import org.kodein.arch.vie.timemachine.server.ui.common.KindBadge
 import org.kodein.arch.vie.timemachine.server.ui.common.ModelDiff
 import org.kodein.arch.vie.timemachine.server.ui.common.ScrollbarBox
 import org.kodein.arch.vie.timemachine.server.ui.common.TreeRawSwitch
-import org.kodein.arch.vie.timemachine.server.ui.common.action
 import org.kodein.arch.vie.timemachine.server.ui.common.formatTime
 import org.kodein.arch.vie.timemachine.server.ui.common.jsonTree
 import org.kodein.arch.vie.timemachine.server.ui.common.pretty
@@ -53,11 +50,12 @@ import org.kodein.arch.vie.timemachine.server.ui.common.style
 import org.kodein.arch.vie.timemachine.server.ui.common.treeLines
 import org.kodein.arch.vie.timemachine.server.ui.core.InspectorPane
 import org.kodein.arch.vie.timemachine.server.ui.core.LocalInspector
+import org.kodein.arch.vie.timemachine.server.ui.designsystem.ButtonVariant
+import org.kodein.arch.vie.timemachine.server.ui.designsystem.InspectorButton
 import org.kodein.arch.vie.timemachine.server.ui.designsystem.LinkAction
 import org.kodein.arch.vie.timemachine.server.ui.designsystem.rememberCopyFeedback
 import org.kodein.arch.vie.timemachine.server.ui.theme.Glyph
 import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorDimens
-import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorPillShape
 import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorTheme
 import org.kodein.arch.vie.timemachine.server.ui.theme.Symbol
 
@@ -182,8 +180,10 @@ private fun DetailHeader(observation: VIEObservation, sequence: TimeMachineSeque
         }
         if (json != null) {
             Row(Modifier.padding(top = 2.dp), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                if (projection.canIntervene) PillButton("Edit & intervene", Glyph.EditNote, filled = true) { post(DetailVIE.Intent.EditAndIntervene) }
-                PillButton("Copy JSON", copied.glyph, filled = false) { copied.copy(json.pretty()) }
+                if (projection.canIntervene) {
+                    InspectorButton("Edit & intervene", onClick = { post(DetailVIE.Intent.EditAndIntervene) }, glyph = Glyph.EditNote, variant = ButtonVariant.Tonal)
+                }
+                InspectorButton("Copy JSON", onClick = { copied.copy(json.pretty()) }, glyph = copied.glyph, variant = ButtonVariant.Outlined)
             }
         }
     }
@@ -207,21 +207,6 @@ private fun DetailChanges(diff: ModelDiff, label: TextStyle, modifier: Modifier 
 
 /** What separates two sections of the tab. */
 private val SectionGap = 14.dp
-
-@Composable
-private fun PillButton(label: String, glyph: Glyph, filled: Boolean, onClick: () -> Unit) {
-    val scheme = MaterialTheme.colorScheme
-    val foreground = if (filled) scheme.onPrimaryContainer else scheme.onSurfaceVariant
-    Row(
-        Modifier.height(28.dp)
-            .then(if (filled) Modifier.background(scheme.primaryContainer, InspectorPillShape) else Modifier.border(1.dp, InspectorTheme.colors.strongOutline, InspectorPillShape))
-            .clip(InspectorPillShape).action(onClick = onClick).padding(start = 9.dp, end = 12.dp),
-        horizontalArrangement = Arrangement.spacedBy(5.dp), verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Symbol(glyph, size = if (filled) 16.dp else 15.dp, tint = foreground)
-        Text(label, style = InspectorTheme.text.label, color = foreground, maxLines = 1)
-    }
-}
 
 /** What the Detail tab and the pinned model say of an observation the app sent without its JSON because it was too large. */
 internal const val TooLargeNote: String =
