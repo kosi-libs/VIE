@@ -346,8 +346,8 @@ it on virtual time (`post`, `advanceUntilIdle()`), and asserts on `model`, `pend
 method defaults to identity, so override only what you need. `onAttached(vm)` is the one
 non-flow method: a no-op by default, called once from `VIEViewModel`'s `init` with the ViewModel
 the middleware is installed on, for a middleware that has to drive it rather than only observe it.
-A middleware that overrides it keeps that reference, so build one instance per ViewModel and never
-share it (a DI singleton, a top-level `val`): a second `onAttached` overwrites the first.
+A middleware that keeps state from it serves one ViewModel only, so build one instance per
+ViewModel and never share it (a DI singleton, a top-level `val`).
 
 When several are supplied, the *last* middleware is closest to where values come from and sees them
 first; the *first* is closest to where they go and sees whatever every other middleware already
