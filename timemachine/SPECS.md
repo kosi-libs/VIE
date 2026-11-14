@@ -28,7 +28,7 @@ When a VIE ViewModel is started on client, the client will send:
 - The fully qualified type name of the `Intent`, it is using, and if it is `sealed` and `@Serializable`, the list of serializable subtypes.
 - The fully qualified type name of the `Signal`, it is using, and if it is `sealed` and `@Serializable`, the list of serializable subtypes.
 
-That information may also be requested by the server if it receives an observation that happened in a ViewModel it doesn't know about.
+That information may also be requested by the server if it receives an observation that happened in a ViewModel it doesn't know about, or after the client reports dropped observations for a ViewModel it knows: the dropped messages may include its close, so the request checks whether it is still alive. The client answers every request: with the information while the ViewModel is alive, or without any once it no longer knows it, which the server takes as the ViewModel being closed.
 
 ### Observation
 The client will observe and report to the server all objects (`Model`, `Intent` or `Signal`). An event reported to the server contains:
@@ -41,7 +41,7 @@ The client will observe and report to the server all objects (`Model`, `Intent` 
 When a ViewModel closes, the client will report to the server the end of the ViewModel.
 
 ### Intervention
-The server may send to the client and object (`Model`, `Intent` or `Signal`) that will be sent or received by the ViewModel. That feature is only available if the object type was reported to be `@Serializable` in the ViewModel information. In that case, the server may send to the client:
+The server may send to the client and object (`Model`, `Intent` or `Signal`) that will be sent or received by the ViewModel. That feature is only offered if the object type was reported to be `@Serializable` in the ViewModel information: the server's interface checks it before sending, and the client refuses an object whose type was not. In that case, the server may send to the client:
 - The unique identifier of the ViewModel that will emit or receive the object.
 - The fully qualified type of the object.
 - A JSON representation of that object.

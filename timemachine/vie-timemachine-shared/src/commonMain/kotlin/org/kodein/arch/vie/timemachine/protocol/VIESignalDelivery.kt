@@ -9,8 +9,9 @@ import kotlinx.serialization.Serializable
  * It travels on the observation of a Signal, not on [VIETypeInfo], because a serial descriptor does
  * not tell an Event from an Effect: only the instance does.
  * The inspector needs it to warn about an intervention: an [Effect] is delivered to exactly one
- * collector, so injecting one into a ViewModel no view collects blocks that ViewModel's signals, and
- * then the `process` that emits the next one.
+ * collector, and waits for one when there is none, so one injected into a ViewModel no view collects is
+ * delivered later, to the next view that collects that ViewModel's signals; a navigation Effect can
+ * then fire long after the intervention. An [Event] injected while no view collects is dropped.
  */
 @Serializable
 public enum class VIESignalDelivery {
