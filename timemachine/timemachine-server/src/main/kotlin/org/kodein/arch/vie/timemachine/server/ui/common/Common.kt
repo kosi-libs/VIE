@@ -7,7 +7,6 @@ import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -138,10 +137,4 @@ internal fun TextAction(
         glyph?.let { Symbol(it, size = 15.dp, tint = tint) }
         Text(label, style = InspectorTheme.text.action, color = tint, maxLines = 1)
     }
-}
-
-/** A thin full-width rule. */
-@Composable
-internal fun HorizontalRule(modifier: Modifier = Modifier, color: Color = MaterialTheme.colorScheme.outlineVariant) {
-    Box(modifier.fillMaxWidth().height(1.dp).background(color))
 }

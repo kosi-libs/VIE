@@ -39,6 +39,7 @@ import org.kodein.arch.vie.timemachine.server.ui.core.InspectorScope
 import org.kodein.arch.vie.timemachine.server.ui.core.LocalInspector
 import org.kodein.arch.vie.timemachine.server.ui.core.LocalInspectorViewState
 import org.kodein.arch.vie.timemachine.server.ui.core.releaseDroppedScopes
+import org.kodein.arch.vie.timemachine.server.ui.designsystem.VerticalRule
 import org.kodein.arch.vie.timemachine.server.ui.rightpane.RightPane
 import org.kodein.arch.vie.timemachine.server.ui.sessions.SessionsPresentation
 import org.kodein.arch.vie.timemachine.server.ui.sessions.SessionsVIE
@@ -199,7 +200,7 @@ internal const val ShowRightPaneDescription = "Show the right pane"
 private fun CollapsedRightPane(onOpen: () -> Unit) {
     val scheme = MaterialTheme.colorScheme
     Row(Modifier.width(CollapsedWidth).fillMaxHeight().background(scheme.surfaceContainerLow)) {
-        Box(Modifier.width(1.dp).fillMaxHeight().background(scheme.outlineVariant))
+        VerticalRule()
         Box(Modifier.weight(1f).height(InspectorDimens.paneHeader), contentAlignment = Alignment.Center) {
             Box(
                 Modifier.size(26.dp)

@@ -8,4 +8,5 @@ package org.kodein.arch.vie.timemachine.server.ui.designsystem
 internal val GalleryScenes: List<GalleryScene> = listOf(
     ActionScene,
     TextActionScene,
+    RuleScene,
 )

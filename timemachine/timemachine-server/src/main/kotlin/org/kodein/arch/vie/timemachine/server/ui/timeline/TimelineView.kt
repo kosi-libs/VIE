@@ -78,7 +78,6 @@ import org.kodein.arch.vie.timemachine.server.store.SessionTimelineEntry
 import org.kodein.arch.vie.timemachine.server.store.TimelineEntry
 import org.kodein.arch.vie.timemachine.server.ui.common.DiffText
 import org.kodein.arch.vie.timemachine.server.ui.common.EdgeScrollbar
-import org.kodein.arch.vie.timemachine.server.ui.common.HorizontalRule
 import org.kodein.arch.vie.timemachine.server.ui.common.KindBadge
 import org.kodein.arch.vie.timemachine.server.ui.common.LocalCompact
 import org.kodein.arch.vie.timemachine.server.ui.common.TextAction
@@ -96,6 +95,7 @@ import org.kodein.arch.vie.timemachine.server.ui.core.InspectorPane
 import org.kodein.arch.vie.timemachine.server.ui.core.InspectorScope
 import org.kodein.arch.vie.timemachine.server.ui.core.LocalInspector
 import org.kodein.arch.vie.timemachine.server.ui.core.ViewModelStatus
+import org.kodein.arch.vie.timemachine.server.ui.designsystem.HorizontalRule
 import org.kodein.arch.vie.timemachine.server.ui.theme.Glyph
 import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorDimens
 import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorPillShape
@@ -906,7 +906,7 @@ private fun Bookend(sequence: TimeMachineSequence, at: Instant, started: Boolean
                 "${label ?: "ViewModel"} ${if (started) "started" else "closed"}",
                 style = InspectorTheme.text.label, color = scheme.onSurfaceVariant, maxLines = 1,
             )
-            Box(Modifier.weight(1f).height(1.dp).background(scheme.outlineVariant))
+            HorizontalRule(Modifier.weight(1f))
         }
         HorizontalRule(color = colors.rowLine)
     }
@@ -1003,7 +1003,7 @@ private fun EvictedRow(count: Int) {
         Modifier.fillMaxWidth().height(InspectorDimens.topMarker).padding(horizontal = 14.dp),
         horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.CenterVertically,
     ) {
-        Box(Modifier.weight(1f).height(1.dp).background(colors.strongOutline))
+        HorizontalRule(Modifier.weight(1f), color = colors.strongOutline)
         Row(
             Modifier.height(22.dp).background(scheme.surfaceContainerHigh, InspectorPillShape).padding(horizontal = 10.dp),
             horizontalArrangement = Arrangement.spacedBy(5.dp), verticalAlignment = Alignment.CenterVertically,
@@ -1017,7 +1017,7 @@ private fun EvictedRow(count: Int) {
                 style = InspectorTheme.text.note, color = colors.evicted, maxLines = 1,
             )
         }
-        Box(Modifier.weight(1f).height(1.dp).background(colors.strongOutline))
+        HorizontalRule(Modifier.weight(1f), color = colors.strongOutline)
     }
 }
 
