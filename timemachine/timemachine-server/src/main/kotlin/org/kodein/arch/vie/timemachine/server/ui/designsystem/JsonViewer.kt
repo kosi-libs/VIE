@@ -10,7 +10,9 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollbarAdapter
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.State
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import kotlinx.serialization.json.JsonElement
@@ -74,6 +76,10 @@ internal fun JsonViewer(
     val textLines = rememberJsonLines(if (raw) rawText.orEmpty() else "")
     val rawSwitch: @Composable () -> Unit = { TreeRawSwitch(raw, onChange = onRawChange) }
     val framed = variant == JsonViewerVariant.Framed
+    // The tree's lines are given it from the list's block, which remembers nothing: one lambda for the
+    // viewer's life, calling the latest onToggle, keeps them from composing again at each run.
+    val currentOnToggle by rememberUpdatedState(onToggle)
+    val toggle = remember { { path: JsonPath -> currentOnToggle(path) } }
     val list = rememberLazyListState()
     Column(modifier) {
         header(rawSwitch)
@@ -82,7 +88,7 @@ internal fun JsonViewer(
                 leadingItems(rawSwitch)
                 if (json != null) {
                     if (raw) rawJson(textLines, framed = framed)
-                    else jsonTree(treeLines, changed = changed, highlight = { highlight?.value ?: 0f }, framed = framed, onToggle = onToggle)
+                    else jsonTree(treeLines, changed = changed, highlight = highlight, framed = framed, onToggle = toggle)
                 }
             }
         }
