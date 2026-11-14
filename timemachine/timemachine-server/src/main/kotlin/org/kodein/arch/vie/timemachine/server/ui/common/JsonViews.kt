@@ -1,10 +1,7 @@
 package org.kodein.arch.vie.timemachine.server.ui.common
 
-import androidx.compose.foundation.background
-import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -16,7 +13,6 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
@@ -25,7 +21,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawOutline
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.clipRect
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.style.TextAlign
@@ -36,10 +31,11 @@ import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
+import org.kodein.arch.vie.timemachine.server.ui.designsystem.SegmentedControl
+import org.kodein.arch.vie.timemachine.server.ui.designsystem.SegmentedControlSize
 import org.kodein.arch.vie.timemachine.server.ui.theme.Glyph
 import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorColors
 import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorDimens
-import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorPillShape
 import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorTheme
 import org.kodein.arch.vie.timemachine.server.ui.theme.Symbol
 
@@ -221,24 +217,11 @@ private fun codeFrame(first: Boolean, last: Boolean): Modifier {
 
 private val CodeFrameRadius = 8.dp
 
-/** The Tree | Raw segmented switch of the current model's header. */
+/** The Tree | Raw switch of a JSON view's header: [raw] is whether the text shows rather than the tree. */
 @Composable
 internal fun TreeRawSwitch(raw: Boolean, modifier: Modifier = Modifier, onChange: (Boolean) -> Unit) {
-    val scheme = MaterialTheme.colorScheme
-    val colors = InspectorTheme.colors
-    Row(
-        modifier.height(24.dp).clip(InspectorPillShape).border(1.dp, colors.strongOutline, InspectorPillShape),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        for ((label, isRaw) in listOf("Tree" to false, "Raw" to true)) {
-            val on = raw == isRaw
-            Row(
-                Modifier.fillMaxHeight().background(if (on) scheme.primaryContainer else Color.Transparent)
-                    .action(role = Role.RadioButton, selected = on) { onChange(isRaw) }.padding(horizontal = 10.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Text(label, style = InspectorTheme.text.actionSmall, color = if (on) scheme.onPrimaryContainer else scheme.onSurfaceVariant, maxLines = 1)
-            }
-        }
-    }
+    SegmentedControl(TreeOrRaw, selected = raw, onSelect = onChange, label = { if (it) "Raw" else "Tree" }, modifier = modifier, size = SegmentedControlSize.Small)
 }
+
+/** The switch's options, the tree first: whether the text shows. */
+private val TreeOrRaw = listOf(false, true)

@@ -18,7 +18,10 @@ object InspectorDimens {
     val softMarker: Dp = 26.dp
     /** The Gap marker and the markers pinned to the top. */
     val topMarker: Dp = 30.dp
-    val filterChip: Dp = 26.dp
+
+    /** The height of a toggle chip: the timeline's filters. */
+    val toggleChip: Dp = 26.dp
+
     val searchField: Dp = 28.dp
 
     /** The least size of a glyph button: whatever its glyph's size, a click lands in it, and its hover fills it. */
@@ -50,6 +53,10 @@ object InspectorDimens {
     val scrollbarThumb: Dp = 6.dp
     val scrollbarTrack: Dp = 8.dp
 
+    /** The heights of a segmented control: the composer's kinds (`Regular`), the Tree | Raw switch of a header (`Small`). */
+    val segmentedControl: Dp = 32.dp
+    val segmentedControlSmall: Dp = 24.dp
+
     /** The thickness of a rule: between panes, rows and segments, and on each side of a marker's label. */
     val rule: Dp = 1.dp
 
@@ -71,13 +78,13 @@ object InspectorDimens {
  * The theme's corner radii, by slot of Material's shape scale.
  *
  * - `extraSmall`, 4 dp: read by Material's menus (the composer's type menu), by a highlighted JSON tree line and by a text link's hover.
- * - `small`, 6 dp: read by the composer's type field.
+ * - `small`, 6 dp: read by the composer's type field and the toggle chips.
  * - `medium`, 8 dp: read by the session rows and the ViewModel rows.
  * - `large` and `extraLarge`, 12 dp: read by nothing.
  *
  * The views write their other radii by hand, mostly at these values: the search field and the composer's
  * result message at 6, cards, notes and the JSON editor at 8, the type info popover at 12.
- * Some have no slot: the filter chips at 7, the rail's tiles and the probe snippet's card at 10.
+ * Some have no slot: the rail's tiles and the probe snippet's card at 10.
  * Buttons and pills are [InspectorPillShape]. Chips and badges are [InspectorChipShape]: 4 dp like
  * `extraSmall`, but their own, so that a menu's corners can change with no chip following.
  */

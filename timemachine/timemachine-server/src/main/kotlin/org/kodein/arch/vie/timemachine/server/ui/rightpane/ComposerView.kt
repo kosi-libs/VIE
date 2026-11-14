@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
@@ -43,7 +42,6 @@ import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.layout.layout
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalDensity
-import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
@@ -78,11 +76,10 @@ import org.kodein.arch.vie.timemachine.server.ui.designsystem.HorizontalRule
 import org.kodein.arch.vie.timemachine.server.ui.designsystem.IconAction
 import org.kodein.arch.vie.timemachine.server.ui.designsystem.InspectorButton
 import org.kodein.arch.vie.timemachine.server.ui.designsystem.LinkAction
-import org.kodein.arch.vie.timemachine.server.ui.designsystem.VerticalRule
+import org.kodein.arch.vie.timemachine.server.ui.designsystem.SegmentedControl
 import org.kodein.arch.vie.timemachine.server.ui.theme.Glyph
 import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorColors
 import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorDimens
-import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorPillShape
 import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorTheme
 import org.kodein.arch.vie.timemachine.server.ui.theme.Symbol
 
@@ -134,7 +131,10 @@ internal fun VIEViewScope<ComposerVIE.Intent, NoSignal>.ComposerContent(model: C
                         Text(projection.name, style = InspectorTheme.text.code, color = scheme.onSurface, fontWeight = FontWeight.SemiBold, maxLines = 1)
                         Text(projection.shortId, style = InspectorTheme.text.monoSecondary, color = scheme.outline, maxLines = 1)
                     }
-                    KindSegments(target.kind, target.enabledKinds, blocked) { post(ComposerVIE.Intent.SetKind(it)) }
+                    SegmentedControl(
+                        VIEObjectKind.entries, selected = target.kind, onSelect = { post(ComposerVIE.Intent.SetKind(it)) }, label = { it.name },
+                        modifier = Modifier.fillMaxWidth(), enabled = !blocked, optionEnabled = { it in target.enabledKinds },
+                    )
                     projection.unserializable?.let { (kind, typeName) -> KindReason(kind, typeName) }
                     TypeField(target.type.orEmpty(), target.types, model.controls.typeMenuOpen, blocked) { post(it) }
                     JsonSection(model, editorHeight, blocked) { post(it) }
@@ -148,31 +148,6 @@ internal fun VIEViewScope<ComposerVIE.Intent, NoSignal>.ComposerContent(model: C
 }
 
 // ---- Kind and type ---------------------------------------------------------------------------
-
-@Composable
-private fun KindSegments(kind: VIEObjectKind, enabled: Set<VIEObjectKind>, blocked: Boolean, onSelect: (VIEObjectKind) -> Unit) {
-    val scheme = MaterialTheme.colorScheme
-    Row(
-        Modifier.fillMaxWidth().height(32.dp).clip(InspectorPillShape).border(1.dp, InspectorTheme.colors.strongOutline, InspectorPillShape),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        VIEObjectKind.entries.forEachIndexed { index, entry ->
-            val ok = entry in enabled
-            val on = entry == kind && ok
-            if (index > 0) VerticalRule(color = InspectorTheme.colors.strongOutline)
-            val foreground = if (on) scheme.onPrimaryContainer else if (ok) scheme.onSurface else scheme.outline
-            Row(
-                Modifier.weight(1f).fillMaxHeight().background(if (on) scheme.primaryContainer else Color.Transparent)
-                    .alpha(if (ok) 1f else 0.55f)
-                    .action(enabled = ok && !blocked, role = Role.RadioButton, selected = on) { onSelect(entry) },
-                horizontalArrangement = Arrangement.spacedBy(4.dp, Alignment.CenterHorizontally), verticalAlignment = Alignment.CenterVertically,
-            ) {
-                if (on) Symbol(Glyph.Check, size = 15.dp, tint = foreground) else if (!ok) Symbol(Glyph.Block, size = 15.dp, tint = foreground)
-                Text(entry.name, style = InspectorTheme.text.label, color = foreground, maxLines = 1)
-            }
-        }
-    }
-}
 
 @Composable
 private fun KindReason(kind: VIEObjectKind, typeName: String) {
