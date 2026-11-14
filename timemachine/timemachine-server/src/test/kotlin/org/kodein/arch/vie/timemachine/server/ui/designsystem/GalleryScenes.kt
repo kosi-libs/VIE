@@ -23,4 +23,5 @@ internal val GalleryScenes: List<GalleryScene> = listOf(
     EmptyStateScene,
     CalloutScene,
     BannerScene,
+    JsonViewerScene,
 )
