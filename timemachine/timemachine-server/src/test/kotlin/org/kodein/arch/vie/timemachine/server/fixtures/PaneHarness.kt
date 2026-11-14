@@ -66,7 +66,8 @@ internal fun inspectorTest(
 
 /**
  * One pane's view, [content], over the live inspector of [inspectorTest], with what the window gives
- * every pane: the theme and the window's locals.
+ * every pane: the theme and the window's locals. It stays in the light theme, unlike [contentTest],
+ * which follows its view state's `dark`.
  */
 internal fun paneTest(
     id: String = "main",

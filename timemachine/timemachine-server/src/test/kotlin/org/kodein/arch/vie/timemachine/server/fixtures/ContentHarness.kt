@@ -19,7 +19,8 @@ import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorTheme
 
 /**
  * A pane's content, [content], with nothing behind it: no inspector, no store, no ViewModel, only the
- * theme and the window's view state. The scene is [width] by [height] px, at a density of 1.
+ * theme and the window's view state, [viewState], in the theme it says, as the window does. The scene is
+ * [width] by [height] px, at a density of 1.
  *
  * Nothing runs off the UI thread, so [block] waits for nothing but the composition (`waitForIdle`).
  */
@@ -31,7 +32,7 @@ internal fun contentTest(
     block: suspend DesktopComposeUiTest.() -> Unit,
 ) = runDesktopComposeUiTest(width, height) {
     setContent {
-        InspectorTheme(dark = false) {
+        InspectorTheme(dark = viewState.dark) {
             CompositionLocalProvider(LocalInspectorViewState provides viewState) { content() }
         }
     }
