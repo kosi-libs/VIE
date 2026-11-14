@@ -12,9 +12,9 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineClientMessage
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineConnection
+import org.kodein.arch.vie.timemachine.protocol.TimeMachineInterventionResult
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineSequence
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineSession
-import org.kodein.arch.vie.timemachine.protocol.VIEInterventionResult
 import org.kodein.arch.vie.timemachine.protocol.VIEObjectKind
 import org.kodein.arch.vie.timemachine.protocol.VIEObservation
 import org.kodein.arch.vie.timemachine.protocol.VIESignalDelivery
@@ -222,7 +222,7 @@ internal object Demo {
             length = asString.length + (json?.toString()?.length ?: 0) + 120,
         )
 
-        fun result(requestId: Uuid, result: VIEInterventionResult, at: Instant) =
+        fun result(requestId: Uuid, result: TimeMachineInterventionResult, at: Instant) =
             message(TimeMachineClientMessage.InterventionResult(requestId, result), at, length = 80)
 
         fun intervene(
