@@ -50,7 +50,9 @@ import org.kodein.arch.vie.timemachine.server.ui.theme.Symbol
 /** No probe has connected yet: [EmptyContent] over where the listener stands, as the store says. */
 @Composable
 internal fun EmptyScreen() {
-    InspectorPane(LocalInspector.current.statusBarPane()) { status -> EmptyContent(status) }
+    val inspector = LocalInspector.current
+    val pane = remember(inspector) { inspector.statusBarPane() }
+    InspectorPane(pane) { status -> EmptyContent(status) }
 }
 
 /** No probe has connected yet: the address to connect to, and how to add the probe to an app. */

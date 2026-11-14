@@ -131,7 +131,8 @@ internal class PaneVisibility {
 }
 
 /**
- * A pane: the [key] its ViewModel lives under, and how to build it.
+ * A pane: the [key] its ViewModel lives under, and how to build it. A view remembers the pane it
+ * composes (see [InspectorPane]): none is built in the body of a composition.
  *
  * @property scope The scope whose records the pane shows, which its ViewModel is released with once the
  *   store drops it; `null` for a pane of the window, which shows the store as a whole.
@@ -175,6 +176,11 @@ internal suspend fun Inspector.releaseDroppedScopes(): Nothing =
 /**
  * A pane's view: [VIEView] under the pane's key, in the inspector's ViewModels of its scope, with the pane marked
  * shown for as long as it is composed. Every pane view goes through it, so none can forget either.
+ *
+ * The view that calls it remembers [pane], keyed by the inspector and by every argument of the
+ * pane's factory, as in `remember(inspector, scope) { inspector.timelinePane(scope) }`: a pane
+ * built in the body of a composition would be a new one at each recomposition, and so would the
+ * lambda that builds its ViewModel.
  *
  * One call site shows a pane per scope, one at a time, and the view state below it belongs to the pane
  * shown: when another takes its place, what [content] remembers starts anew, so no list, no effect and

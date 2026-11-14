@@ -62,7 +62,8 @@ internal fun InspectorShell() {
     }
     // The panes of a scope are created here, in composition: they are released from here as well.
     LaunchedEffect(inspector) { inspector.releaseDroppedScopes() }
-    InspectorPane(inspector.noticesPane()) { notices ->
+    val pane = remember(inspector) { inspector.noticesPane() }
+    InspectorPane(pane) { notices ->
         InspectorLayout(
             notices = notices,
             onIntent = { post(it) },
@@ -243,7 +244,9 @@ private fun CentreLayout(
 
 @Composable
 private fun NoViewModel(modifier: Modifier) {
-    InspectorPane(LocalInspector.current.sessionsPane()) { model -> NoViewModelContent(model, modifier) }
+    val inspector = LocalInspector.current
+    val pane = remember(inspector) { inspector.sessionsPane() }
+    InspectorPane(pane) { model -> NoViewModelContent(model, modifier) }
 }
 
 /** No ViewModel is selected: what to do, and how many the connected session has, in the middle of the pane. */
