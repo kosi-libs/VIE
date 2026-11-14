@@ -43,7 +43,8 @@ internal fun rememberInspectorFonts(): InspectorFonts {
 /**
  * The steps of the type scale that Material3's [Typography] has no slot for. With the roles of
  * [inspectorTypography], they are every size a text is drawn at: a view takes one of them, and at most
- * changes its colour, its weight or its line height. A size is changed here.
+ * changes its colour, its weight or its line height. A size is changed here, and so is a spacing: [badge]
+ * is the small label with one of its own.
  *
  * In Plex, regular:
  *
@@ -62,9 +63,12 @@ internal fun rememberInspectorFonts(): InspectorFonts {
  * @property label Labels, links and the titles of the timeline's markers.
  * @property actionLarge The label of a main action: Send, Retry.
  *
+ * In Plex, semi-bold:
+ *
+ * @property badge The text of a small chip: a kind, a status, "initial". The small label, a little less spaced.
+ *
  * In JetBrains Mono, with no line height of their own, for most sit in a row of a fixed height:
  *
- * @property monoBadge A count in a badge.
  * @property monoMeta Identifiers and counts beside a name.
  * @property monoSecondary Data that accompanies other data: a sequence, an address, a source.
  * @property codeRow The timeline's rows, and data set in a line of text.
@@ -85,7 +89,7 @@ data class InspectorTextStyles(
     val action: TextStyle,
     val label: TextStyle,
     val actionLarge: TextStyle,
-    val monoBadge: TextStyle,
+    val badge: TextStyle,
     val monoMeta: TextStyle,
     val monoSecondary: TextStyle,
     val codeRow: TextStyle,
@@ -114,7 +118,7 @@ internal fun inspectorTypography(fonts: InspectorFonts): Typography = Typography
 
 /**
  * The steps between and around the roles of [typography]: each Plex step is the role next to it at
- * another size, so it keeps that role's weight and line height.
+ * another size (the badge's, at its own spacing too), so it keeps that role's weight and line height.
  */
 internal fun inspectorTextStyles(fonts: InspectorFonts, typography: Typography = inspectorTypography(fonts)): InspectorTextStyles {
     fun mono(size: Float) = TextStyle(fontFamily = fonts.mono, fontSize = size.sp, fontWeight = FontWeight.Normal)
@@ -130,7 +134,7 @@ internal fun inspectorTextStyles(fonts: InspectorFonts, typography: Typography =
         action = typography.labelMedium.copy(fontSize = 11.5.sp),
         label = typography.labelMedium.copy(fontSize = 12.sp),
         actionLarge = typography.labelMedium.copy(fontSize = 13.sp),
-        monoBadge = mono(10f),
+        badge = typography.labelSmall.copy(letterSpacing = 0.02.sp),
         monoMeta = mono(10.5f),
         monoSecondary = mono(11f),
         codeRow = mono(11.5f),

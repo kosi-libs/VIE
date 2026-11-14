@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -28,6 +27,8 @@ import org.kodein.arch.vie.timemachine.server.ui.core.InspectorPane
 import org.kodein.arch.vie.timemachine.server.ui.core.InspectorScope
 import org.kodein.arch.vie.timemachine.server.ui.core.LocalInspector
 import org.kodein.arch.vie.timemachine.server.ui.core.RightTab
+import org.kodein.arch.vie.timemachine.server.ui.designsystem.Chip
+import org.kodein.arch.vie.timemachine.server.ui.designsystem.ChipTone
 import org.kodein.arch.vie.timemachine.server.ui.designsystem.HorizontalRule
 import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorDimens
 import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorTheme
@@ -126,12 +127,7 @@ private fun RightTabs(tab: RightTab, interventions: Int, onSelect: (RightTab) ->
                             style = MaterialTheme.typography.labelMedium,
                             color = if (on) scheme.primary else scheme.onSurfaceVariant,
                         )
-                        badge?.let {
-                            Text(
-                                it, style = InspectorTheme.text.monoBadge, color = scheme.onSurfaceVariant,
-                                modifier = Modifier.background(scheme.surfaceContainerHigh, RoundedCornerShape(8.dp)).padding(horizontal = 5.dp),
-                            )
-                        }
+                        badge?.let { Chip(it, ChipTone.Neutral, mono = true) }
                     }
                 }
             }

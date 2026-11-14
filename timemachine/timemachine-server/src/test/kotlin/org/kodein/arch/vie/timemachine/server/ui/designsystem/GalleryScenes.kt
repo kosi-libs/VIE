@@ -12,4 +12,6 @@ internal val GalleryScenes: List<GalleryScene> = listOf(
     CopyActionScene,
     LinkActionScene,
     InspectorButtonScene,
+    ChipScene,
+    ChipClickableScene,
 )

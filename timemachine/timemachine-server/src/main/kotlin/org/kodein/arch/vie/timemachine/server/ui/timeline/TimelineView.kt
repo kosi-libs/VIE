@@ -14,7 +14,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
@@ -44,6 +43,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PathEffect
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
@@ -55,7 +55,6 @@ import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
-import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.IntOffset
@@ -95,6 +94,11 @@ import org.kodein.arch.vie.timemachine.server.ui.core.LocalInspector
 import org.kodein.arch.vie.timemachine.server.ui.core.ViewModelStatus
 import org.kodein.arch.vie.timemachine.server.ui.designsystem.ButtonSize
 import org.kodein.arch.vie.timemachine.server.ui.designsystem.ButtonVariant
+import org.kodein.arch.vie.timemachine.server.ui.designsystem.Chip
+import org.kodein.arch.vie.timemachine.server.ui.designsystem.ChipDot
+import org.kodein.arch.vie.timemachine.server.ui.designsystem.ChipSize
+import org.kodein.arch.vie.timemachine.server.ui.designsystem.ChipSquareDot
+import org.kodein.arch.vie.timemachine.server.ui.designsystem.ChipTone
 import org.kodein.arch.vie.timemachine.server.ui.designsystem.CopyAction
 import org.kodein.arch.vie.timemachine.server.ui.designsystem.HorizontalRule
 import org.kodein.arch.vie.timemachine.server.ui.designsystem.IconAction
@@ -197,31 +201,15 @@ private fun TimelineHeaderView(header: TimelineHeader) {
     }
 }
 
+/** A status of the header, after its dot: [dot] square for a ViewModel that closed. */
 @Composable
-private fun StatusPill(text: String, color: Color, container: Color, square: Boolean = false, dot: Boolean = true) {
-    Row(
-        Modifier.height(20.dp).background(container, CircleShape).padding(horizontal = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(5.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        if (dot) Box(Modifier.size(6.dp).background(color, if (square) RoundedCornerShape(1.dp) else CircleShape))
-        Text(text, style = InspectorTheme.text.action, color = color, maxLines = 1)
-    }
-}
-
-@Composable
-private fun IdChip(text: String) {
-    val scheme = MaterialTheme.colorScheme
-    Text(
-        text, style = InspectorTheme.text.monoSecondary, color = scheme.onSurfaceVariant, maxLines = 1,
-        modifier = Modifier.background(scheme.surfaceContainerHigh, RoundedCornerShape(4.dp)).padding(horizontal = 6.dp, vertical = 1.dp),
-    )
+private fun StatusChip(label: String, tone: ChipTone, dot: Shape = CircleShape) {
+    Chip(label, tone, leading = { tint -> ChipDot(tint, dot) })
 }
 
 @Composable
 private fun ViewModelHeader(header: TimelineHeader.ViewModel) {
     val scheme = MaterialTheme.colorScheme
-    val colors = InspectorTheme.colors
     val info = header.info
     // Whether the type info is open: one panel for the three kinds, whichever chip opened it. It is this
     // header's own: the one of another ViewModel starts closed.
@@ -238,13 +226,13 @@ private fun ViewModelHeader(header: TimelineHeader.ViewModel) {
                     style = MaterialTheme.typography.titleMedium, color = scheme.onSurface, maxLines = 1, overflow = TextOverflow.Ellipsis,
                     modifier = Modifier.weight(1f, fill = false),
                 )
-                IdChip(if (info == null) "unknown ViewModel" else header.shortId)
+                Chip(if (info == null) "unknown ViewModel" else header.shortId, ChipTone.Neutral, mono = true)
                 val label = header.status.label(header.closedAt)
                 when (header.status) {
-                    ViewModelStatus.Closed -> StatusPill(label, scheme.outline, scheme.surfaceContainerHigh, square = true)
-                    ViewModelStatus.SessionDisconnected -> StatusPill(label, scheme.outline, scheme.surfaceContainerHigh)
-                    ViewModelStatus.Identifying -> StatusPill(label, scheme.onPrimaryContainer, scheme.primaryContainer)
-                    ViewModelStatus.Alive -> StatusPill(label, colors.success, colors.successContainer)
+                    ViewModelStatus.Closed -> StatusChip(label, ChipTone.Neutral, ChipSquareDot)
+                    ViewModelStatus.SessionDisconnected -> StatusChip(label, ChipTone.Neutral)
+                    ViewModelStatus.Identifying -> StatusChip(label, ChipTone.Primary)
+                    ViewModelStatus.Alive -> StatusChip(label, ChipTone.Success)
                 }
             }
             val sub = when {
@@ -262,7 +250,7 @@ private fun ViewModelHeader(header: TimelineHeader.ViewModel) {
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
                     for (kind in VIEObjectKind.entries) {
                         val typeInfo = info.type(kind)
-                        TypeChip(kind, typeInfo, open = typeInfoOpen) { typeInfoOpen = !typeInfoOpen }
+                        TypeChip(kind, typeInfo) { typeInfoOpen = !typeInfoOpen }
                     }
                 }
                 if (typeInfoOpen) {
@@ -270,7 +258,7 @@ private fun ViewModelHeader(header: TimelineHeader.ViewModel) {
                     // It has the keyboard while it is open: Escape closes it, as a click outside does.
                     Popup(
                         alignment = Alignment.TopEnd,
-                        offset = with(LocalDensity.current) { IntOffset(0, (InspectorDimens.chip + TypeInfoGap).roundToPx()) },
+                        offset = with(LocalDensity.current) { IntOffset(0, (InspectorDimens.chipMedium + TypeInfoGap).roundToPx()) },
                         onDismissRequest = { typeInfoOpen = false },
                         properties = PopupProperties(focusable = true),
                         onKeyEvent = { event ->
@@ -286,31 +274,20 @@ private fun ViewModelHeader(header: TimelineHeader.ViewModel) {
 }
 
 @Composable
-private fun TypeChip(kind: VIEObjectKind, typeInfo: VIETypeInfo, open: Boolean, onClick: () -> Unit) {
-    val scheme = MaterialTheme.colorScheme
+private fun TypeChip(kind: VIEObjectKind, typeInfo: VIETypeInfo, onClick: () -> Unit) {
     val colors = InspectorTheme.colors
-    Row(
-        Modifier
-            .height(InspectorDimens.chip)
-            .background(scheme.surfaceContainerLow, RoundedCornerShape(6.dp))
-            .border(1.dp, if (open) colors.strongOutline else scheme.outlineVariant, RoundedCornerShape(6.dp))
-            .action(onClick = onClick)
-            .padding(horizontal = 8.dp),
-        horizontalArrangement = Arrangement.spacedBy(5.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Box(Modifier.size(6.dp).background(kind.style().color(colors), CircleShape))
-        Text(
-            kind.name,
-            style = InspectorTheme.text.action.copy(
-                fontWeight = FontWeight.Normal,
-                textDecoration = if (typeInfo.isSerializable) TextDecoration.None else TextDecoration.LineThrough,
-            ),
-            color = if (typeInfo.isSerializable) scheme.onSurfaceVariant else scheme.outline,
-        )
-        Symbol(if (typeInfo.isSerializable) Glyph.DataObject else Glyph.TextFields, size = 14.dp, tint = if (typeInfo.isSerializable) colors.success else colors.error)
-        typeInfo.sealedSubTypes?.let { Text(it.size.toString(), style = InspectorTheme.text.monoMeta, color = scheme.outline) }
-    }
+    Chip(
+        kind.name, ChipTone.Neutral, outlined = true, size = ChipSize.Medium,
+        leading = { ChipDot(kind.style().color(colors)) },
+        trailing = {
+            Symbol(
+                if (typeInfo.isSerializable) Glyph.DataObject else Glyph.TextFields, size = 14.dp,
+                tint = if (typeInfo.isSerializable) colors.success else colors.error,
+            )
+            typeInfo.sealedSubTypes?.let { Text(it.size.toString(), style = InspectorTheme.text.monoMeta, color = MaterialTheme.colorScheme.outline) }
+        },
+        onClick = onClick,
+    )
 }
 
 /** How far under the chips the type info opens. */
@@ -319,7 +296,6 @@ private val TypeInfoGap = 16.dp
 @Composable
 private fun TypeInfoPopover(info: VIEViewModelInfo) {
     val scheme = MaterialTheme.colorScheme
-    val colors = InspectorTheme.colors
     Column(
         Modifier.width(InspectorDimens.popover).background(scheme.surfaceContainerHigh, RoundedCornerShape(12.dp)).padding(horizontal = 14.dp, vertical = 12.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -342,18 +318,8 @@ private fun TypeInfoPopover(info: VIEViewModelInfo) {
                     itemVerticalAlignment = Alignment.CenterVertically,
                 ) {
                     val ok = typeInfo.isSerializable
-                    Text(
-                        if (ok) "JSON · can intervene" else "toString only · can't intervene",
-                        style = InspectorTheme.text.actionSmall,
-                        color = if (ok) colors.success else colors.error,
-                        modifier = Modifier.background(if (ok) colors.successContainer else colors.errorContainer, RoundedCornerShape(4.dp)).padding(horizontal = 6.dp),
-                    )
-                    typeInfo.sealedSubTypes?.forEach { sub ->
-                        Text(
-                            sub, style = InspectorTheme.text.monoSecondary, color = scheme.onSurfaceVariant,
-                            modifier = Modifier.border(1.dp, scheme.outlineVariant, RoundedCornerShape(4.dp)).padding(horizontal = 5.dp),
-                        )
-                    }
+                    Chip(if (ok) "JSON · can intervene" else "toString only · can't intervene", if (ok) ChipTone.Success else ChipTone.Error)
+                    typeInfo.sealedSubTypes?.forEach { sub -> Chip(sub, ChipTone.Neutral, outlined = true, mono = true) }
                 }
             }
         }
@@ -363,7 +329,6 @@ private fun TypeInfoPopover(info: VIEViewModelInfo) {
 @Composable
 private fun SessionHeader(header: TimelineHeader.Session) {
     val scheme = MaterialTheme.colorScheme
-    val colors = InspectorTheme.colors
     Row(
         Modifier.fillMaxWidth().padding(start = InspectorDimens.paneHorizontalPadding, end = InspectorDimens.paneHorizontalPadding, top = 10.dp, bottom = 9.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -371,9 +336,8 @@ private fun SessionHeader(header: TimelineHeader.Session) {
     ) {
         Symbol(Glyph.Lan, size = 22.dp, tint = scheme.onSurfaceVariant)
         Text(header.name, style = MaterialTheme.typography.titleMedium.copy(fontFamily = InspectorTheme.fonts.plex), color = scheme.onSurface, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f, fill = false))
-        IdChip(header.shortId)
-        if (header.connected) StatusPill("connected", colors.success, colors.successContainer)
-        else StatusPill("disconnected", scheme.outline, scheme.surfaceContainerHigh)
+        Chip(header.shortId, ChipTone.Neutral, mono = true)
+        if (header.connected) StatusChip("connected", ChipTone.Success) else StatusChip("disconnected", ChipTone.Neutral)
         Text(
             "Session · ${header.viewModelCount} ViewModel${if (header.viewModelCount == 1) "" else "s"}",
             style = MaterialTheme.typography.bodySmall, color = scheme.onSurfaceVariant, maxLines = 1,
@@ -702,14 +666,12 @@ private fun ObservationRow(
             if (merged) {
                 item.source?.let { source ->
                     val viewModelId = (item.entry as? SessionTimelineEntry.Scoped)?.viewModelId
-                    Text(
-                        source, style = InspectorTheme.text.monoSecondary, color = if (selected) scheme.onSurface else scheme.onSurfaceVariant, maxLines = 1, overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier
-                            .width(SourceWidth).height(18.dp)
-                            .background(scheme.surfaceContainerHigh, RoundedCornerShape(4.dp))
-                            .action(enabled = viewModelId != null) { viewModelId?.let { post(TimelineVIE.Intent.OpenViewModel(it, sequence)) } }
-                            .padding(horizontal = 6.dp),
-                    )
+                    Box(Modifier.width(SourceWidth)) {
+                        Chip(
+                            source, ChipTone.Neutral, mono = true,
+                            onClick = viewModelId?.let { id -> { post(TimelineVIE.Intent.OpenViewModel(id, sequence)) } },
+                        )
+                    }
                 } ?: Box(Modifier.width(SourceWidth))
             }
             if (observation.kind != VIEObjectKind.Model) {
@@ -720,7 +682,7 @@ private fun ObservationRow(
             }
             Row(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(12.dp), verticalAlignment = Alignment.CenterVertically) {
                 val diff = item.diff
-                if (observation.kind == VIEObjectKind.Model && diff == null) InitialChip()
+                if (observation.kind == VIEObjectKind.Model && diff == null) Chip("initial", ChipTone.Neutral)
                 if (diff != null && query.isEmpty()) diff.ops.take(MaxDiffOps).forEach { DiffText(it) }
                 if (diff == null || query.isNotEmpty()) {
                     Text(
@@ -730,13 +692,12 @@ private fun ObservationRow(
                 }
             }
             if (observation.asJson == null) {
-                Text(
-                    // Too big to send whole, which is not the same as not serializable: the row says which.
-                    if (observation.truncated) "too large" else "toString only", style = InspectorTheme.text.monoMeta, color = scheme.outline, maxLines = 1,
-                    modifier = Modifier.border(1.dp, colors.strongOutline, RoundedCornerShape(4.dp)).padding(horizontal = 5.dp),
-                )
+                // Too big to send whole, which is not the same as not serializable: the row says which.
+                Chip(if (observation.truncated) "too large" else "toString only", ChipTone.Neutral, outlined = true, mono = true)
             }
-            item.interventionNumber?.let { number -> InterventionChip(number) }
+            item.interventionNumber?.let { number ->
+                Chip("intervened #$number", ChipTone.Intervened, leading = { tint -> Symbol(Glyph.TouchApp, size = 13.dp, tint = tint) })
+            }
             // The compact layout has no room for them: E, the Detail tab and the pinned model's Edit reach the same places.
             if (selected && item.canIntervene && !LocalCompact.current) RowActions(observation) { post(TimelineVIE.Intent.ComposeFrom(sequence)) }
         }
@@ -748,15 +709,6 @@ private fun ObservationRow(
 /** A Model row shows this many differences before it runs out of room. */
 private const val MaxDiffOps = 6
 
-@Composable
-private fun InitialChip() {
-    val scheme = MaterialTheme.colorScheme
-    Text(
-        "initial", style = InspectorTheme.text.tag, color = scheme.onSurfaceVariant, maxLines = 1,
-        modifier = Modifier.background(scheme.surfaceContainerHigh, RoundedCornerShape(4.dp)).padding(horizontal = 6.dp, vertical = 1.dp),
-    )
-}
-
 private fun highlight(text: String, query: String, color: Color, background: Color) = buildAnnotatedString {
     val hit = if (query.isEmpty()) -1 else text.indexOf(query, ignoreCase = true)
     if (hit < 0) append(text)
@@ -764,18 +716,6 @@ private fun highlight(text: String, query: String, color: Color, background: Col
         append(text.substring(0, hit))
         withStyle(SpanStyle(color = color, background = background)) { append(text.substring(hit, hit + query.length)) }
         append(text.substring(hit + query.length))
-    }
-}
-
-@Composable
-private fun InterventionChip(number: Int) {
-    val colors = InspectorTheme.colors
-    Row(
-        Modifier.height(18.dp).background(colors.intervenedContainer, RoundedCornerShape(9.dp)).padding(start = 4.dp, end = 6.dp),
-        horizontalArrangement = Arrangement.spacedBy(3.dp), verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Symbol(Glyph.TouchApp, size = 13.dp, tint = colors.intervened)
-        Text("intervened #$number", style = MaterialTheme.typography.labelSmall.copy(letterSpacing = 0.sp), color = colors.intervened, maxLines = 1)
     }
 }
 
