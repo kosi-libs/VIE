@@ -356,10 +356,14 @@ a middleware that overrides `onAttached`, as `TimeMachine.middleware()` does.
 **Grep:** `TimeMachine\.middleware` and every `onAttached` override; then follow where the
 middleware is created, looking for a singleton scope.
 
-**Why:** `onAttached(vm)` gives the middleware the ViewModel it is installed on, and the middleware
-keeps it. A second ViewModel overwrites what the first stored, so the shared instance silently
-drives the wrong ViewModel. The TimeMachine probe guards itself: it observes the first ViewModel
-only, prints a notice for each other one, and still reports models under the first one's identity.
+**Why:** `onAttached(vm)` gives the middleware the ViewModel it is installed on. A middleware that
+keeps state from it serves one ViewModel only: shared, it mixes up the ViewModels, in whatever way
+its own code happens to. The TimeMachine probe serves the first ViewModel it is attached to. For
+each other one it prints a notice, and neither reports its start and close nor injects anything
+into it. It ignores that ViewModel's models, intents and signals too, but only when the ViewModels
+are built one after the other on a single-threaded dispatcher such as `Dispatchers.Main`;
+otherwise any of the other ViewModel's objects can be reported under the first one's identity, in
+place of the first one's.
 
 **Fix:** build the list where each ViewModel is built, so each ViewModel gets its own instances: a
 factory or `Binding.provider`, Koin's `viewModel { }` definition, or the constructor call itself.
