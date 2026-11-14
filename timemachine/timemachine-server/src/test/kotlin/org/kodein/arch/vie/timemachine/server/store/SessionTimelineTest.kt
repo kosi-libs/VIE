@@ -174,6 +174,7 @@ class SessionTimelineTest {
         val dividers = state.sessionTimeline(session.id).filterIsInstance<SessionTimelineEntry.Divider>()
         assertEquals(listOf(null, seq(1), seq(1)), dividers.map { it.after })
         assertEquals(listOf(t0, at(5), at(9)), dividers.map { it.at })
+        assertEquals(listOf(0, 0, 1), dividers.map { it.span }, "the first connection's two edges, then the second's")
     }
 
     @Test
@@ -195,7 +196,7 @@ class SessionTimelineTest {
 
     @Test
     fun theEntryOfADividerIsNull() {
-        assertNull(SessionTimelineEntry.Divider(SessionTimelineEntry.Divider.Kind.Connected, t0, null).timelineEntry)
+        assertNull(SessionTimelineEntry.Divider(SessionTimelineEntry.Divider.Kind.Connected, t0, null, span = 0).timelineEntry)
     }
 
     @Test

@@ -37,10 +37,6 @@ data class SessionRecord(
 
     /** When the latest connection was lost, `null` while it is alive. */
     val disconnectedAt: Instant? get() = connections.last().disconnected?.at
-
-    /** The sum of its ViewModels' activity over the 30 s ending at [now], oldest bucket first. */
-    fun sparkline(now: Instant): List<Int> =
-        viewModels.values.map { it.sparkline(now) }.reduceOrNull { a, b -> a.zip(b) { x, y -> x + y } } ?: List(ActivityBuckets) { 0 }
 }
 
 /**
@@ -83,7 +79,24 @@ data class Rejection(
 sealed interface ListenerState {
     data object Starting : ListenerState
     data class Listening(val port: Int) : ListenerState
-    data class Failed(val message: String) : ListenerState
+
+    /**
+     * The listener did not start.
+     *
+     * @property reason What stopped it, as far as the developer can act on it.
+     * @property message What the failure says of itself.
+     */
+    data class Failed(val reason: Reason, val message: String) : ListenerState {
+
+        enum class Reason {
+
+            /** Its port is already bound: another program listens on it. */
+            PortInUse,
+
+            /** Anything else: only [message] tells. */
+            Other,
+        }
+    }
 }
 
 /** One entry of a ViewModel's timeline, as the inspector shows it. */

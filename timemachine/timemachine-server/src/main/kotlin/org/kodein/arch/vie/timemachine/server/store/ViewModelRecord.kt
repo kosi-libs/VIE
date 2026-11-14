@@ -120,8 +120,11 @@ data class ViewModelRecord(
      * The Model row observed before the one at [sequence], from the retained rows: `null` when there
      * is none, e.g. once it was evicted.
      */
-    fun previousModel(sequence: TimeMachineSequence): Row? =
-        rows.lastOrNull { it.sequence < sequence && (it.message as? TimeMachineClientMessage.Observed)?.observation?.kind == VIEObjectKind.Model }
+    fun previousModel(sequence: TimeMachineSequence): Row? {
+        // The rows before [sequence] end where it would be placed, since [rows] is sorted by sequence.
+        val end = rows.binarySearch { if (it.sequence < sequence) -1 else 1 }.let { -it - 1 }
+        return rows.subList(0, end).lastOrNull { (it.message as? TimeMachineClientMessage.Observed)?.observation?.kind == VIEObjectKind.Model }
+    }
 
     /**
      * Whether its history before the inspector heard of it is out of reach: its start was never
