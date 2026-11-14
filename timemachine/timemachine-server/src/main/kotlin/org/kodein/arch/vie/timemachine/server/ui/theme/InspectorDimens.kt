@@ -22,6 +22,12 @@ object InspectorDimens {
     val filterChip: Dp = 26.dp
     val searchField: Dp = 28.dp
 
+    /** The least size of a glyph button: whatever its glyph's size, a click lands in it, and its hover fills it. */
+    val iconAction: Dp = 26.dp
+
+    /** The least height of a text link, "Show" or "Resend": as high as the smallest button. */
+    val linkAction: Dp = 22.dp
+
     /** What a pane keeps between its edges and its headers, bars and tab contents. */
     val paneHorizontalPadding: Dp = 14.dp
 
@@ -54,7 +60,7 @@ object InspectorDimens {
 /**
  * The theme's corner radii, by slot of Material's shape scale.
  *
- * - `extraSmall`, 4 dp: read by Material's menus (the composer's type menu) and by a highlighted JSON tree line.
+ * - `extraSmall`, 4 dp: read by Material's menus (the composer's type menu), by a highlighted JSON tree line and by a text link's hover.
  * - `small`, 6 dp: read by the composer's type field.
  * - `medium`, 8 dp: read by the session rows and the ViewModel rows.
  * - `large` and `extraLarge`, 12 dp: read by nothing.

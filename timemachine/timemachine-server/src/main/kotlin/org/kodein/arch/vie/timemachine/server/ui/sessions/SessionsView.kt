@@ -42,11 +42,17 @@ import org.kodein.arch.vie.timemachine.server.ui.core.InspectorScope
 import org.kodein.arch.vie.timemachine.server.ui.core.LocalInspector
 import org.kodein.arch.vie.timemachine.server.ui.core.LocalInspectorViewState
 import org.kodein.arch.vie.timemachine.server.ui.core.ViewModelStatus
+import org.kodein.arch.vie.timemachine.server.ui.designsystem.IconAction
 import org.kodein.arch.vie.timemachine.server.ui.theme.Glyph
 import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorDimens
 import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorTheme
-import org.kodein.arch.vie.timemachine.server.ui.theme.Symbol
 
+
+/** Where a session's row starts: its chevron's glyph stays centred 15 dp from the edge, in its larger target. */
+private val SessionRowStart = 15.dp - InspectorDimens.iconAction / 2
+
+/** Where a ViewModel's row starts: its name lines up under its session's, past the chevron and its gap. */
+private val ViewModelRowStart = SessionRowStart + InspectorDimens.iconAction + 6.dp
 
 /**
  * How the sessions are shown: the left [Pane] of the full layout, or, in the compact one, the [Rail] and
@@ -132,15 +138,15 @@ private fun SessionBlock(session: SessionItem, selected: InspectorScope?, collap
                 .fillMaxWidth().height(InspectorDimens.sessionItem)
                 .background(if (onSession) scheme.primaryContainer else Color.Transparent, shape)
                 .action(shape = shape) { post(SessionsVIE.Intent.SelectScope(InspectorScope.Session(session.id))) }
-                .padding(start = 6.dp, end = 8.dp),
+                .padding(start = SessionRowStart, end = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(6.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Symbol(
-                if (collapsed) Glyph.ChevronRight else Glyph.ExpandMore, size = 18.dp, tint = scheme.outline,
-                modifier = Modifier.action(description = if (collapsed) ExpandSessionDescription else CollapseSessionDescription) {
-                    post(SessionsVIE.Intent.ToggleSession(session.id))
-                },
+            IconAction(
+                if (collapsed) Glyph.ChevronRight else Glyph.ExpandMore,
+                description = if (collapsed) ExpandSessionDescription else CollapseSessionDescription,
+                onClick = { post(SessionsVIE.Intent.ToggleSession(session.id)) },
+                size = 18.dp, tint = scheme.outline,
             )
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(1.dp)) {
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -194,7 +200,7 @@ private fun ViewModelRow(vm: ViewModelItem, session: SessionItem, selected: Bool
             .alpha(if (closed && session.connected) 0.6f else 1f)
             .background(if (selected) scheme.primaryContainer else Color.Transparent, shape)
             .action(shape = shape, onClick = onClick)
-            .padding(start = 30.dp, end = 10.dp),
+            .padding(start = ViewModelRowStart, end = 10.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {

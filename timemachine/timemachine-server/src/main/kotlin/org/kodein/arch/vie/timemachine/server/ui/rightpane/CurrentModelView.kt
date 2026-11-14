@@ -40,13 +40,14 @@ import org.kodein.arch.vie.timemachine.server.ui.common.formatTime
 import org.kodein.arch.vie.timemachine.server.ui.common.jsonTree
 import org.kodein.arch.vie.timemachine.server.ui.common.pretty
 import org.kodein.arch.vie.timemachine.server.ui.common.rawJson
-import org.kodein.arch.vie.timemachine.server.ui.common.rememberCopy
 import org.kodein.arch.vie.timemachine.server.ui.common.rememberJsonLines
 import org.kodein.arch.vie.timemachine.server.ui.common.treeLines
 import org.kodein.arch.vie.timemachine.server.ui.core.InspectorPane
 import org.kodein.arch.vie.timemachine.server.ui.core.LocalInspector
 import org.kodein.arch.vie.timemachine.server.ui.core.LocalInspectorViewState
+import org.kodein.arch.vie.timemachine.server.ui.designsystem.CopyAction
 import org.kodein.arch.vie.timemachine.server.ui.designsystem.HorizontalRule
+import org.kodein.arch.vie.timemachine.server.ui.designsystem.IconAction
 import org.kodein.arch.vie.timemachine.server.ui.theme.Glyph
 import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorDimens
 import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorPillShape
@@ -82,7 +83,6 @@ internal fun VIEViewScope<CurrentModelVIE.Intent, NoSignal>.CurrentModelContent(
     val scheme = MaterialTheme.colorScheme
     val projection = model.projection
     val compact = LocalCompact.current
-    val copy = rememberCopy()
     Column(Modifier.fillMaxWidth().height(if (compact) CompactPinnedHeight else PinnedHeight)) {
         Row(
             Modifier.fillMaxWidth().height(InspectorDimens.paneHeader).padding(start = InspectorDimens.paneHorizontalPadding, end = 8.dp),
@@ -99,18 +99,12 @@ internal fun VIEViewScope<CurrentModelVIE.Intent, NoSignal>.CurrentModelContent(
             Spacer(Modifier.weight(1f))
             if (projection.json != null) {
                 TreeRawSwitch(model.controls.raw) { post(CurrentModelVIE.Intent.SetRaw(it)) }
-                Symbol(
-                    Glyph.ContentCopy, size = 16.dp, tint = scheme.onSurfaceVariant,
-                    modifier = Modifier.action(description = CopyModelDescription) { copy(projection.json.pretty()) }.padding(5.dp),
-                )
+                CopyAction({ projection.json.pretty() }, CopyModelDescription)
                 EditButton(if (compact) "Edit" else "Edit & replace", projection.canReplace) { post(CurrentModelVIE.Intent.EditAndReplace) }
             }
             if (compact) {
                 val viewState = LocalInspectorViewState.current
-                Symbol(
-                    Glyph.RightPanelClose, size = 18.dp, tint = scheme.onSurfaceVariant,
-                    modifier = Modifier.action(description = HideRightPaneDescription) { viewState.rightCollapsed = true }.padding(4.dp),
-                )
+                IconAction(Glyph.RightPanelClose, HideRightPaneDescription, onClick = { viewState.rightCollapsed = true }, size = 18.dp)
             }
         }
         val fade = remember(projection.sequence) { Animatable(1f) }

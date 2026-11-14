@@ -3,20 +3,16 @@
 package org.kodein.arch.vie.timemachine.server.ui.shell
 
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.ui.ExperimentalComposeUiApi
-import androidx.compose.ui.platform.ClipEntry
-import androidx.compose.ui.platform.Clipboard
 import androidx.compose.ui.platform.LocalClipboard
-import androidx.compose.ui.platform.asAwtTransferable
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertTextEquals
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.performClick
-import java.awt.datatransfer.DataFlavor
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
+import org.kodein.arch.vie.timemachine.server.fixtures.KeptClipboard
 import org.kodein.arch.vie.timemachine.server.fixtures.contentTest
 import org.kodein.arch.vie.timemachine.server.fixtures.shown
 import org.kodein.arch.vie.timemachine.server.store.ListenerState
@@ -70,21 +66,4 @@ class CannotListenTest {
             onNodeWithContentDescription(CopyCommandDescription).assertTextEquals(Glyph.ContentCopy.ligature)
         }
     }
-}
-
-/** A clipboard that keeps the text it is given, in place of the system's. */
-@OptIn(ExperimentalComposeUiApi::class)
-private class KeptClipboard : Clipboard {
-
-    var text: String? = null
-        private set
-
-    override suspend fun getClipEntry(): ClipEntry? = null
-
-    override suspend fun setClipEntry(clipEntry: ClipEntry?) {
-        text = clipEntry?.asAwtTransferable?.getTransferData(DataFlavor.stringFlavor) as String?
-    }
-
-    @Suppress("OVERRIDE_DEPRECATION")
-    override val nativeClipboard: Any get() = this
 }

@@ -9,4 +9,7 @@ internal val GalleryScenes: List<GalleryScene> = listOf(
     ActionScene,
     TextActionScene,
     RuleScene,
+    IconActionScene,
+    CopyActionScene,
+    LinkActionScene,
 )

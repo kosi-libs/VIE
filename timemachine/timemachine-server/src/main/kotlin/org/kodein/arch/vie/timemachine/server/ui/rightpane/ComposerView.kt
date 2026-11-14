@@ -74,6 +74,8 @@ import org.kodein.arch.vie.timemachine.server.ui.common.style
 import org.kodein.arch.vie.timemachine.server.ui.core.InspectorPane
 import org.kodein.arch.vie.timemachine.server.ui.core.LocalInspector
 import org.kodein.arch.vie.timemachine.server.ui.designsystem.HorizontalRule
+import org.kodein.arch.vie.timemachine.server.ui.designsystem.IconAction
+import org.kodein.arch.vie.timemachine.server.ui.designsystem.LinkAction
 import org.kodein.arch.vie.timemachine.server.ui.designsystem.VerticalRule
 import org.kodein.arch.vie.timemachine.server.ui.theme.Glyph
 import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorColors
@@ -256,10 +258,7 @@ private fun JsonSection(model: ComposerVIE.Model, editorHeight: Dp, blocked: Boo
                 style = InspectorTheme.text.note, color = scheme.outline, maxLines = 1, overflow = TextOverflow.Ellipsis, modifier = Modifier.weight(1f),
             )
             for ((label, intent) in listOf("Format" to ComposerVIE.Intent.Format, "Reset" to ComposerVIE.Intent.Reset)) {
-                Text(
-                    label, style = InspectorTheme.text.action, color = scheme.primary,
-                    modifier = Modifier.action(enabled = !blocked) { post(intent) },
-                )
+                LinkAction(label, onClick = { post(intent) }, enabled = !blocked)
             }
         }
         JsonEditorBox(model.editorText, invalid, !blocked, editorHeight) { post(ComposerVIE.Intent.SetText(it)) }
@@ -494,13 +493,9 @@ private fun ResultCard(view: InterventionView, projection: ComposerProjection, p
             }
             foot?.let { Text(it, style = InspectorTheme.text.note, color = scheme.outline) }
             if (status is InterventionStatus.Succeeded) {
-                if (view.rowRetained) Row(
-                    Modifier.action { post(ComposerVIE.Intent.SelectRow(status.sequence)) },
-                    horizontalArrangement = Arrangement.spacedBy(4.dp), verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text("Jump to #${status.sequence}", style = InspectorTheme.text.label, color = scheme.primary)
-                    Symbol(Glyph.ArrowForward, size = 15.dp, tint = scheme.primary)
-                } else Text("Row #${status.sequence} is evicted", style = InspectorTheme.text.note, color = scheme.outline)
+                if (view.rowRetained) LinkAction(
+                    "Jump to #${status.sequence}", onClick = { post(ComposerVIE.Intent.SelectRow(status.sequence)) }, glyph = Glyph.ArrowForward,
+                ) else Text("Row #${status.sequence} is evicted", style = InspectorTheme.text.note, color = scheme.outline)
             }
             message?.let {
                 Text(
@@ -508,10 +503,7 @@ private fun ResultCard(view: InterventionView, projection: ComposerProjection, p
                     modifier = Modifier.fillMaxWidth().background(scheme.surfaceContainerLow, RoundedCornerShape(6.dp)).padding(horizontal = 8.dp, vertical = 6.dp),
                 )
             }
-            if (status == InterventionStatus.TimedOut) Text(
-                "Resend", style = InspectorTheme.text.label, color = scheme.primary,
-                modifier = Modifier.action { post(ComposerVIE.Intent.Resend(view.requestId)) },
-            )
+            if (status == InterventionStatus.TimedOut) LinkAction("Resend", onClick = { post(ComposerVIE.Intent.Resend(view.requestId)) })
         }
     }
 }
@@ -551,9 +543,9 @@ private fun RecentInterventions(history: List<InterventionView>, older: Int, pos
                         color = if (view.status is InterventionStatus.Failed) InspectorTheme.colors.error else scheme.outline, maxLines = 1, overflow = TextOverflow.Ellipsis,
                     )
                 }
-                Symbol(
-                    Glyph.EditNote, size = 17.dp, tint = scheme.onSurfaceVariant,
-                    modifier = Modifier.action(description = "Put this intervention in the editor") { post(ComposerVIE.Intent.LoadFromHistory(view.requestId)) },
+                IconAction(
+                    Glyph.EditNote, "Put this intervention in the editor",
+                    onClick = { post(ComposerVIE.Intent.LoadFromHistory(view.requestId)) }, size = 17.dp,
                 )
             }
             HorizontalRule(color = InspectorTheme.colors.rowLine)
