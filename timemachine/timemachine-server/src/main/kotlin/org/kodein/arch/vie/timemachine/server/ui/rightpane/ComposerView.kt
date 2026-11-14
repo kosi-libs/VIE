@@ -6,6 +6,7 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -72,6 +73,8 @@ import org.kodein.arch.vie.timemachine.server.ui.common.style
 import org.kodein.arch.vie.timemachine.server.ui.core.InspectorPane
 import org.kodein.arch.vie.timemachine.server.ui.core.LocalInspector
 import org.kodein.arch.vie.timemachine.server.ui.designsystem.ButtonSize
+import org.kodein.arch.vie.timemachine.server.ui.designsystem.Callout
+import org.kodein.arch.vie.timemachine.server.ui.designsystem.CalloutTone
 import org.kodein.arch.vie.timemachine.server.ui.designsystem.EmptyState
 import org.kodein.arch.vie.timemachine.server.ui.designsystem.HorizontalRule
 import org.kodein.arch.vie.timemachine.server.ui.designsystem.IconAction
@@ -116,12 +119,8 @@ internal fun VIEViewScope<ComposerVIE.Intent, NoSignal>.ComposerContent(model: C
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             projection.blockText?.let { text ->
-                Row(
-                    Modifier.fillMaxWidth().background(scheme.surfaceContainerHigh, RoundedCornerShape(8.dp)).padding(horizontal = 12.dp, vertical = 10.dp),
-                    horizontalArrangement = Arrangement.spacedBy(10.dp),
-                ) {
-                    Symbol(Glyph.DoNotDisturbOn, size = 18.dp, tint = scheme.outline)
-                    Text(text, style = InspectorTheme.text.bodyEmphasis, color = scheme.onSurface, modifier = Modifier.weight(1f))
+                Callout(CalloutTone.Neutral, Glyph.DoNotDisturbOn, Modifier.fillMaxWidth()) {
+                    Text(text, style = InspectorTheme.text.bodyEmphasis, color = scheme.onSurface)
                 }
             }
             if (target != null) {
@@ -155,8 +154,7 @@ internal fun VIEViewScope<ComposerVIE.Intent, NoSignal>.ComposerContent(model: C
 @Composable
 private fun KindReason(kind: VIEObjectKind, typeName: String) {
     val scheme = MaterialTheme.colorScheme
-    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-        Symbol(Glyph.Info, size = 15.dp, tint = scheme.outline)
+    Callout(CalloutTone.Information, Glyph.Info, Modifier.fillMaxWidth()) {
         Text(
             buildAnnotatedString {
                 withStyle(SpanStyle(color = scheme.onSurface, fontFamily = InspectorTheme.fonts.mono)) { append(typeName) }
@@ -220,7 +218,6 @@ private fun TypeField(type: String, types: List<String>, open: Boolean, blocked:
 @Composable
 private fun JsonSection(model: ComposerVIE.Model, editorHeight: Dp, blocked: Boolean, post: (ComposerVIE.Intent) -> Unit) {
     val scheme = MaterialTheme.colorScheme
-    val colors = InspectorTheme.colors
     val projection = model.projection
     val target = projection.target ?: return
     val invalid = projection.parse as? JsonParse.Invalid
@@ -236,34 +233,29 @@ private fun JsonSection(model: ComposerVIE.Model, editorHeight: Dp, blocked: Boo
             }
         }
         JsonEditorBox(model.editorText, invalid, !blocked, editorHeight) { post(ComposerVIE.Intent.SetText(it)) }
+        invalid?.let {
+            Callout(CalloutTone.Error, Glyph.Error, Modifier.fillMaxWidth()) {
+                Text("Line ${it.line}, col ${it.column}: ${it.message}. Fix it to send.", style = InspectorTheme.text.codeRow, color = scheme.onSurface)
+            }
+        }
         target.signalNote?.let { note ->
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                Symbol(Glyph.Warning, size = 15.dp, tint = colors.timeout)
+            Callout(CalloutTone.Warning, Glyph.Warning, Modifier.fillMaxWidth()) {
                 Text(note.text, style = InspectorTheme.text.note, color = scheme.onSurfaceVariant)
             }
         }
     }
 }
 
-/** The editor in its frame: outlined in the error color when the parser rejects [text], with its message under it. */
+/** The editor in its frame, outlined in the error color when the parser rejects [text]; [JsonSection] says why under it. */
 @Composable
 private fun JsonEditorBox(text: String, invalid: JsonParse.Invalid?, enabled: Boolean, editorHeight: Dp, onText: (String) -> Unit) {
     val scheme = MaterialTheme.colorScheme
     val colors = InspectorTheme.colors
-    Column(
+    Box(
         Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp)).background(scheme.surfaceContainer)
             .border(1.dp, if (invalid != null) colors.error else colors.strongOutline, RoundedCornerShape(8.dp)),
     ) {
         JsonEditor(text, invalid?.line, enabled, Modifier.fillMaxWidth().height(editorHeight), onText)
-        invalid?.let {
-            Row(
-                Modifier.fillMaxWidth().background(colors.errorContainer).border(1.dp, colors.error).padding(horizontal = 10.dp, vertical = 6.dp),
-                horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.Top,
-            ) {
-                Symbol(Glyph.Error, size = 15.dp, tint = colors.error)
-                Text("Line ${it.line}, col ${it.column}: ${it.message}. Fix it to send.", style = InspectorTheme.text.codeRow, color = scheme.onSurface)
-            }
-        }
     }
 }
 
@@ -356,21 +348,28 @@ private fun SendRow(kind: VIEObjectKind, enabled: Boolean, onSend: () -> Unit) {
     }
 }
 
-/** How an intervention's outcome looks: the card tint, the title colour, and its glyph. */
-private data class Tone(val background: Color, val title: Color, val glyph: Glyph?, val glyphColor: Color)
+/** How a callout tells this outcome. */
+private fun InterventionStatus.tone(): CalloutTone = when (this) {
+    InterventionStatus.Pending, InterventionStatus.AcceptedNotObserved, InterventionStatus.NotSent -> CalloutTone.Neutral
+    is InterventionStatus.Succeeded -> CalloutTone.Success
+    is InterventionStatus.Failed -> CalloutTone.Error
+    InterventionStatus.TimedOut -> CalloutTone.Warning
+}
 
+/** The glyph that tells this outcome: none while it is pending, which a progress indicator shows instead. */
+private fun InterventionStatus.glyph(): Glyph? = when (this) {
+    InterventionStatus.Pending -> null
+    is InterventionStatus.Succeeded -> Glyph.CheckCircle
+    InterventionStatus.AcceptedNotObserved -> Glyph.VisibilityOff
+    is InterventionStatus.Failed -> Glyph.Error
+    InterventionStatus.TimedOut -> Glyph.HourglassBottom
+    InterventionStatus.NotSent -> Glyph.CancelScheduleSend
+}
+
+/** What an intervention shows while it waits for its outcome. */
 @Composable
-private fun toneOf(status: InterventionStatus): Tone {
-    val scheme = MaterialTheme.colorScheme
-    val colors = InspectorTheme.colors
-    return when (status) {
-        InterventionStatus.Pending -> Tone(scheme.surfaceContainerHigh, scheme.onSurface, null, scheme.primary)
-        is InterventionStatus.Succeeded -> Tone(colors.successContainer, colors.success, Glyph.CheckCircle, colors.success)
-        InterventionStatus.AcceptedNotObserved -> Tone(colors.notObserved, scheme.onSurface, Glyph.VisibilityOff, colors.success)
-        is InterventionStatus.Failed -> Tone(colors.errorContainer, colors.error, Glyph.Error, colors.error)
-        InterventionStatus.TimedOut -> Tone(colors.timeoutContainer, colors.timeout, Glyph.HourglassBottom, colors.timeout)
-        InterventionStatus.NotSent -> Tone(scheme.surfaceContainerHigh, scheme.onSurface, Glyph.CancelScheduleSend, colors.notSent)
-    }
+private fun PendingIndicator() {
+    CircularProgressIndicator(Modifier.size(14.dp), color = MaterialTheme.colorScheme.primary, trackColor = InspectorTheme.colors.strongOutline, strokeWidth = 2.dp)
 }
 
 private fun VIEInterventionResult.Reason.plain(): String = when (this) {
@@ -385,10 +384,10 @@ private fun VIEInterventionResult.Reason.plain(): String = when (this) {
 @Composable
 private fun ResultCard(view: InterventionView, projection: ComposerProjection, post: (ComposerVIE.Intent) -> Unit) {
     val scheme = MaterialTheme.colorScheme
-    val tone = toneOf(view.status)
     val app = projection.sessionName
     val type = splitSerialName(view.typeName).last
     val status = view.status
+    val tone = status.tone()
     val timeout = formatDelay(projection.timeout)
     val title: String
     val body: String
@@ -437,38 +436,34 @@ private fun ResultCard(view: InterventionView, projection: ComposerProjection, p
             body = "$app disconnected before the request left the inspector. Nothing reached the app."
         }
     }
-    Row(
-        Modifier.fillMaxWidth().background(tone.background, RoundedCornerShape(8.dp)).padding(horizontal = 12.dp, vertical = 10.dp),
-        horizontalArrangement = Arrangement.spacedBy(10.dp), verticalAlignment = Alignment.Top,
-    ) {
-        if (tone.glyph == null) {
-            CircularProgressIndicator(Modifier.padding(top = 1.dp).size(14.dp), color = scheme.primary, trackColor = InspectorTheme.colors.strongOutline, strokeWidth = 2.dp)
-        } else Symbol(tone.glyph, size = 18.dp, tint = tone.glyphColor)
-        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text(title, style = MaterialTheme.typography.labelMedium.copy(fontWeight = FontWeight.SemiBold), color = tone.title)
-            Text(body, style = InspectorTheme.text.body, color = scheme.onSurfaceVariant)
-            if (reasons.isNotEmpty()) Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                reasons.forEach { reason ->
-                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                        Text("–", style = InspectorTheme.text.note, color = scheme.outline)
-                        Text(reason, style = InspectorTheme.text.note, color = scheme.onSurfaceVariant)
-                    }
+    val lines: @Composable ColumnScope.() -> Unit = {
+        Text(title, style = InspectorTheme.text.labelStrong, color = tone.title)
+        Text(body, style = InspectorTheme.text.body, color = scheme.onSurfaceVariant)
+        if (reasons.isNotEmpty()) Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+            reasons.forEach { reason ->
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text("–", style = InspectorTheme.text.note, color = scheme.outline)
+                    Text(reason, style = InspectorTheme.text.note, color = scheme.onSurfaceVariant)
                 }
             }
-            foot?.let { Text(it, style = InspectorTheme.text.note, color = scheme.outline) }
-            if (status is InterventionStatus.Succeeded) {
-                if (view.rowRetained) LinkAction(
-                    "Jump to #${status.sequence}", onClick = { post(ComposerVIE.Intent.SelectRow(status.sequence)) }, glyph = Glyph.ArrowForward,
-                ) else Text("Row #${status.sequence} is evicted", style = InspectorTheme.text.note, color = scheme.outline)
-            }
-            message?.let {
-                Text(
-                    it, style = InspectorTheme.text.monoSecondary.copy(lineHeight = 16.sp), color = scheme.onSurface,
-                    modifier = Modifier.fillMaxWidth().background(scheme.surfaceContainerLow, RoundedCornerShape(6.dp)).padding(horizontal = 8.dp, vertical = 6.dp),
-                )
-            }
-            if (status == InterventionStatus.TimedOut) LinkAction("Resend", onClick = { post(ComposerVIE.Intent.Resend(view.requestId)) })
         }
+        foot?.let { Text(it, style = InspectorTheme.text.note, color = scheme.outline) }
+        if (status is InterventionStatus.Succeeded) {
+            if (view.rowRetained) LinkAction(
+                "Jump to #${status.sequence}", onClick = { post(ComposerVIE.Intent.SelectRow(status.sequence)) }, glyph = Glyph.ArrowForward,
+            ) else Text("Row #${status.sequence} is evicted", style = InspectorTheme.text.note, color = scheme.outline)
+        }
+        message?.let {
+            Text(
+                it, style = InspectorTheme.text.monoSecondary.copy(lineHeight = 16.sp), color = scheme.onSurface,
+                modifier = Modifier.fillMaxWidth().background(scheme.surfaceContainerLow, RoundedCornerShape(6.dp)).padding(horizontal = 8.dp, vertical = 6.dp),
+            )
+        }
+        if (status == InterventionStatus.TimedOut) LinkAction("Resend", onClick = { post(ComposerVIE.Intent.Resend(view.requestId)) })
+    }
+    when (val glyph = status.glyph()) {
+        null -> Callout(tone, leading = { PendingIndicator() }, modifier = Modifier.fillMaxWidth(), content = lines)
+        else -> Callout(tone, glyph, Modifier.fillMaxWidth(), content = lines)
     }
 }
 
@@ -481,14 +476,15 @@ private fun RecentInterventions(history: List<InterventionView>, older: Int, pos
         SectionLabel("RECENT INTERVENTIONS", Modifier.padding(bottom = 4.dp))
         if (history.isEmpty()) EmptyState("None yet for this ViewModel", Modifier.fillMaxWidth())
         history.forEach { view ->
-            val tone = toneOf(view.status)
             Row(
                 Modifier.fillMaxWidth().height(34.dp).action { post(ComposerVIE.Intent.ShowResult(view.requestId)) }
                     .padding(horizontal = 4.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically,
             ) {
-                if (tone.glyph == null) CircularProgressIndicator(Modifier.size(14.dp), color = scheme.primary, trackColor = InspectorTheme.colors.strongOutline, strokeWidth = 2.dp)
-                else Symbol(tone.glyph, size = 17.dp, tint = tone.glyphColor)
+                when (val glyph = view.status.glyph()) {
+                    null -> PendingIndicator()
+                    else -> Symbol(glyph, size = 17.dp, tint = view.status.tone().accent)
+                }
                 Text("#${view.number}", style = InspectorTheme.text.monoSecondary, color = scheme.outline, modifier = Modifier.width(22.dp))
                 Column(Modifier.weight(1f)) {
                     Text(

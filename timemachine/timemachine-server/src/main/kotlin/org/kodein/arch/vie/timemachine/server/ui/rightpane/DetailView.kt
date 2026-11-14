@@ -48,6 +48,8 @@ import org.kodein.arch.vie.timemachine.server.ui.common.treeLines
 import org.kodein.arch.vie.timemachine.server.ui.core.InspectorPane
 import org.kodein.arch.vie.timemachine.server.ui.core.LocalInspector
 import org.kodein.arch.vie.timemachine.server.ui.designsystem.ButtonVariant
+import org.kodein.arch.vie.timemachine.server.ui.designsystem.Callout
+import org.kodein.arch.vie.timemachine.server.ui.designsystem.CalloutTone
 import org.kodein.arch.vie.timemachine.server.ui.designsystem.EmptyState
 import org.kodein.arch.vie.timemachine.server.ui.designsystem.InspectorButton
 import org.kodein.arch.vie.timemachine.server.ui.designsystem.LinkAction
@@ -150,20 +152,18 @@ private fun DetailHeader(observation: VIEObservation, sequence: TimeMachineSeque
         }
         SerialName(observation.typeName, InspectorTheme.text.code, maxLines = Int.MAX_VALUE)
         projection.interventionNumber?.let { number ->
-            Row(
-                Modifier.fillMaxWidth().background(colors.intervenedContainer, RoundedCornerShape(8.dp)).padding(horizontal = 10.dp, vertical = 6.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically,
+            Callout(
+                CalloutTone.Intervened, Glyph.TouchApp, Modifier.fillMaxWidth(),
+                action = { LinkAction("Show", onClick = { post(DetailVIE.Intent.ShowInterventions) }, color = colors.intervened) },
             ) {
-                Symbol(Glyph.TouchApp, size = 16.dp, tint = colors.intervened)
                 Text(
                     buildAnnotatedString {
                         append("Sent by the inspector — ")
                         withStyle(SpanStyle(fontWeight = FontWeight.SemiBold)) { append("intervention #$number") }
                         projection.interventionKind?.let { append(" · ${it.style().verb}") }
                     },
-                    style = InspectorTheme.text.body, color = scheme.onSurface, modifier = Modifier.weight(1f),
+                    style = InspectorTheme.text.body, color = scheme.onSurface,
                 )
-                LinkAction("Show", onClick = { post(DetailVIE.Intent.ShowInterventions) }, color = colors.intervened)
             }
         }
         if (json != null) {

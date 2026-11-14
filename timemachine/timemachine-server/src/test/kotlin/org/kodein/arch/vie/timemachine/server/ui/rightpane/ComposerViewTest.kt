@@ -155,6 +155,13 @@ class ComposerViewTest {
     }
 
     @Test
+    fun `a JSON that does not parse says where, and that it must be fixed`() = composer { _ ->
+        projected { editorShown() }
+        onNode(hasSetTextAction()).performTextInput("not JSON ")
+        projected { onAllNodes(hasText("Fix it to send", substring = true)).fetchSemanticsNodes().isNotEmpty() }
+    }
+
+    @Test
     fun `a pending intervention says how long its store waits`() =
         // The store of this scenario waits an hour, not the default five seconds.
         paneTest(id = "compPending", compute = StandardTestDispatcher(scheduler), content = { ComposerView(Demo.session.id, Demo.taskList) }) {
