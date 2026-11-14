@@ -16,7 +16,7 @@ TimeMachine.start(TimeMachineConfig(appName = "Counter", enabled = isDebugBuild)
 <1> `appName` is the name the inspector shows for this application's sessions.
 
 `enabled` is a plain `Boolean`, and has no default: wire it to whatever your application already calls a debug build.
-The demo does so in each of its entry points, the way each platform allows: `ApplicationInfo.FLAG_DEBUGGABLE` on Android, `Platform.isDebugBinary` on iOS, a system property that Gradle's `run` task sets on the JVM, and a page served from `localhost` in the browser.
+The demo does so in each of its entry points, the way each platform allows: `ApplicationInfo.FLAG_DEBUGGABLE` on Android, `Platform.isDebugBinary` on iOS, a system property that only Gradle's `run` task sets, and that is off when missing, on the JVM, and a page served from `localhost` in the browser.
 
 While `enabled` is `false`, the probe opens no socket, allocates nothing and does no work, and `TimeMachine.middleware()` returns a middleware that does nothing.
 A probe started later only observes the ViewModels built after it.
