@@ -3,7 +3,6 @@ package org.kodein.arch.vie.timemachine.server.ui.sessions
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -44,6 +43,7 @@ import org.kodein.arch.vie.timemachine.server.ui.core.ViewModelStatus
 import org.kodein.arch.vie.timemachine.server.ui.designsystem.ButtonVariant
 import org.kodein.arch.vie.timemachine.server.ui.designsystem.IconAction
 import org.kodein.arch.vie.timemachine.server.ui.designsystem.InspectorButton
+import org.kodein.arch.vie.timemachine.server.ui.designsystem.PaneHeader
 import org.kodein.arch.vie.timemachine.server.ui.theme.Glyph
 import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorDimens
 import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorTheme
@@ -91,14 +91,7 @@ internal const val ExpandSessionDescription = "Unfold the session's ViewModels"
 @Composable
 internal fun VIEViewScope<SessionsVIE.Intent, NoSignal>.SessionsContent(model: SessionsVIE.Model, modifier: Modifier = Modifier, onScopePicked: () -> Unit = {}) {
     Column(modifier.background(MaterialTheme.colorScheme.surfaceContainerLow)) {
-        Row(
-            Modifier.fillMaxWidth().height(InspectorDimens.paneHeader).padding(start = InspectorDimens.paneHorizontalPadding, end = 8.dp),
-            horizontalArrangement = Arrangement.spacedBy(6.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text("Sessions", style = MaterialTheme.typography.titleSmall, color = MaterialTheme.colorScheme.onSurface)
-            Text(model.sessions.size.toString(), style = InspectorTheme.text.monoSecondary, color = MaterialTheme.colorScheme.outline)
-            Box(Modifier.weight(1f))
+        PaneHeader("Sessions", count = model.sessions.size.toString()) {
             InspectorButton(
                 "Clear disconnected", onClick = { post(SessionsVIE.Intent.ClearDisconnected) },
                 glyph = Glyph.DeleteSweep, variant = ButtonVariant.Text, enabled = model.disconnectedSessions > 0,

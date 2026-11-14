@@ -35,6 +35,14 @@ object InspectorDimens {
 
     val statusBar: Dp = 26.dp
     val paneHeader: Dp = 40.dp
+    /** What a pane header keeps after its last action: less than [paneHorizontalPadding], for an action has a margin of its own. */
+    val paneHeaderEndPadding: Dp = 8.dp
+    /** Between the glyph, the title, the count and the actions of a pane header. */
+    val paneHeaderGap: Dp = 8.dp
+    /** The glyph before a pane header's title. */
+    val paneHeaderGlyph: Dp = 16.dp
+    /** Above and below the timeline's header; the rule under it is counted in the space below. */
+    val timelineHeaderVerticalPadding: Dp = 10.dp
     val sessionItem: Dp = 42.dp
     val viewModelItem: Dp = 40.dp
     val navigationRail: Dp = 56.dp
