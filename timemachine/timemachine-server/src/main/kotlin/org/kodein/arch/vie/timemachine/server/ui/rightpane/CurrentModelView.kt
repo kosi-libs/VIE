@@ -9,14 +9,10 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.rememberScrollbarAdapter
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -31,14 +27,8 @@ import kotlinx.coroutines.delay
 import org.kodein.arch.vie.VIE.NoSignal
 import org.kodein.arch.vie.VIEViewScope
 import org.kodein.arch.vie.timemachine.server.ui.common.LocalCompact
-import org.kodein.arch.vie.timemachine.server.ui.common.ScrollbarBox
-import org.kodein.arch.vie.timemachine.server.ui.common.TreeRawSwitch
 import org.kodein.arch.vie.timemachine.server.ui.common.formatTime
-import org.kodein.arch.vie.timemachine.server.ui.common.jsonTree
 import org.kodein.arch.vie.timemachine.server.ui.common.pretty
-import org.kodein.arch.vie.timemachine.server.ui.common.rawJson
-import org.kodein.arch.vie.timemachine.server.ui.common.rememberJsonLines
-import org.kodein.arch.vie.timemachine.server.ui.common.treeLines
 import org.kodein.arch.vie.timemachine.server.ui.core.InspectorPane
 import org.kodein.arch.vie.timemachine.server.ui.core.LocalInspector
 import org.kodein.arch.vie.timemachine.server.ui.core.LocalInspectorViewState
@@ -48,6 +38,7 @@ import org.kodein.arch.vie.timemachine.server.ui.designsystem.EmptyState
 import org.kodein.arch.vie.timemachine.server.ui.designsystem.HorizontalRule
 import org.kodein.arch.vie.timemachine.server.ui.designsystem.IconAction
 import org.kodein.arch.vie.timemachine.server.ui.designsystem.InspectorButton
+import org.kodein.arch.vie.timemachine.server.ui.designsystem.JsonViewer
 import org.kodein.arch.vie.timemachine.server.ui.designsystem.PaneHeader
 import org.kodein.arch.vie.timemachine.server.ui.theme.Glyph
 import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorDimens
@@ -83,52 +74,57 @@ internal fun VIEViewScope<CurrentModelVIE.Intent, NoSignal>.CurrentModelContent(
     val projection = model.projection
     val compact = LocalCompact.current
     Column(Modifier.fillMaxWidth().height(if (compact) CompactPinnedHeight else PinnedHeight)) {
-        PaneHeader(
-            "Current model",
-            count = projection.sequence?.let { "#$it${projection.at?.let { at -> " · " + formatTime(at) }.orEmpty()}" },
-            glyph = Glyph.PushPin, glyphTint = InspectorTheme.colors.model,
-        ) {
-            if (projection.json != null) {
-                TreeRawSwitch(model.controls.jsonView.raw) { post(CurrentModelVIE.Intent.SetRaw(it)) }
-                CopyAction({ projection.json.pretty() }, CopyModelDescription)
-                InspectorButton(
-                    if (compact) "Edit" else "Edit & replace",
-                    onClick = { post(CurrentModelVIE.Intent.EditAndReplace) },
-                    glyph = Glyph.Edit, variant = ButtonVariant.Tonal, enabled = projection.canReplace,
-                )
-            }
-            if (compact) {
-                val viewState = LocalInspectorViewState.current
-                IconAction(Glyph.RightPanelClose, HideRightPaneDescription, onClick = { viewState.rightCollapsed = true }, size = 18.dp)
-            }
-        }
         val fade = remember(projection.sequence) { Animatable(1f) }
         LaunchedEffect(projection.sequence) {
             fade.snapTo(1f)
             delay(HighlightHoldMillis)
             fade.animateTo(0f, tween(HighlightFadeMillis))
         }
-        if (projection.changedFrom != null && projection.json != null && projection.changedPaths.isNotEmpty()) {
-            Row(
-                Modifier.fillMaxWidth().padding(start = InspectorDimens.paneHorizontalPadding, end = InspectorDimens.paneHorizontalPadding, bottom = 4.dp),
-                horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically,
-            ) {
-                Box(Modifier.size(8.dp).background(InspectorTheme.colors.modelContainer, RoundedCornerShape(2.dp)).border(1.dp, InspectorTheme.colors.model, RoundedCornerShape(2.dp)))
-                Text(
-                    "highlighted: changed in #${projection.sequence} vs #${projection.changedFrom}",
-                    style = MaterialTheme.typography.bodySmall, color = InspectorTheme.colors.model, maxLines = 1,
-                )
-            }
-        }
-        // The lines of the one that shows, the tree or the text: the other has none.
         val json = projection.json
-        val raw = model.controls.jsonView.raw
-        val expanded = model.controls.jsonView.expanded
-        val treeLines = remember(json, expanded, raw) { if (json == null || raw) emptyList() else treeLines(json, expanded) }
-        val textLines = rememberJsonLines(if (raw) projection.rawText.orEmpty() else "")
-        val list = rememberLazyListState()
-        ScrollbarBox(rememberScrollbarAdapter(list), Modifier.weight(1f).fillMaxWidth()) {
-            LazyColumn(Modifier.fillMaxSize(), state = list, contentPadding = PaddingValues(start = 8.dp, end = 8.dp, bottom = 8.dp)) {
+        JsonViewer(
+            json = json,
+            rawText = projection.rawText,
+            controls = model.controls.jsonView,
+            onRawChange = { post(CurrentModelVIE.Intent.SetRaw(it)) },
+            onToggle = { post(CurrentModelVIE.Intent.ToggleNode(it)) },
+            modifier = Modifier.weight(1f).fillMaxWidth(),
+            changed = projection.changedPaths,
+            highlight = fade.asState(),
+            contentPadding = PaddingValues(start = 8.dp, end = 8.dp, bottom = 8.dp),
+            header = { rawSwitch ->
+                PaneHeader(
+                    "Current model",
+                    count = projection.sequence?.let { "#$it${projection.at?.let { at -> " · " + formatTime(at) }.orEmpty()}" },
+                    glyph = Glyph.PushPin, glyphTint = InspectorTheme.colors.model,
+                ) {
+                    if (json != null) {
+                        rawSwitch()
+                        CopyAction({ json.pretty() }, CopyModelDescription)
+                        InspectorButton(
+                            if (compact) "Edit" else "Edit & replace",
+                            onClick = { post(CurrentModelVIE.Intent.EditAndReplace) },
+                            glyph = Glyph.Edit, variant = ButtonVariant.Tonal, enabled = projection.canReplace,
+                        )
+                    }
+                    if (compact) {
+                        val viewState = LocalInspectorViewState.current
+                        IconAction(Glyph.RightPanelClose, HideRightPaneDescription, onClick = { viewState.rightCollapsed = true }, size = 18.dp)
+                    }
+                }
+                if (projection.changedFrom != null && json != null && projection.changedPaths.isNotEmpty()) {
+                    Row(
+                        Modifier.fillMaxWidth().padding(start = InspectorDimens.paneHorizontalPadding, end = InspectorDimens.paneHorizontalPadding, bottom = 4.dp),
+                        horizontalArrangement = Arrangement.spacedBy(6.dp), verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Box(Modifier.size(8.dp).background(InspectorTheme.colors.modelContainer, RoundedCornerShape(2.dp)).border(1.dp, InspectorTheme.colors.model, RoundedCornerShape(2.dp)))
+                        Text(
+                            "highlighted: changed in #${projection.sequence} vs #${projection.changedFrom}",
+                            style = MaterialTheme.typography.bodySmall, color = InspectorTheme.colors.model, maxLines = 1,
+                        )
+                    }
+                }
+            },
+            leadingItems = {
                 when {
                     projection.sequence == null -> item { EmptyState("No model yet", Modifier.fillMaxWidth()) }
                     json == null -> item {
@@ -141,11 +137,9 @@ internal fun VIEViewScope<CurrentModelVIE.Intent, NoSignal>.CurrentModelContent(
                             )
                         }
                     }
-                    raw -> rawJson(textLines)
-                    else -> jsonTree(treeLines, changed = projection.changedPaths, highlight = { fade.value }) { post(CurrentModelVIE.Intent.ToggleNode(it)) }
                 }
-            }
-        }
+            },
+        )
         HorizontalRule(color = InspectorTheme.colors.strongOutline)
     }
 }

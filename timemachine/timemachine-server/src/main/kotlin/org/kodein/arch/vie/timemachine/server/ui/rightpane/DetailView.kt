@@ -11,9 +11,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.rememberLazyListState
-import androidx.compose.foundation.rememberScrollbarAdapter
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -29,22 +26,15 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import org.kodein.arch.vie.VIE.NoSignal
 import org.kodein.arch.vie.VIEViewScope
-import org.kodein.arch.vie.timemachine.protocol.TimeMachineClientMessage
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineSequence
 import org.kodein.arch.vie.timemachine.protocol.VIEObjectKind
 import org.kodein.arch.vie.timemachine.protocol.VIEObservation
 import org.kodein.arch.vie.timemachine.server.ui.common.DiffText
 import org.kodein.arch.vie.timemachine.server.ui.common.KindBadge
 import org.kodein.arch.vie.timemachine.server.ui.common.ModelDiff
-import org.kodein.arch.vie.timemachine.server.ui.common.ScrollbarBox
-import org.kodein.arch.vie.timemachine.server.ui.common.TreeRawSwitch
 import org.kodein.arch.vie.timemachine.server.ui.common.formatTime
-import org.kodein.arch.vie.timemachine.server.ui.common.jsonTree
 import org.kodein.arch.vie.timemachine.server.ui.common.pretty
-import org.kodein.arch.vie.timemachine.server.ui.common.rawJson
-import org.kodein.arch.vie.timemachine.server.ui.common.rememberJsonLines
 import org.kodein.arch.vie.timemachine.server.ui.common.style
-import org.kodein.arch.vie.timemachine.server.ui.common.treeLines
 import org.kodein.arch.vie.timemachine.server.ui.core.InspectorPane
 import org.kodein.arch.vie.timemachine.server.ui.core.LocalInspector
 import org.kodein.arch.vie.timemachine.server.ui.designsystem.ButtonVariant
@@ -52,6 +42,8 @@ import org.kodein.arch.vie.timemachine.server.ui.designsystem.Callout
 import org.kodein.arch.vie.timemachine.server.ui.designsystem.CalloutTone
 import org.kodein.arch.vie.timemachine.server.ui.designsystem.EmptyState
 import org.kodein.arch.vie.timemachine.server.ui.designsystem.InspectorButton
+import org.kodein.arch.vie.timemachine.server.ui.designsystem.JsonViewer
+import org.kodein.arch.vie.timemachine.server.ui.designsystem.JsonViewerVariant
 import org.kodein.arch.vie.timemachine.server.ui.designsystem.LinkAction
 import org.kodein.arch.vie.timemachine.server.ui.designsystem.SectionLabel
 import org.kodein.arch.vie.timemachine.server.ui.designsystem.SerialName
@@ -73,7 +65,7 @@ internal fun DetailView() {
 @Composable
 internal fun VIEViewScope<DetailVIE.Intent, NoSignal>.DetailPaneContent(model: DetailVIE.Model) {
     val row = model.projection.row
-    val observation = (row?.message as? TimeMachineClientMessage.Observed)?.observation
+    val observation = model.projection.observation
     if (row == null || observation == null) NoEntrySelected()
     else DetailContent(model, observation, row.sequence) { post(it) }
 }
@@ -88,46 +80,41 @@ private fun DetailContent(model: DetailVIE.Model, observation: VIEObservation, s
     val scheme = MaterialTheme.colorScheme
     val projection = model.projection
     val kind = observation.kind
-    // The lines of the one that shows, the tree or the text: the other has none.
     val json = observation.asJson
-    val raw = model.controls.jsonView.raw
-    val expanded = model.controls.jsonView.expanded
-    val treeLines = remember(json, expanded, raw) { if (json == null || raw) emptyList() else treeLines(json, expanded) }
-    val textLines = rememberJsonLines(if (raw) projection.rawText.orEmpty() else "")
-    // One lazy list for the whole tab: its sections are an item each, and the JSON an item per line, so
-    // that a large document only composes the lines in view.
-    val list = rememberLazyListState()
-    ScrollbarBox(rememberScrollbarAdapter(list), Modifier.fillMaxSize()) {
-        LazyColumn(
-            Modifier.fillMaxSize(),
-            state = list,
-            contentPadding = PaddingValues(start = InspectorDimens.paneHorizontalPadding, end = InspectorDimens.paneHorizontalPadding, top = 12.dp, bottom = 16.dp),
-        ) {
-            item(key = "header", contentType = "header") { DetailHeader(observation, sequence, projection, post) }
-            projection.diff?.let { diff -> item(key = "changes", contentType = "changes") { DetailChanges(diff, Modifier.padding(top = SectionGap)) } }
-            item(key = "toString", contentType = "toString") {
-                Column(Modifier.padding(top = SectionGap), verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    SectionLabel("TOSTRING")
-                    Text(observation.asString, style = InspectorTheme.text.codeRow.copy(lineHeight = 17.sp), color = scheme.onSurface)
-                }
+    // One lazy list for the whole tab: its sections are an item each before the JSON, which is an item per
+    // line, so that a large document only composes the lines in view.
+    JsonViewer(
+        json = json,
+        rawText = projection.rawText,
+        controls = model.controls.jsonView,
+        onRawChange = { post(DetailVIE.Intent.SetRaw(it)) },
+        onToggle = { post(DetailVIE.Intent.ToggleNode(it)) },
+        modifier = Modifier.fillMaxSize(),
+        variant = JsonViewerVariant.Framed,
+        contentPadding = PaddingValues(start = InspectorDimens.paneHorizontalPadding, end = InspectorDimens.paneHorizontalPadding, top = 12.dp, bottom = 16.dp),
+    ) { rawSwitch ->
+        item(key = "header", contentType = "header") { DetailHeader(observation, sequence, projection, post) }
+        projection.diff?.let { diff -> item(key = "changes", contentType = "changes") { DetailChanges(diff, Modifier.padding(top = SectionGap)) } }
+        item(key = "toString", contentType = "toString") {
+            Column(Modifier.padding(top = SectionGap), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                SectionLabel("TOSTRING")
+                Text(observation.asString, style = InspectorTheme.text.codeRow.copy(lineHeight = 17.sp), color = scheme.onSurface)
             }
-            if (json == null && observation.truncated) {
-                item(key = "too-large", contentType = "too-large") {
-                    Text(
-                        TooLargeNote, style = InspectorTheme.text.note, color = scheme.outline,
-                        modifier = Modifier.padding(top = SectionGap),
-                    )
-                }
+        }
+        if (json == null && observation.truncated) {
+            item(key = "too-large", contentType = "too-large") {
+                Text(
+                    TooLargeNote, style = InspectorTheme.text.note, color = scheme.outline,
+                    modifier = Modifier.padding(top = SectionGap),
+                )
             }
-            if (json != null) {
-                item(key = "json-title", contentType = "json-title") {
-                    Row(Modifier.padding(top = SectionGap, bottom = 6.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
-                        SectionLabel(if (kind == VIEObjectKind.Model) "FULL MODEL" else "JSON", Modifier.weight(1f))
-                        TreeRawSwitch(raw) { post(DetailVIE.Intent.SetRaw(it)) }
-                    }
+        }
+        if (json != null) {
+            item(key = "json-title", contentType = "json-title") {
+                Row(Modifier.padding(top = SectionGap, bottom = 6.dp), horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
+                    SectionLabel(if (kind == VIEObjectKind.Model) "FULL MODEL" else "JSON", Modifier.weight(1f))
+                    rawSwitch()
                 }
-                if (raw) rawJson(textLines, framed = true)
-                else jsonTree(treeLines, framed = true) { post(DetailVIE.Intent.ToggleNode(it)) }
             }
         }
     }

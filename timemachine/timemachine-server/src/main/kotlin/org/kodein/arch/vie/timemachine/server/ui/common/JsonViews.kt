@@ -235,7 +235,10 @@ private fun codeFrame(first: Boolean, last: Boolean): Modifier {
 
 private val CodeFrameRadius = 8.dp
 
-/** The Tree | Raw switch of a JSON view's header: [raw] is whether the text shows rather than the tree. */
+/**
+ * The Tree | Raw switch that a [org.kodein.arch.vie.timemachine.server.ui.designsystem.JsonViewer] draws
+ * and hands to its caller: [raw] is whether the text shows rather than the tree.
+ */
 @Composable
 internal fun TreeRawSwitch(raw: Boolean, modifier: Modifier = Modifier, onChange: (Boolean) -> Unit) {
     SegmentedControl(TreeOrRaw, selected = raw, onSelect = onChange, label = { if (it) "Raw" else "Tree" }, modifier = modifier, size = SegmentedControlSize.Small)
