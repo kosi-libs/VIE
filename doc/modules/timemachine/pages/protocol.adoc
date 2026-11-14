@@ -320,8 +320,8 @@ The probe sends one report per affected ViewModel, and keeps the count until the
 
 | Possibly incomplete
 | A sequence number is missing from the session, between the lowest and the highest the inspector received.
-The message is either still in flight on an earlier connection, in which case it fills the range when it arrives, or the inspector could not decode it.
-The number names no ViewModel, so the inspector marks every ViewModel that was alive at that point.
+The message is either still in flight on an earlier connection, in which case it fills the range when it arrives, or the inspector skipped it, because it could not decode it or failed to apply it.
+The number names no ViewModel, so the inspector marks every ViewModel that was alive at that point, unless the range falls among the rows it already evicted from that ViewModel, which the _evicted_ marker covers.
 
 | Earlier history unavailable
 | The inspector never saw the start of the ViewModel, and either the session's lowest sequence is above 0, because the inspector started after the session did, or the ViewModel is only known from a `vm-info`.
