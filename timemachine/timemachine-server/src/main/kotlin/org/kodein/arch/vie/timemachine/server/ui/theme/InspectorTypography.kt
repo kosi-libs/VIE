@@ -51,7 +51,8 @@ internal fun rememberInspectorFonts(): InspectorFonts {
  *
  * @property note Notes, hints and the status bar.
  * @property body The panes' running text.
- * @property bodyEmphasis A text that weighs more than its neighbours: the composer's warning.
+ * @property bodyEmphasis The text of a callout or a banner that weighs more than its neighbours: the composer's
+ *   block, a rejected probe, a disconnected session.
  * @property emptyTitle What a pane says when it has nothing to show.
  * @property screenTitle The title of the screen that waits for an app.
  * @property screenHeadline The title of the screen of a listener that failed.

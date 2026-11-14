@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -104,6 +105,30 @@ internal fun Callout(
             .padding(horizontal = InspectorDimens.calloutHorizontalPadding, vertical = InspectorDimens.calloutVerticalPadding),
         leading, action, content,
     )
+}
+
+/**
+ * A [Callout] across its pane, square, within the pane's margins, with a rule under it: what a whole pane
+ * is told, at its top. [content] and [action] are a callout's.
+ */
+@Composable
+internal fun Banner(
+    tone: CalloutTone,
+    glyph: Glyph,
+    modifier: Modifier = Modifier,
+    action: (@Composable () -> Unit)? = null,
+    content: @Composable ColumnScope.() -> Unit,
+) {
+    Column(modifier.fillMaxWidth()) {
+        CalloutRow(
+            Modifier
+                .fillMaxWidth()
+                .background(tone.container)
+                .padding(horizontal = InspectorDimens.paneHorizontalPadding, vertical = InspectorDimens.calloutVerticalPadding),
+            leading = { CalloutGlyph(glyph, tone) }, action = action, content = content,
+        )
+        HorizontalRule()
+    }
 }
 
 /**
