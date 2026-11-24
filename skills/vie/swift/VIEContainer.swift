@@ -3,7 +3,7 @@
 // Copy the files of this directory into your iOS app, and change the import below to the name of
 // the Kotlin framework your app links. That framework must export org.kodein.arch.vie:vie-mvi
 // (`export(...)` in its `binaries.framework`), so that VIEViewModel and VIEHost are part of its
-// header. Requires iOS 17 (Observation).
+// header. Requires iOS 17 (Observation) and a Swift 6.2 toolchain (Xcode 26, for `isolated deinit`).
 
 import Observation
 import Shared // ← Replace with the name of your Kotlin framework.
@@ -14,12 +14,16 @@ import SwiftUI
 /// its current `model` to SwiftUI's observation, and gives the `scope` a view posts intents to.
 ///
 /// The ViewModel is created on the first read of `model`, and cleared when this object is
-/// deinitialized. SwiftUI evaluates a view's `@State` initial value every time the parent
-/// re-creates the view, but keeps only the first one: the discarded ones never read `model`, so
-/// they never create a ViewModel.
+/// deinitialized. Like `VIEHost`, which it wraps, it lives on the main actor, `deinit` included:
+/// whichever thread releases the last reference, the cleanup runs on the main thread.
+///
+/// SwiftUI evaluates a view's `@State` initial value every time the parent re-creates the view,
+/// but keeps only the first one: the discarded ones never read `model`, so they never create a
+/// ViewModel.
 ///
 /// Prefer `VIEContainer`, which holds one for you. Use `VIEState` directly to keep it in your own
 /// `@State`.
+@MainActor
 final class VIEState<Model: VIEModel, Intent: VIEIntent, Signal: VIESignal>: Observable {
 
     // Observable by hand rather than with @Observable: the first read of `model` stores the model
@@ -33,7 +37,7 @@ final class VIEState<Model: VIEModel, Intent: VIEIntent, Signal: VIESignal>: Obs
         host = VIEHost(newVM: newVM)
     }
 
-    deinit {
+    isolated deinit {
         modelObservation?.cancel()
         host.clear()
     }
