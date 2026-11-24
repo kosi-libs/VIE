@@ -51,7 +51,7 @@ public class MockVIE<Model: VIE.Model, Intent : VIE.Intent, Signal : VIE.Signal>
     }
 
     /**
-     * Mutable: `emit` into it (or call [signal]) to drive the view's [org.kodein.arch.vie.SignalEffect].
+     * Mutable: `emit` into it (or call [signal]) to drive the view's `SignalEffect`.
      * A signal sent while nothing collects is lost: send it after the view has composed.
      */
     override val signalFlow: MutableSharedFlow<Signal> = MutableSharedFlow(extraBufferCapacity = 64)

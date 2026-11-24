@@ -1,10 +1,13 @@
-package org.kodein.arch.vie
+package org.kodein.arch.vie.compose
 
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.viewmodel.CreationExtras
 import androidx.lifecycle.viewmodel.compose.viewModel
+import org.kodein.arch.vie.VIE
+import org.kodein.arch.vie.VIEViewModel
+import org.kodein.arch.vie.VIEViewScope
 
 
 /**

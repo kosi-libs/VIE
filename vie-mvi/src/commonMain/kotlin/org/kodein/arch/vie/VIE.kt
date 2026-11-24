@@ -9,7 +9,7 @@ import kotlinx.coroutines.flow.StateFlow
  * sends up, and a [Signal] the view reacts to but does not render.
  *
  * A screen declares one interface extending this one, naming its own `Model`, `Intent` and
- * `Signal`. A [VIEViewModel] implements that interface; a [VIEView] renders it. The view only ever
+ * `Signal`. A [VIEViewModel] implements that interface; a `VIEView` (from `vie-compose`) renders it. The view only ever
  * depends on the interface — never on the `VIEViewModel` subclass — through [VIEViewScope].
  *
  * ```kotlin

@@ -38,9 +38,9 @@ import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import org.kodein.arch.vie.EmptyVIE
-import org.kodein.arch.vie.SignalEffect
-import org.kodein.arch.vie.VIEView
 import org.kodein.arch.vie.VIEViewScope
+import org.kodein.arch.vie.compose.SignalEffect
+import org.kodein.arch.vie.compose.VIEView
 import org.kodein.arch.vie.demo.business.AppModule
 import org.kodein.arch.vie.demo.current
 import org.kodein.arch.vie.demo.data.Task

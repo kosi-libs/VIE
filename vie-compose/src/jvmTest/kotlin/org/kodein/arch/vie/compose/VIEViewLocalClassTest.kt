@@ -1,5 +1,6 @@
-package org.kodein.arch.vie
+package org.kodein.arch.vie.compose
 
+import org.kodein.arch.vie.VIEViewModel
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
