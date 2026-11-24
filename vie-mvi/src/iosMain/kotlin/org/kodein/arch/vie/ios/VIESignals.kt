@@ -20,6 +20,10 @@ import kotlin.coroutines.resume
  * is lost, as with `SignalEffect`, and only that one: the Effects queued behind it go to the next
  * observation.
  *
+ * Unlike `SignalEffect`, which always calls the lambda of its latest composition, [onSignal] is
+ * the very lambda passed to this call, for every signal: values it captured are not refreshed.
+ * To follow a changing view, cancel the returned [VIECancellable] and collect again.
+ *
  * The callbacks run on the main thread.
  *
  * @param Signal The one-off type this scope emits.
