@@ -1,4 +1,4 @@
-package org.kodein.arch.vie
+package org.kodein.arch.vie.compose
 
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -6,6 +6,8 @@ import androidx.compose.runtime.setValue
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.test.advanceUntilIdle
+import org.kodein.arch.vie.VIE
+import org.kodein.arch.vie.VIEViewScope
 import kotlin.test.Test
 import kotlin.test.assertEquals
 

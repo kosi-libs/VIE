@@ -36,6 +36,7 @@ include(
     ":timemachine:vie-timemachine-client",
     ":timemachine:vie-timemachine-shared",
 
+    ":vie-compose",
     ":vie-mvi",
     ":vie-test",
 )

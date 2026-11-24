@@ -1,13 +1,9 @@
 package org.kodein.arch.vie
 
-import androidx.lifecycle.viewmodel.CreationExtras
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
-import kotlinx.coroutines.test.TestResult
-import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.resetMain
-import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
 import kotlin.test.AfterTest
 import kotlin.test.BeforeTest
@@ -24,18 +20,5 @@ internal abstract class VIETest {
     @AfterTest
     fun after() {
         Dispatchers.resetMain()
-    }
-
-    /** Compose [Host] test that is closed once [block] ends. */
-    protected fun hostedTest(
-        extras: CreationExtras = CreationExtras.Empty,
-        block: suspend TestScope.(Host) -> Unit,
-    ): TestResult = runTest {
-        val host = Host(this, extras)
-        try {
-            block(host)
-        } finally {
-            host.close()
-        }
     }
 }

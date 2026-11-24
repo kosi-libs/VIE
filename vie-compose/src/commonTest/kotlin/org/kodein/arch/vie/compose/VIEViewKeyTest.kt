@@ -1,4 +1,4 @@
-package org.kodein.arch.vie
+package org.kodein.arch.vie.compose
 
 import androidx.compose.runtime.AbstractApplier
 import androidx.compose.runtime.BroadcastFrameClock
@@ -23,6 +23,8 @@ import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestScope
 import kotlinx.coroutines.test.advanceUntilIdle
+import org.kodein.arch.vie.VIE
+import org.kodein.arch.vie.VIEViewModel
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue

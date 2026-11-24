@@ -36,9 +36,10 @@ kotlin {
     sourceSets {
         commonMain.dependencies {
             implementation(projects.timemachine.vieTimemachineShared)
+            implementation(projects.vieCompose)
             implementation(projects.vieMvi)
 
-            implementation(libs.androidx.jb.lifecycle.viewmodel.compose)
+            implementation(libs.androidx.lifecycle.viewmodel.compose)
 
             implementation(libs.compose.foundation)
             implementation(libs.compose.material3)

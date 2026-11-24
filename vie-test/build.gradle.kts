@@ -24,14 +24,7 @@ kotlin {
 
     @OptIn(org.jetbrains.kotlin.gradle.ExperimentalWasmDsl::class)
     wasmJs {
-        browser {
-            testTask {
-                // This module pulls Compose in transitively, and the wasmJs test bundle cannot
-                // resolve the Skiko runtime it then needs - binaries.executable() does not help.
-                // See https://youtrack.jetbrains.com/issue/CMP-4906
-                enabled = false
-            }
-        }
+        browser()
     }
 
     explicitApi()
@@ -46,7 +39,7 @@ kotlin {
             // runVMTest's newVM takes a TestScope receiver, VMTestScope wraps one, and it returns a TestResult.
             api(libs.kotlinx.coroutines.test)
 
-            implementation(libs.androidx.jb.lifecycle.viewmodel.compose)
+            implementation(libs.androidx.lifecycle.viewmodel)
         }
         commonTest.dependencies {
             implementation(libs.kotlin.test)
