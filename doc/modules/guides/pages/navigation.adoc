@@ -16,7 +16,7 @@ Follow JetBrains' setup for `navigation3-ui`, then add the artifact that scopes 
 .build.gradle.kts
 ----
 commonMain.dependencies {
-    implementation("org.jetbrains.androidx.lifecycle:lifecycle-viewmodel-navigation3:{androidx-jb-lifecycle-version}")
+    implementation("androidx.lifecycle:lifecycle-viewmodel-navigation3:{androidx-lifecycle-version}")
 }
 ----
 

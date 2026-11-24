@@ -14,7 +14,7 @@ plugins {
 
 allprojects {
     group = "org.kodein.arch.vie"
-    version = "0.1.0"
+    version = "0.2.0"
 }
 
 val mavenPublishPluginId = libs.plugins.mavenPublish.get().pluginId

@@ -2,6 +2,8 @@
 
 A view renders a screen's model and posts its intents.
 `VIEView` connects it to its ViewModel, and hands it the model and a way to talk back, never the ViewModel itself.
+`VIEView` and `SignalEffect` come from the `vie-compose` artifact, see xref:setup.adoc[].
+A SwiftUI view does the same with other tools: see xref:guides:swiftui.adoc[].
 
 
 == Rendering a screen
