@@ -33,7 +33,8 @@ extension View {
     /// `perform` runs in the task of the view, so it is cancelled when the view disappears. As any
     /// cancellation in Swift, it is cooperative: a `perform` that never awaits something
     /// cancellable and never checks `Task.isCancelled` still runs to its end. The next signal is
-    /// not handed to it either way.
+    /// not handed to it either way. A signal that arrives at the very moment the view disappears
+    /// can still be passed to `perform`, in a task that is then already cancelled.
     ///
     /// It works on any `VIEScope`: the one `VIEContainer` gives, or `.empty` in a preview, which
     /// never signals. A scope wrapped by hand around the Kotlin scope of another screen makes the

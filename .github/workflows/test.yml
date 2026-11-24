@@ -39,6 +39,27 @@ jobs:
           -destination 'generic/platform=iOS Simulator'
           build
         shell: bash
+      # Runs the tests of the Swift helpers, in a simulator of this runner's own: several runners share
+      # one machine, and two jobs must not install the app on the same device. A simulator that never
+      # started takes minutes to be ready, and installing an app before that hangs, hence bootstatus,
+      # which waits for the end of the boot.
+      - name: Test the Swift helpers
+        timeout-minutes: 30
+        run: |
+          device="vie-ci-$RUNNER_NAME"
+          xcrun simctl list devices | grep -qF "$device (" || xcrun simctl create "$device" "iPhone 17"
+          xcrun simctl bootstatus "$device" -b
+          xcodebuild \
+            -project demo/demo-swiftui/kosi-vie-swiftui-demo/kosi-vie-swiftui-demo.xcodeproj \
+            -scheme kosi-vie-swiftui-demo \
+            -destination "platform=iOS Simulator,name=$device" \
+            -parallel-testing-enabled NO \
+            test
+        shell: bash
+      - name: Shut the simulator down
+        if: always()
+        run: xcrun simctl shutdown "vie-ci-$RUNNER_NAME" || true
+        shell: bash
       # The demo project is in the Swift 5 language mode: the same sources must compile in the Swift 6
       # mode too, with its complete concurrency checking, for the apps that have moved to it.
       - name: Build the SwiftUI demo in the Swift 6 language mode
