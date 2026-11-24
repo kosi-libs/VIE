@@ -19,7 +19,7 @@ kotlin {
 
     sourceSets {
         iosMain.dependencies {
-            implementation(projects.demo.demoShared)
+            implementation(projects.demo.demoCompose)
 
             implementation(libs.compose.runtime)
             implementation(libs.compose.ui)

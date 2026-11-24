@@ -28,6 +28,7 @@ enableFeaturePreview("TYPESAFE_PROJECT_ACCESSORS")
 
 include(
     ":demo:demo-android",
+    ":demo:demo-compose",
     ":demo:demo-desktop",
     ":demo:demo-ios",
     ":demo:demo-shared",
