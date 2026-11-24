@@ -24,6 +24,15 @@ import kotlin.uuid.Uuid
 private val LocalAppModule = staticCompositionLocalOf<AppModule> { error("No AppModule provided") }
 val AppModule.Companion.current @Composable get() = LocalAppModule.current
 
+/**
+ * Provides [appModule] to the screens in [content], for a host other than [App]: the iOS demo
+ * embeds a single Compose screen in its SwiftUI navigation.
+ */
+@Composable
+fun ProvideAppModule(appModule: AppModule, content: @Composable () -> Unit) {
+    CompositionLocalProvider(LocalAppModule provides appModule, content = content)
+}
+
 @Serializable
 sealed interface AppScreen : NavKey {
     @Serializable data object TaskList : AppScreen

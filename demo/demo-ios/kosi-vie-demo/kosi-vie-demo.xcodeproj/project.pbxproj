@@ -11,6 +11,10 @@
 		AA0000000000000000000051 /* ContentView.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000041 /* ContentView.swift */; };
 		AA0000000000000000000052 /* Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000042 /* Assets.xcassets */; };
 		AA0000000000000000000053 /* Preview Assets.xcassets in Resources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000044 /* Preview Assets.xcassets */; };
+		AA0000000000000000000054 /* TaskListScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000045 /* TaskListScreen.swift */; };
+		AA0000000000000000000056 /* VIEContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000047 /* VIEContainer.swift */; };
+		AA0000000000000000000057 /* View+onVIESignal.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000048 /* View+onVIESignal.swift */; };
+		AA0000000000000000000058 /* VIEScope.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000059 /* VIEScope.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -20,6 +24,10 @@
 		AA0000000000000000000042 /* Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = Assets.xcassets; sourceTree = "<group>"; };
 		AA0000000000000000000043 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		AA0000000000000000000044 /* Preview Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Preview Assets.xcassets"; sourceTree = "<group>"; };
+		AA0000000000000000000045 /* TaskListScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = TaskListScreen.swift; path = "../../demo-swiftui/kosi-vie-swiftui-demo/kosi-vie-swiftui-demo/TaskListScreen.swift"; sourceTree = SOURCE_ROOT; };
+		AA0000000000000000000047 /* VIEContainer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = VIEContainer.swift; path = "../../../skills/vie/swift/VIEContainer.swift"; sourceTree = SOURCE_ROOT; };
+		AA0000000000000000000048 /* View+onVIESignal.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "View+onVIESignal.swift"; path = "../../../skills/vie/swift/View+onVIESignal.swift"; sourceTree = SOURCE_ROOT; };
+		AA0000000000000000000059 /* VIEScope.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = VIEScope.swift; path = "../../../skills/vie/swift/VIEScope.swift"; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -37,6 +45,7 @@
 			isa = PBXGroup;
 			children = (
 				AA0000000000000000000004 /* kosi-vie-demo */,
+				AA0000000000000000000006 /* Shared Swift */,
 				AA0000000000000000000003 /* Products */,
 			);
 			sourceTree = "<group>";
@@ -67,6 +76,17 @@
 				AA0000000000000000000044 /* Preview Assets.xcassets */,
 			);
 			path = "Preview Content";
+			sourceTree = "<group>";
+		};
+		AA0000000000000000000006 /* Shared Swift */ = {
+			isa = PBXGroup;
+			children = (
+				AA0000000000000000000047 /* VIEContainer.swift */,
+				AA0000000000000000000048 /* View+onVIESignal.swift */,
+				AA0000000000000000000059 /* VIEScope.swift */,
+				AA0000000000000000000045 /* TaskListScreen.swift */,
+			);
+			name = "Shared Swift";
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -164,6 +184,10 @@
 			files = (
 				AA0000000000000000000051 /* ContentView.swift in Sources */,
 				AA0000000000000000000050 /* iOSApp.swift in Sources */,
+				AA0000000000000000000054 /* TaskListScreen.swift in Sources */,
+				AA0000000000000000000056 /* VIEContainer.swift in Sources */,
+				AA0000000000000000000057 /* View+onVIESignal.swift in Sources */,
+				AA0000000000000000000058 /* VIEScope.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -222,7 +246,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MTL_ENABLE_DEBUG_INFO = INCLUDE_SOURCE;
 				MTL_FAST_MATH = YES;
@@ -279,7 +303,7 @@
 				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
 				GCC_WARN_UNUSED_FUNCTION = YES;
 				GCC_WARN_UNUSED_VARIABLE = YES;
-				IPHONEOS_DEPLOYMENT_TARGET = 15.0;
+				IPHONEOS_DEPLOYMENT_TARGET = 17.0;
 				LOCALIZATION_PREFERS_STRING_CATALOGS = YES;
 				MTL_ENABLE_DEBUG_INFO = NO;
 				MTL_FAST_MATH = YES;
@@ -312,7 +336,7 @@
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					"-framework",
-					DemoIos,
+					Shared,
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = "org.kodein.arch.vie.demo.ios";
 				PRODUCT_NAME = "$(TARGET_NAME)";
@@ -345,7 +369,7 @@
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					"-framework",
-					DemoIos,
+					Shared,
 				);
 				PRODUCT_BUNDLE_IDENTIFIER = "org.kodein.arch.vie.demo.ios";
 				PRODUCT_NAME = "$(TARGET_NAME)";
