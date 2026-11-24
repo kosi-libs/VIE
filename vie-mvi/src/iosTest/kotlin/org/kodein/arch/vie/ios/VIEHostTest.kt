@@ -241,6 +241,58 @@ internal class VIEHostTest : VIETest() {
         assertEquals(listOf(HostModel(0)), models)
     }
 
+    @Test
+    fun clearStopsASignalCollectionOnItsScope() = runTest {
+        val host = VIEHost { HostVM() }
+        val collection = host.scope.collectSignals { _, done -> done() }
+        advanceUntilIdle()
+        assertTrue(collection.job.isActive)
+
+        host.clear()
+        advanceUntilIdle()
+
+        assertFalse(collection.job.isActive)
+    }
+
+    // The collection is suspended on `done`, which it would otherwise wait for forever, keeping the
+    // callback it was given, and everything that callback captured.
+    @Test
+    fun clearStopsASignalCollectionWaitingForDone() = runTest {
+        val host = VIEHost { HostVM() }
+        host.scope.post(HostIntent.Shout)
+        advanceUntilIdle()
+        val signals = mutableListOf<HostSignal>()
+        val collection = host.scope.collectSignals { signal, _ -> signals += signal } // Never calls done.
+        advanceUntilIdle()
+        assertEquals(listOf<HostSignal>(HostSignal.Shown(1)), signals)
+        assertTrue(collection.job.isActive)
+
+        host.clear()
+        advanceUntilIdle()
+
+        assertFalse(collection.job.isActive)
+    }
+
+    @Test
+    fun cancellingASignalCollectionDoesNotClearTheViewModel() = runTest {
+        var vm: HostVM? = null
+        val host = VIEHost { HostVM().also { vm = it } }
+        val collection = host.scope.collectSignals { _, done -> done() }
+        advanceUntilIdle()
+        collection.cancel()
+        advanceUntilIdle()
+
+        val models = mutableListOf<HostModel>()
+        host.observeModels { models += it }
+        host.scope.post(HostIntent.Increment)
+        advanceUntilIdle()
+
+        assertFalse(vm!!.cleared)
+        assertEquals(listOf(HostModel(0), HostModel(1)), models)
+
+        host.clear()
+    }
+
     // The four tests below run on an immediate main, as `Dispatchers.Main.immediate` is on the main
     // thread of an app: the launched body runs in place, before the function returns. The other tests
     // use a main that always queues, which an app never does.

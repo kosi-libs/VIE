@@ -76,10 +76,9 @@ public class VIEHost<Model : VIE.Model, Intent : VIE.Intent, Signal : VIE.Signal
         })
 
     /**
-     * Clears the ViewModel, which cancels its `viewModelScope` and with it [observeModels].
+     * Clears the ViewModel, which cancels its `viewModelScope` and with it [observeModels] and the
+     * collections started by [collectSignals] on [scope].
      * Idempotent. A host cleared before its ViewModel was created never creates one.
-     *
-     * An observation started by [collectSignals] on [scope] is not stopped by this: cancel it.
      */
     public fun clear() {
         cleared = true

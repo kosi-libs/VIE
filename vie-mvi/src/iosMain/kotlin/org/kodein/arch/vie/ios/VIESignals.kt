@@ -1,5 +1,7 @@
 package org.kodein.arch.vie.ios
 
+import androidx.lifecycle.ViewModel
+import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -12,7 +14,10 @@ import kotlin.coroutines.resume
 
 /**
  * Calls [onSignal] with each signal of this scope, until the returned [VIECancellable] is
- * cancelled. [onSignal] is not called again until it calls its `done` callback, as `SignalEffect`
+ * cancelled or, when this scope is a ViewModel such as [VIEHost.scope], until it is cleared: the
+ * collection then stops at once, even while it waits for `done`, and one started after the clear
+ * never calls [onSignal]. On any other scope, `EmptyVIE` for one, only [VIECancellable.cancel] stops it.
+ * [onSignal] is not called again until it calls its `done` callback, as `SignalEffect`
  * waits for its suspending lambda to return.
  *
  * It works on any [VIEViewScope]: a [VIEHost]'s [VIEHost.scope], or `EmptyVIE` in a preview, whose
@@ -37,8 +42,11 @@ import kotlin.coroutines.resume
 public fun <Signal : VIE.Signal> VIEViewScope<*, Signal>.collectSignals(
     onSignal: (signal: Signal, done: () -> Unit) -> Unit,
 ): VIECancellable {
-    val job = Job()
-    CoroutineScope(Dispatchers.Main.immediate + job).launch {
+    // On a ViewModel, as `VIEHost.scope` is, the collection ends when it is cleared, as `observeModels`
+    // does. Cancelling the coroutine, not ending the flow, is what releases a collection that is
+    // waiting for `done`, and the callback it holds.
+    val parent = (this as? ViewModel)?.viewModelScope ?: CoroutineScope(Dispatchers.Main.immediate)
+    val job = parent.launch(Dispatchers.Main.immediate) {
         signalFlow.collect { signal ->
             suspendCancellableCoroutine { continuation ->
                 onSignal(signal) {
@@ -52,7 +60,7 @@ public fun <Signal : VIE.Signal> VIEViewScope<*, Signal>.collectSignals(
 }
 
 /** Stops an observation started by [VIEHost.observeModels] or [collectSignals]. */
-public class VIECancellable internal constructor(private val job: Job) {
+public class VIECancellable internal constructor(internal val job: Job) {
     /** Stops the observation. Idempotent. */
     public fun cancel() {
         job.cancel()
