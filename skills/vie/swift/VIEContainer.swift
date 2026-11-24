@@ -56,7 +56,7 @@ final class VIEState<Model: VIEModel, Intent: VIEIntent, Signal: VIESignal>: Obs
 
     /// What a view sees of the ViewModel: post intents to it, and collect its signals with
     /// `onVIESignal(of:perform:)`. Never the ViewModel itself.
-    var scope: any VIEViewScope { host.scope }
+    var scope: VIEScope<Intent, Signal> { VIEScope(host.scope) }
 }
 
 
@@ -65,22 +65,28 @@ final class VIEState<Model: VIEModel, Intent: VIEIntent, Signal: VIESignal>: Obs
 /// the current model and the scope to post intents to.
 ///
 /// `content` is best a view of its own that knows nothing but a `model` and a `scope`, so that a
-/// preview can render it against `EmptyVIE`:
+/// preview can render it against `VIEScope.empty`:
 ///
 /// ```swift
 /// VIEContainer(newVM: { CounterVM(store: store) }) { model, scope in
 ///     CounterContent(model: model, scope: scope)
 /// }
 ///
+/// typealias CounterScope = VIEScope<CounterVIEIntent, CounterVIESignal>
+///
 /// struct CounterContent: View {
 ///     let model: CounterVIEModel
-///     let scope: any VIEViewScope
+///     let scope: CounterScope
 ///     var body: some View {
-///         Button("Count: \(model.count)") { scope.post(intent: CounterVIEIntentIncrement.shared) }
+///         Button("Count: \(model.count)") { scope.post(CounterVIEIntentIncrement.shared) }
 ///             .onVIESignal(of: scope) { signal in
 ///                 if signal is CounterVIESignalSaved { showSaved() }
 ///             }
 ///     }
+/// }
+///
+/// #Preview {
+///     CounterContent(model: CounterVIEModel(count: 3), scope: .empty)
 /// }
 /// ```
 ///
@@ -92,11 +98,11 @@ final class VIEState<Model: VIEModel, Intent: VIEIntent, Signal: VIESignal>: Obs
 struct VIEContainer<Model: VIEModel, Intent: VIEIntent, Signal: VIESignal, Content: View>: View {
 
     @State private var state: VIEState<Model, Intent, Signal>
-    private let content: (Model, any VIEViewScope) -> Content
+    private let content: (Model, VIEScope<Intent, Signal>) -> Content
 
     init(
         newVM: @escaping () -> VIEViewModel<Model, Intent, Signal>,
-        @ViewBuilder content: @escaping (Model, any VIEViewScope) -> Content
+        @ViewBuilder content: @escaping (Model, VIEScope<Intent, Signal>) -> Content
     ) {
         _state = State(initialValue: VIEState(newVM: newVM))
         self.content = content

@@ -19,11 +19,13 @@ struct TaskListScreen: View {
     }
 }
 
+typealias TaskListScope = VIEScope<TaskListVIEIntent, TaskListVIESignal>
+
 /// What `TaskListScreen` renders. It knows nothing of the ViewModel, only a model and a scope, so
-/// a preview renders it against `EmptyVIE`.
+/// a preview renders it against `VIEScope.empty`.
 struct TaskListContent: View {
     let model: TaskListVIEModel
-    let scope: any VIEViewScope
+    let scope: TaskListScope
     let goToNewTask: () -> Void
     let goToTask: (KotlinUuid) -> Void
 
@@ -67,7 +69,7 @@ struct TaskListContent: View {
                 List(rows(of: tasks)) { row in
                     HStack {
                         Button {
-                            scope.post(intent: TaskListVIEIntentUpdateTaskCompletion(
+                            scope.post(TaskListVIEIntentUpdateTaskCompletion(
                                 taskId: row.id,
                                 completed: !row.task.completed
                             ))
@@ -83,7 +85,7 @@ struct TaskListContent: View {
                             .onTapGesture { goToTask(row.id) }
 
                         Button(role: .destructive) {
-                            scope.post(intent: TaskListVIEIntentDeleteTask(taskId: row.id))
+                            scope.post(TaskListVIEIntentDeleteTask(taskId: row.id))
                         } label: {
                             Image(systemName: "trash")
                         }
@@ -123,7 +125,7 @@ struct TaskListContent: View {
     NavigationStack {
         TaskListContent(
             model: TaskListVIEModel(tasks: nil, work: []),
-            scope: EmptyVIE<AnyObject, AnyObject>(),
+            scope: .empty,
             goToNewTask: {},
             goToTask: { _ in }
         )
@@ -134,7 +136,7 @@ struct TaskListContent: View {
     NavigationStack {
         TaskListContent(
             model: TaskListVIEModel(tasks: [], work: []),
-            scope: EmptyVIE<AnyObject, AnyObject>(),
+            scope: .empty,
             goToNewTask: {},
             goToTask: { _ in }
         )

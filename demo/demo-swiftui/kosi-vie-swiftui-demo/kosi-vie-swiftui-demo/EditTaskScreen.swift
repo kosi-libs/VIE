@@ -14,11 +14,13 @@ struct EditTaskScreen: View {
     }
 }
 
+typealias EditTaskScope = VIEScope<EditTaskVIEIntent, EditTaskVIESignal>
+
 /// What `EditTaskScreen` renders. It knows nothing of the ViewModel, only a model and a scope, so
-/// a preview renders it against `EmptyVIE`.
+/// a preview renders it against `VIEScope.empty`.
 struct EditTaskContent: View {
     let model: EditTaskVIEModel
-    let scope: any VIEViewScope
+    let scope: EditTaskScope
     let goBack: () -> Void
     let new: Bool
 
@@ -42,7 +44,7 @@ struct EditTaskContent: View {
         .toolbar {
             ToolbarItem(placement: .confirmationAction) {
                 Button("Save") {
-                    scope.post(intent: EditTaskVIEIntentEdit(task: Shared.Task(
+                    scope.post(EditTaskVIEIntentEdit(task: Shared.Task(
                         title: title,
                         description: description,
                         completed: model.task?.completed ?? false
@@ -82,7 +84,7 @@ struct EditTaskContent: View {
     NavigationStack {
         EditTaskContent(
             model: EditTaskVIEModel(loading: false, task: nil),
-            scope: EmptyVIE<AnyObject, AnyObject>(),
+            scope: .empty,
             goBack: {},
             new: true
         )
@@ -93,7 +95,7 @@ struct EditTaskContent: View {
     NavigationStack {
         EditTaskContent(
             model: EditTaskVIEModel(loading: true, task: nil),
-            scope: EmptyVIE<AnyObject, AnyObject>(),
+            scope: .empty,
             goBack: {},
             new: false
         )

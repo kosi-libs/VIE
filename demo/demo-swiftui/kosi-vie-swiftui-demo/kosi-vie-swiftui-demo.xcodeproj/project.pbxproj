@@ -15,6 +15,7 @@
 		AA0000000000000000000055 /* EditTaskScreen.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000046 /* EditTaskScreen.swift */; };
 		AA0000000000000000000056 /* VIEContainer.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000047 /* VIEContainer.swift */; };
 		AA0000000000000000000057 /* View+onVIESignal.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000048 /* View+onVIESignal.swift */; };
+		AA0000000000000000000058 /* VIEScope.swift in Sources */ = {isa = PBXBuildFile; fileRef = AA0000000000000000000059 /* VIEScope.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -28,6 +29,7 @@
 		AA0000000000000000000046 /* EditTaskScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = EditTaskScreen.swift; sourceTree = "<group>"; };
 		AA0000000000000000000047 /* VIEContainer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = VIEContainer.swift; path = "../../../skills/vie/swift/VIEContainer.swift"; sourceTree = SOURCE_ROOT; };
 		AA0000000000000000000048 /* View+onVIESignal.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "View+onVIESignal.swift"; path = "../../../skills/vie/swift/View+onVIESignal.swift"; sourceTree = SOURCE_ROOT; };
+		AA0000000000000000000059 /* VIEScope.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = VIEScope.swift; path = "../../../skills/vie/swift/VIEScope.swift"; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -85,6 +87,7 @@
 			children = (
 				AA0000000000000000000047 /* VIEContainer.swift */,
 				AA0000000000000000000048 /* View+onVIESignal.swift */,
+				AA0000000000000000000059 /* VIEScope.swift */,
 			);
 			name = VIE;
 			sourceTree = "<group>";
@@ -188,6 +191,7 @@
 				AA0000000000000000000055 /* EditTaskScreen.swift in Sources */,
 				AA0000000000000000000056 /* VIEContainer.swift in Sources */,
 				AA0000000000000000000057 /* View+onVIESignal.swift in Sources */,
+				AA0000000000000000000058 /* VIEScope.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -12,9 +12,10 @@ import SwiftUI
 extension View {
 
     /// Reacts to the signals of `scope` while this view is on screen: calls `perform` with each one,
-    /// in order, and not before the previous call has returned. The signals reach it as a bare
-    /// `VIESignal`: tell them apart with `switch signal { case let s as MyVIESignalX: … }`, and a
-    /// `default`, which Swift cannot check for exhaustiveness.
+    /// in order, and not before the previous call has returned. A Kotlin sealed hierarchy reaches
+    /// Swift as distinct classes, so tell the signals apart with
+    /// `switch signal { case let s as MyVIESignalX: … }`, and a `default`, which Swift cannot check
+    /// for exhaustiveness.
     ///
     /// It collects between the appearance and the disappearance of the view, as `SignalEffect` does
     /// between the composition and the disposal of a composable: an Effect emitted in between waits
@@ -22,14 +23,23 @@ extension View {
     /// Effect that the view is handling when it disappears, before `perform` returned, together
     /// with the Effects already queued behind it.
     ///
-    /// It works on any scope: the one `VIEContainer` gives, or `EmptyVIE` in a preview, which never
-    /// signals.
-    func onVIESignal(
-        of scope: any VIEViewScope,
-        perform onSignal: @escaping @MainActor (any VIESignal) async -> Void
+    /// It works on any `VIEScope`: the one `VIEContainer` gives, or `.empty` in a preview, which
+    /// never signals. A scope wrapped by hand around the Kotlin scope of another screen makes the
+    /// first signal fail a precondition, since Kotlin erases the signal type and Swift can only
+    /// check it when the signal arrives.
+    func onVIESignal<Intent: VIEIntent, Signal: VIESignal>(
+        of scope: VIEScope<Intent, Signal>,
+        perform onSignal: @escaping @MainActor (Signal) async -> Void
     ) -> some View {
         task {
-            await collectVIESignals(of: scope, onSignal)
+            await collectVIESignals(of: scope.base) { signal in
+                guard let signal = signal as? Signal else {
+                    preconditionFailure(
+                        "\(type(of: signal)) is not a \(Signal.self): this VIEScope wraps the scope of another screen"
+                    )
+                }
+                await onSignal(signal)
+            }
         }
     }
 }
