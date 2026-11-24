@@ -27,6 +27,11 @@ extension View {
     /// Effect that the view is handling when it disappears, before `perform` returned, together
     /// with the Effects already queued behind it.
     ///
+    /// `perform` runs in the task of the view, so it is cancelled when the view disappears. As any
+    /// cancellation in Swift, it is cooperative: a `perform` that never awaits something
+    /// cancellable and never checks `Task.isCancelled` still runs to its end. The next signal is
+    /// not handed to it either way.
+    ///
     /// It works on any `VIEScope`: the one `VIEContainer` gives, or `.empty` in a preview, which
     /// never signals. A scope wrapped by hand around the Kotlin scope of another screen makes the
     /// first signal fail a precondition, since Kotlin erases the signal type and Swift can only
@@ -74,21 +79,38 @@ private struct VIESignalModifier<Intent: VIEIntent, Signal: VIESignal>: ViewModi
 }
 
 
-/// Collects the signals of `scope` until the calling task is cancelled.
+/// A signal Kotlin handed over, and the `done` callback to call once it is handled. Both only ever
+/// move on the main thread, where Kotlin calls back and where the collection runs.
+private struct PendingSignal: @unchecked Sendable {
+    let signal: any VIESignal
+    let done: () -> Any?
+}
+
+
+/// Collects the signals of `scope` until the calling task is cancelled, handling each one in that
+/// task: cancelling it cancels `onSignal` too, and stops the collection.
 @MainActor
 private func collectVIESignals(
     of scope: any VIEViewScope,
     _ onSignal: @escaping @MainActor (any VIESignal) async -> Void
 ) async {
+    // Made before `collectSignals`, which may call back before it returns. Kotlin hands over the
+    // next signal only after `done`, so the stream holds one at most.
+    let (pending, continuation) = AsyncStream.makeStream(of: PendingSignal.self)
     let collection = VIESignalsKt.collectSignals(scope) { signal, done in
-        // Qualified: a Kotlin framework can export a class named Task.
-        _Concurrency.Task { @MainActor in
-            await onSignal(signal)
-            // A Kotlin `() -> Unit` passed to a block returns KotlinUnit.
-            _ = done()
-        }
+        continuation.yield(PendingSignal(signal: signal, done: { done() }))
     }
-    // Suspends until the calling task is cancelled, which makes the sleep throw.
-    try? await _Concurrency.Task.sleep(nanoseconds: .max)
-    collection.cancel()
+    defer {
+        collection.cancel()
+        continuation.finish()
+    }
+    // The loop ends when the calling task is cancelled, even while it waits for a signal.
+    for await next in pending {
+        await onSignal(next.signal)
+        // A handler cancelled with the view must not release the next signal: Kotlin would hand it
+        // over to a collection that is going away.
+        // Qualified: a Kotlin framework can export a class named Task.
+        if _Concurrency.Task.isCancelled { break }
+        _ = next.done()
+    }
 }
