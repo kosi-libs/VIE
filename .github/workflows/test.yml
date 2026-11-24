@@ -25,3 +25,13 @@ jobs:
       - name: Build
         run: ./gradlew --stacktrace --scan build
         shell: bash
+      # Compiles skills/vie/swift, which no Gradle task does, against the demo's Kotlin framework.
+      - name: Build the SwiftUI demo
+        run: >
+          xcodebuild
+          -project demo/demo-swiftui/kosi-vie-swiftui-demo/kosi-vie-swiftui-demo.xcodeproj
+          -scheme kosi-vie-swiftui-demo
+          -sdk iphonesimulator
+          -destination 'generic/platform=iOS Simulator'
+          build
+        shell: bash
