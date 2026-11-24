@@ -219,6 +219,7 @@ internal class VIEHostTest : VIETest() {
             done()
         }
         advanceUntilIdle()
+        assertFalse(collection.isActive) // The empty flow ended by itself.
         collection.cancel()
         advanceUntilIdle()
 
@@ -246,12 +247,12 @@ internal class VIEHostTest : VIETest() {
         val host = VIEHost { HostVM() }
         val collection = host.scope.collectSignals { _, done -> done() }
         advanceUntilIdle()
-        assertTrue(collection.job.isActive)
+        assertTrue(collection.isActive)
 
         host.clear()
         advanceUntilIdle()
 
-        assertFalse(collection.job.isActive)
+        assertFalse(collection.isActive)
     }
 
     // The collection is suspended on `done`, which it would otherwise wait for forever, keeping the
@@ -265,12 +266,12 @@ internal class VIEHostTest : VIETest() {
         val collection = host.scope.collectSignals { signal, _ -> signals += signal } // Never calls done.
         advanceUntilIdle()
         assertEquals(listOf<HostSignal>(HostSignal.Shown(1)), signals)
-        assertTrue(collection.job.isActive)
+        assertTrue(collection.isActive)
 
         host.clear()
         advanceUntilIdle()
 
-        assertFalse(collection.job.isActive)
+        assertFalse(collection.isActive)
     }
 
     @Test
@@ -429,7 +430,7 @@ internal class VIEHostTest : VIETest() {
             done()
         }
         advanceUntilIdle()
-        assertFalse(collection.job.isActive)
+        assertFalse(collection.isActive)
         assertEquals(emptyList(), signals)
     }
 }
