@@ -21,10 +21,10 @@ import SwiftUI
 /// but keeps only the first one: the discarded ones never read `model`, so they never create a
 /// ViewModel.
 ///
-/// Prefer `VIEContainer`, which holds one for you. Use `VIEState` directly to keep it in your own
-/// `@State`.
+/// It is private to this file: `VIEContainer` holds one in its `@State`, and is the only way to get
+/// one.
 @MainActor
-final class VIEState<Model: VIEModel, Intent: VIEIntent, Signal: VIESignal>: Observable {
+fileprivate final class VIEState<Model: VIEModel, Intent: VIEIntent, Signal: VIESignal>: Observable {
 
     // Observable by hand rather than with @Observable: the first read of `model` stores the model
     // without notifying, since it happens while SwiftUI is computing a body.
