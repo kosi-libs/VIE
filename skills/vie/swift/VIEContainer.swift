@@ -10,6 +10,10 @@ import Observation
 import Shared // ← Replace with the name of your Kotlin framework.
 import SwiftUI
 
+#if !compiler(>=6.2)
+#error("The VIE helpers for SwiftUI need a Swift 6.2 toolchain (Xcode 26), for `isolated deinit`")
+#endif
+
 
 /// The state of a VIE screen in SwiftUI: owns a `VIEViewModel` through a Kotlin `VIEHost`, exposes
 /// its current `model` to SwiftUI's observation, and gives the `scope` a view posts intents to.
