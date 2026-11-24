@@ -54,7 +54,8 @@ public class VIEHost<Model : VIE.Model, Intent : VIE.Intent, Signal : VIE.Signal
 
     /**
      * What a view sees of the ViewModel: it posts intents to it, and [collectSignals] reads its signals.
-     * Never the ViewModel itself, so that a view renders just as well against `EmptyVIE`.
+     * Typed as a [VIEViewScope] only (the object is the ViewModel itself, but its static type
+     * exposes no more), so that a view renders just as well against `EmptyVIE`.
      */
     public val scope: VIEViewScope<Intent, Signal> get() = vm
 
