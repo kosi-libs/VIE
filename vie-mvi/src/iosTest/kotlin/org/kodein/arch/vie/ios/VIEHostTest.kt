@@ -22,6 +22,7 @@ private sealed interface HostIntent : VIE.Intent {
     data object Increment : HostIntent
     data object Shout : HostIntent
     data object Ping : HostIntent
+    data class Show(val id: Int) : HostIntent
 }
 
 private sealed interface HostSignal : VIE.Signal {
@@ -40,6 +41,7 @@ private class HostVM : VIEViewModel<HostModel, HostIntent, HostSignal>(HostModel
                 signal(HostSignal.Shown(2))
             }
             HostIntent.Ping -> signal(HostSignal.Pinged)
+            is HostIntent.Show -> signal(HostSignal.Shown(intent.id))
         }
     }
 
@@ -101,10 +103,46 @@ internal class VIEHostTest : VIETest() {
         advanceUntilIdle()
         assertEquals(listOf<HostSignal>(HostSignal.Shown(1)), signals)
 
-        dones.last().invoke()
-        dones.first().invoke() // A second call to the same done is harmless.
+        val done = dones.single()
+        done()
+        done() // A second call to the same done is harmless.
         advanceUntilIdle()
         assertEquals(listOf<HostSignal>(HostSignal.Shown(1), HostSignal.Shown(2)), signals)
+
+        host.clear()
+    }
+
+    // Each done releases only its own signal: calling the first one again while the second signal
+    // waits for its own done must not hand over the third.
+    @Test
+    fun aStaleDoneDoesNotReleaseTheNextSignal() = runTest {
+        val host = VIEHost { HostVM() }
+        val signals = mutableListOf<HostSignal>()
+        val dones = mutableListOf<() -> Unit>()
+        host.scope.collectSignals { signal, done ->
+            signals += signal
+            dones += done
+        }
+        advanceUntilIdle()
+        host.scope.post(HostIntent.Shout)
+        host.scope.post(HostIntent.Show(3))
+        advanceUntilIdle()
+        assertEquals(listOf<HostSignal>(HostSignal.Shown(1)), signals)
+
+        dones[0]()
+        advanceUntilIdle()
+        assertEquals(listOf<HostSignal>(HostSignal.Shown(1), HostSignal.Shown(2)), signals)
+
+        dones[0]() // Stale: the second signal still waits for dones[1].
+        advanceUntilIdle()
+        assertEquals(listOf<HostSignal>(HostSignal.Shown(1), HostSignal.Shown(2)), signals)
+
+        dones[1]()
+        advanceUntilIdle()
+        assertEquals(
+            listOf<HostSignal>(HostSignal.Shown(1), HostSignal.Shown(2), HostSignal.Shown(3)),
+            signals,
+        )
 
         host.clear()
     }
