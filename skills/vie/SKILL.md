@@ -1,15 +1,19 @@
 ---
 name: vie
-description: Guidance for the VIE Kotlin Multiplatform MVI library (org.kodein.arch.vie). Use when writing, explaining, or reviewing code that declares or uses VIE, VIEViewModel, VIEViewScope, VIEView, VIEMiddleware, SignalEffect, MockVIE, runVMTest, or EmptyVIE; or when the user asks to create a new VIE screen, scaffold a VIE ViewModel/View, or check VIE code for best practices.
+description: Guidance for the VIE Kotlin Multiplatform MVI library (org.kodein.arch.vie). Use when writing, explaining, or reviewing code that declares or uses VIE, VIEViewModel, VIEViewScope, VIEView, VIEContainer, VIEMiddleware, SignalEffect, onVIESignal, MockVIE, runVMTest, or EmptyVIE, in Kotlin or in SwiftUI; or when the user asks to create a new VIE screen, scaffold a VIE ViewModel/View (Compose or SwiftUI), install the VIE helpers for SwiftUI in an iOS app, or check VIE code for best practices.
 ---
 
 # VIE
 
-VIE is Model-View-Intent for Compose Multiplatform: one state flow down (`Model`), intents up
+VIE is Model-View-Intent for Kotlin Multiplatform: one state flow down (`Model`), intents up
 (`Intent`), one-off signals sideways (`Signal`). A screen declares the three types as one
-interface extending `VIE<Model, Intent, Signal>`; a `VIEViewModel` implements it; a `VIEView`
-renders it. The view only ever depends on the interface — via `VIEViewScope` — never on the
-ViewModel class.
+interface extending `VIE<Model, Intent, Signal>`; a `VIEViewModel` implements it; a view renders it.
+The view only ever depends on the interface — via `VIEViewScope` — never on the ViewModel class.
+
+The view is written in Compose (Compose Multiplatform, or Jetpack Compose on Android) with `VIEView`
+from the `vie-compose` artifact, or in SwiftUI with the `VIEContainer` helper, a Swift file copied
+into the app. The core, `vie-mvi`, has no Compose in it, so a SwiftUI app shares the contracts and
+the ViewModels without embedding Compose.
 
 The library's types make bad shapes *awkward*, not impossible: nothing stops a `Model` from being
 a plain mutable class, or a view from taking the ViewModel directly. That's what this skill is
@@ -18,6 +22,8 @@ for — apply it in three ways:
 - **Explaining or writing new VIE code** → read `references/good-practices.md` and follow it.
 - **Reviewing existing VIE code** → read `references/bad-practices.md` and apply the checklist below.
 - **Creating a new screen** → follow the scaffolding steps below.
+- **Anything in SwiftUI** (installing the helpers in an iOS app, writing or reviewing a SwiftUI
+  screen) → read `references/swiftui.md` and follow it.
 
 ## API cheat-sheet
 
@@ -32,18 +38,23 @@ for — apply it in three ways:
 | `VIE.NoIntent` | Alias for `VIE.Intent.None`. Import bare (`import ….VIE.NoIntent`) and use unqualified: `VIE<Model, NoIntent, Signal>`. |
 | `VIE.NoSignal` | Alias for `VIE.Signal.None`. Import bare (`import ….VIE.NoSignal`) and use unqualified: `VIE<Model, Intent, NoSignal>`. |
 | `VIEViewScope<Intent, Signal>` | What a view sees: `post(intent)` and `signalFlow`. No `modelFlow`, no `update`, no `process`. |
-| `SignalEffect { signal -> … }` | `@Composable` — collects `signalFlow` for the composition's lifetime; put an exhaustive `when` inside. |
+| `SignalEffect { signal -> … }` | `vie-compose`, `org.kodein.arch.vie.compose`. `@Composable` — collects `signalFlow` for the composition's lifetime; put an exhaustive `when` inside. |
 | `VIEViewModel<Model, Intent, Signal>(firstModel, middlewares)` | Abstract base, extends `androidx.lifecycle.ViewModel`. Implement `process(intent)`. Call `update { copy(...) }` to mutate, `signal(s)` to emit. |
 | `update { suspend Model.() -> Model }` | Atomically replaces the model; serialized against every other `update` call; suspends until applied. |
 | `signal(s)` | Emits `s`; `s`'s type must be `Signal` and `VIE.Signal.Event`/`Effect` (enforced by a `where` bound). |
 | `collectToModel { … }` / `collectToSignal { … }` | `Flow<T>` extensions, called with a `VIEViewModel` in context (`init` block or `viewModelScope` coroutine) — feed an external flow straight into the model or a signal. |
-| `VIEView(newVM = { … }, key = null) { model -> … }` | The entry point: creates/remembers the ViewModel, collects `modelFlow` as Compose state, invokes `content` with a `VIEViewScope` receiver. |
+| `VIEView(newVM = { … }, key = null) { model -> … }` | `vie-compose`, `org.kodein.arch.vie.compose`. The entry point: creates/remembers the ViewModel, collects `modelFlow` as Compose state, invokes `content` with a `VIEViewScope` receiver. |
+| `VIEHost(newVM = { … })` | `vie-mvi`, iosMain. Hosts a `VIEViewModel` for a Swift view: `model`, `scope` (a `VIEViewScope`), `observeModels(onModel)`, `clear()`. Wrapped by the Swift `VIEContainer`. |
+| `scope.collectSignals { signal, done -> … }` | `vie-mvi`, iosMain. Calls back with each signal of any `VIEViewScope`, `EmptyVIE` included, and waits for `done()`. Wrapped by the Swift `.onVIESignal`. |
+| `VIEContainer(newVM:content:)` | Swift, `swift/VIEContainer.swift`, to copy into the app. The SwiftUI `VIEView`: creates the ViewModel once, renders `content(model, scope)`. |
+| `VIEScope<Intent, Signal>` | Swift, `swift/VIEScope.swift`. What a SwiftUI view sees of its ViewModel: `scope.post(intent)` takes the screen's own `Intent` only, `VIEScope.empty` is the scope for a preview. One `typealias` per screen keeps signatures short. |
+| `.onVIESignal(of: scope) { signal in … }` | Swift, `swift/View+onVIESignal.swift`. The SwiftUI `SignalEffect`: collects the signals of a scope while the view is on screen, and calls the closure of the latest rendering. The signal is a `Signal`, but each case of the sealed hierarchy is a class of its own: cast it in a `switch`, and keep a `default`. |
 | `VIEMiddleware<Model, Intent, Signal>` | Intercepts the model/intent/signal flows as plain `Flow` transformations. In a list, the *last* middleware is closest to where values come from, the *first* to where they go: models and signals run ViewModel → last → … → first → view; intents run view → last → … → first → `process`. |
 | `VIELoggingMiddleware(name)` | Ships in the box: prints every model/intent/signal plus `START`/`END`, prefixed with `name`. |
 | `MockVIE<Model, Intent, Signal>(model)` | A full `VIE` for tests: mutable `modelFlow`/`signalFlow`, records posted intents in `intentsChannel`. |
 | `MockVIE.pendingIntents()` | **Drains** `intentsChannel`: returns intents posted since the previous call, then empties. Not an accumulating log. |
 | `runVMTest(newVM = { … }) { … }` | `org.kodein.arch.vie.test` (`vie-test`). Tests a `VIEViewModel` on virtual time: `post(intent)`, `model`, `pendingModels()`, `pendingSignals()` (both drain), `advanceUntilIdle()`, `runCurrent()`, `advanceTimeBy(d)`. Return its result from the test function. |
-| `EmptyVIE<Intent, Signal>()` | A `VIEViewScope` with nothing behind it, for `@Preview`s: `post` discards, `signalFlow` is always empty. Carries no model — pass one to the view's own `model` parameter. |
+| `EmptyVIE<Intent, Signal>()` | A `VIEViewScope` with nothing behind it, for `@Preview`s: `post` discards, `signalFlow` is always empty. Carries no model — pass one to the view's own `model` parameter. In SwiftUI, write `VIEScope.empty`. |
 
 ## Reviewing VIE code
 
@@ -82,3 +93,23 @@ Given a screen name (e.g. "Counter") and optionally a package:
    existing file — ask first if one is in the way.
 6. **Report** the paths created and what's left as `TODO` for the user to fill in (the model's
    fields, the intents, the signals, `process`, and the layout).
+
+The `Xxx.kt.template` view is a Compose one, and needs the `vie-compose` dependency. For a SwiftUI
+app, write the contract and the ViewModel with the two Kotlin templates, and the view with the
+Swift one: see the next section.
+
+## SwiftUI
+
+Read `references/swiftui.md` first: it holds the procedures, how Kotlin names arrive in Swift, and the
+limits (a signal is cast in a `switch` that Swift cannot check for exhaustiveness).
+
+- **Installing the helpers** in an iOS app: find the framework and its `baseName`, make `vie-mvi`
+  (and the module holding the contracts and ViewModels) an `api` dependency that the framework
+  `export`s, check that the deployment target is iOS 17 or more and the toolchain Swift 6.2 (Xcode
+  26) or more, then copy the files of this skill's `swift/` directory and change their
+  `import Shared` line to the framework's `baseName`. Stop and tell the user if either is below.
+  Never overwrite an existing file.
+- **Creating a SwiftUI screen** for an existing contract: read `templates/Xxx.swift.template`,
+  substitute `{{Name}}` and `{{Framework}}` (the framework's `baseName`), write
+  `{{Name}}Screen.swift` next to the app's other screens, and report what is left as `TODO`. The
+  helpers must already be installed: if `VIEContainer` is nowhere in the app, install them first.

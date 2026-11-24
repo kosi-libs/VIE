@@ -3,9 +3,9 @@ package {{viewPackage}}
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.tooling.preview.Preview
 import org.kodein.arch.vie.EmptyVIE
-import org.kodein.arch.vie.SignalEffect
-import org.kodein.arch.vie.VIEView
 import org.kodein.arch.vie.VIEViewScope
+import org.kodein.arch.vie.compose.SignalEffect
+import org.kodein.arch.vie.compose.VIEView
 import {{viePackage}}.{{Name}}VIE.Intent
 import {{viePackage}}.{{Name}}VIE.Model
 import {{viePackage}}.{{Name}}VIE.Signal

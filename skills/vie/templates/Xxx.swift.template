@@ -1,0 +1,51 @@
+import {{Framework}}
+import SwiftUI
+
+
+/// Entry point: creates the ViewModel and renders `{{Name}}Content`. This is the only place that
+/// knows about `{{Name}}VM`. To get a new ViewModel when something changes (another item of a list,
+/// say), give this view a new identity with `.id(…)`.
+struct {{Name}}Screen: View {
+    // TODO: constructor args for {{Name}}VM, plus navigation callbacks, e.g.:
+    // let goBack: () -> Void
+
+    var body: some View {
+        VIEContainer(newVM: { {{Name}}VM(/* … */) }) { model, scope in
+            {{Name}}Content(model: model, scope: scope /*, goBack: goBack */)
+        }
+    }
+}
+
+typealias {{Name}}Scope = VIEScope<{{Name}}VIEIntent, {{Name}}VIESignal>
+
+/// The layout: a model and a scope, no ViewModel in sight, so this can be rendered against a real
+/// screen or against `.empty` in a preview.
+struct {{Name}}Content: View {
+    let model: {{Name}}VIEModel
+    let scope: {{Name}}Scope
+    // TODO: plain callbacks for navigation, e.g. let goBack: () -> Void
+
+    var body: some View {
+        // TODO: render `model`, call `scope.post(…)` on user actions.
+        Text("{{Name}}")
+            .onVIESignal(of: scope) { signal in
+                switch signal {
+                // TODO: add one branch per Signal, e.g.
+                // case let error as {{Name}}VIESignalError: /* show an alert */
+                //
+                // Swift cannot check this `switch` for exhaustiveness: each case of the sealed
+                // hierarchy is a class of its own. Keep the `default`, and look at it each time a
+                // Signal is added.
+                default:
+                    break
+                }
+            }
+    }
+}
+
+#Preview {
+    {{Name}}Content(
+        model: {{Name}}VIEModel(/* TODO: the fields of the model */),
+        scope: .empty
+    )
+}
