@@ -63,6 +63,11 @@ public class VIEHost<Model : VIE.Model, Intent : VIE.Intent, Signal : VIE.Signal
      * Calls [onModel] with the current model, then with every new one, until the returned
      * [VIECancellable] is cancelled or this host is cleared.
      *
+     * Called from the main thread, as it should be, the first call to [onModel] usually happens
+     * before this function returns: the returned [VIECancellable] is not available to it yet.
+     * It comes after the return when this is called from within another callback that runs the
+     * same way. Rely on neither order.
+     *
      * @param onModel Called with each model.
      */
     public fun observeModels(onModel: (Model) -> Unit): VIECancellable =

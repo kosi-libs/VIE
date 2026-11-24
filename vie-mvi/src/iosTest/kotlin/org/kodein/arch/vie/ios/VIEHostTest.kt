@@ -1,8 +1,11 @@
 package org.kodein.arch.vie.ios
 
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.test.setMain
 import org.kodein.arch.vie.EmptyVIE
 import org.kodein.arch.vie.VIE
 import org.kodein.arch.vie.VIETest
@@ -236,6 +239,98 @@ internal class VIEHostTest : VIETest() {
 
         assertTrue(vm!!.cleared)
         assertEquals(listOf(HostModel(0)), models)
+    }
+
+    // The four tests below run on an immediate main, as `Dispatchers.Main.immediate` is on the main
+    // thread of an app: the launched body runs in place, before the function returns. The other tests
+    // use a main that always queues, which an app never does.
+
+    @Test
+    fun onTheMainThreadObserveModelsDeliversTheCurrentModelBeforeItReturns() = runTest {
+        Dispatchers.setMain(UnconfinedTestDispatcher(testScheduler))
+        val host = VIEHost { HostVM() }
+        var returned = false
+        val calls = mutableListOf<Pair<HostModel, Boolean>>()
+
+        host.observeModels { calls += it to returned }
+        returned = true
+
+        assertEquals(listOf(HostModel(0) to false), calls)
+
+        host.clear()
+    }
+
+    @Test
+    fun onTheMainThreadCollectSignalsDeliversTheQueuedEffectsBeforeItReturns() = runTest {
+        Dispatchers.setMain(UnconfinedTestDispatcher(testScheduler))
+        val host = VIEHost { HostVM() }
+        host.scope.post(HostIntent.Shout)
+        advanceUntilIdle()
+
+        var returned = false
+        val calls = mutableListOf<Pair<HostSignal, Boolean>>()
+        host.scope.collectSignals { signal, done ->
+            calls += signal to returned
+            done()
+        }
+        returned = true
+
+        assertEquals(listOf<Pair<HostSignal, Boolean>>(HostSignal.Shown(1) to false, HostSignal.Shown(2) to false), calls)
+
+        host.clear()
+    }
+
+    @Test
+    fun onTheMainThreadOnlyTheFirstQueuedEffectPrecedesTheReturnUntilDoneIsCalled() = runTest {
+        Dispatchers.setMain(UnconfinedTestDispatcher(testScheduler))
+        val host = VIEHost { HostVM() }
+        host.scope.post(HostIntent.Shout)
+        advanceUntilIdle()
+
+        var returned = false
+        val calls = mutableListOf<Pair<HostSignal, Boolean>>()
+        val dones = mutableListOf<() -> Unit>()
+        host.scope.collectSignals { signal, done ->
+            calls += signal to returned
+            dones += done
+        }
+        returned = true
+
+        assertEquals(listOf<Pair<HostSignal, Boolean>>(HostSignal.Shown(1) to false), calls)
+
+        // The next Effect is handed over during `done` itself, with no scheduler to advance.
+        dones.single().invoke()
+        assertEquals(listOf<Pair<HostSignal, Boolean>>(HostSignal.Shown(1) to false, HostSignal.Shown(2) to true), calls)
+
+        host.clear()
+    }
+
+    // The unconfined loop is already running while `onModel` is called, so the collection it starts
+    // is queued behind it: its first callback comes after `collectSignals` returned.
+    @Test
+    fun aCollectionStartedFromACallbackStartsAfterItReturns() = runTest {
+        Dispatchers.setMain(UnconfinedTestDispatcher(testScheduler))
+        val host = VIEHost { HostVM() }
+        host.scope.post(HostIntent.Shout)
+        advanceUntilIdle()
+
+        val calls = mutableListOf<Pair<HostSignal, Boolean>>()
+        var started = false
+        host.observeModels {
+            if (started) return@observeModels
+            started = true
+            var returned = false
+            host.scope.collectSignals { signal, done ->
+                calls += signal to returned
+                done()
+            }
+            returned = true
+        }
+        advanceUntilIdle()
+
+        assertEquals(listOf<Pair<HostSignal, Boolean>>(HostSignal.Shown(1) to true, HostSignal.Shown(2) to true), calls)
+
+        host.clear()
     }
 
     @Test
