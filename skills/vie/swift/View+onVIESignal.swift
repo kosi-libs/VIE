@@ -17,6 +17,10 @@ extension View {
     /// `switch signal { case let s as MyVIESignalX: … }`, and a `default`, which Swift cannot check
     /// for exhaustiveness.
     ///
+    /// `perform` is the one of the latest rendering of the view, as `SignalEffect` calls the lambda
+    /// of its latest composition: what it captures, a callback from the parent for instance, is
+    /// never stale.
+    ///
     /// It collects between the appearance and the disappearance of the view, as `SignalEffect` does
     /// between the composition and the disposal of a composable: an Effect emitted in between waits
     /// for the view to come back, an Event emitted with no view on screen is lost, and so is an
@@ -31,14 +35,39 @@ extension View {
         of scope: VIEScope<Intent, Signal>,
         perform onSignal: @escaping @MainActor (Signal) async -> Void
     ) -> some View {
-        task {
+        modifier(VIESignalModifier(scope: scope, perform: onSignal))
+    }
+}
+
+
+/// Holds the `perform` of the latest rendering. A plain class, not observable: writing it while a
+/// body is computed invalidates nothing, and the collection, started once, reads it at each signal.
+@MainActor
+private final class LatestPerform<Signal> {
+    var perform: (@MainActor (Signal) async -> Void)?
+}
+
+
+private struct VIESignalModifier<Intent: VIEIntent, Signal: VIESignal>: ViewModifier {
+
+    let scope: VIEScope<Intent, Signal>
+    let perform: @MainActor (Signal) async -> Void
+
+    // `@State` keeps the same box across the renderings of the view: this is what the collection,
+    // started once, reads.
+    @State private var latest = LatestPerform<Signal>()
+
+    func body(content: Content) -> some View {
+        latest.perform = perform
+        let latest = latest
+        return content.task {
             await collectVIESignals(of: scope.base) { signal in
                 guard let signal = signal as? Signal else {
                     preconditionFailure(
                         "\(type(of: signal)) is not a \(Signal.self): this VIEScope wraps the scope of another screen"
                     )
                 }
-                await onSignal(signal)
+                await latest.perform?(signal)
             }
         }
     }
