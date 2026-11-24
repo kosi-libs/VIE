@@ -22,7 +22,7 @@ kotlin {
 
     sourceSets {
         commonMain.dependencies {
-            implementation(projects.demo.demoShared)
+            implementation(projects.demo.demoCompose)
 
             implementation(libs.compose.foundation)
             implementation(libs.compose.runtime)

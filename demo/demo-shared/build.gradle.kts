@@ -3,9 +3,7 @@ import org.jetbrains.kotlin.gradle.tasks.KotlinCompilationTask
 plugins {
     alias(libs.plugins.kotlin.multiplatform)
     alias(libs.plugins.android.kotlin.multiplatform.library)
-    alias(libs.plugins.kotlin.plugin.compose)
     alias(libs.plugins.kotlin.plugin.serialization)
-    alias(libs.plugins.compose.multiplatform)
     alias(libs.plugins.ksp)
 }
 
@@ -24,20 +22,12 @@ kotlin {
     iosSimulatorArm64()
 
     js {
-        browser {
-            testTask {
-                // There's a weird bug in Compose JS that fails test on JS.
-                // See https://youtrack.jetbrains.com/issue/CMP-4906
-                enabled = false
-            }
-        }
-        binaries.executable()
+        browser()
     }
 
     @OptIn(org.jetbrains.kotlin.gradle.ExperimentalWasmDsl::class)
     wasmJs {
         browser()
-        binaries.executable()
     }
 
     sourceSets {
@@ -46,39 +36,24 @@ kotlin {
         }
 
         commonMain.dependencies {
-            implementation(projects.vieCompose)
-            implementation(projects.vieMvi)
+            // The contracts extend VIE, and the ViewModels extend VIEViewModel: both are part of this
+            // module's public signatures. This module has no Compose in it, on purpose: a SwiftUI
+            // app shares it without embedding Compose.
+            api(projects.vieMvi)
 
-            implementation(libs.androidx.jb.navigation3.ui)
-            implementation(libs.androidx.lifecycle.viewmodel.compose)
-            implementation(libs.androidx.lifecycle.viewmodel.navigation3)
-            implementation(libs.androidx.navigation3.runtime)
-
-            implementation(libs.compose.foundation)
-            implementation(libs.compose.material3)
-            implementation(libs.compose.materialIcons)
-            implementation(libs.compose.runtime)
-            implementation(libs.compose.ui.tooling.preview)
+            // TaskRepository exposes a Flow.
+            api(libs.kotlinx.coroutines)
 
             implementation(libs.inara.runtime)
 
-            implementation(libs.kotlinx.coroutines)
+            // The contracts are @Serializable.
+            implementation(libs.kotlinx.serialization.json)
         }
         commonTest.dependencies {
             implementation(projects.vieTest)
 
-            implementation(libs.compose.ui.test)
             implementation(libs.kotlin.test)
             implementation(libs.kotlinx.coroutines.test)
-        }
-        jvmMain.dependencies {
-            runtimeOnly(libs.compose.ui.tooling)
-        }
-        androidMain.dependencies {
-            runtimeOnly(libs.compose.ui.tooling)
-        }
-        jvmTest.dependencies {
-            implementation(compose.desktop.currentOs)
         }
     }
 }

@@ -40,8 +40,7 @@ import org.kodein.arch.vie.demo.vie.TaskListVIE.Intent
 import org.kodein.arch.vie.demo.vie.TaskListVIE.Model
 import org.kodein.arch.vie.demo.vie.TaskListVIE.Model.Work
 import org.kodein.arch.vie.demo.vie.TaskListVIE.Signal
-import org.kodein.arch.vie.demo.vie.vm.TaskListVM
-import org.kodein.arch.vie.demo.vie.vm.VMFactory
+import org.kodein.arch.vie.demo.vie.vm.DemoViewModels
 import kotlin.uuid.Uuid
 
 
@@ -53,7 +52,7 @@ fun TaskList(
     val appModule = AppModule.current
 
     VIEView(
-        newVM = { VMFactory.TaskListVM(appModule) },
+        newVM = { DemoViewModels.taskList(appModule) },
     ) {
         TaskList(
             model = it,
@@ -91,8 +90,10 @@ fun VIEViewScope<Intent, Signal>.TaskList(
             }
         }
     ) { paddingValues ->
+        // A local copy: the model comes from another module, so its properties cannot be smart cast.
+        val tasks = model.tasks
         when {
-            model.tasks == null -> {
+            tasks == null -> {
                 Box(
                     contentAlignment = Alignment.Center,
                     modifier = Modifier
@@ -106,7 +107,7 @@ fun VIEViewScope<Intent, Signal>.TaskList(
                     )
                 }
             }
-            model.tasks.isEmpty() -> {
+            tasks.isEmpty() -> {
                 Box(
                     contentAlignment = Alignment.Center,
                     modifier = Modifier
@@ -122,7 +123,7 @@ fun VIEViewScope<Intent, Signal>.TaskList(
                         .fillMaxSize()
                         .padding(paddingValues)
                 ) {
-                    items(model.tasks) { (id, task) ->
+                    items(tasks) { (id, task) ->
                         ListItem(
                             onClick = { goToTask(id) },
                             modifier = Modifier.testTag("row-$id"),

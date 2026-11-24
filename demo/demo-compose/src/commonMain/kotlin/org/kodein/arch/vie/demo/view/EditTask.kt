@@ -47,8 +47,7 @@ import org.kodein.arch.vie.demo.data.Task
 import org.kodein.arch.vie.demo.vie.EditTaskVIE.Intent
 import org.kodein.arch.vie.demo.vie.EditTaskVIE.Model
 import org.kodein.arch.vie.demo.vie.EditTaskVIE.Signal
-import org.kodein.arch.vie.demo.vie.vm.EditTaskVM
-import org.kodein.arch.vie.demo.vie.vm.VMFactory
+import org.kodein.arch.vie.demo.vie.vm.DemoViewModels
 import kotlin.uuid.Uuid
 
 
@@ -60,7 +59,7 @@ fun EditTask(
     val appModule = AppModule.current
 
     VIEView(
-        newVM = { VMFactory.EditTaskVM(appModule, taskId) }
+        newVM = { DemoViewModels.editTask(appModule, taskId) }
     ) {
         EditTask(
             model = it,
@@ -115,9 +114,11 @@ fun VIEViewScope<Intent, Signal>.EditTask(
             val descriptionState = rememberTextFieldState()
 
             LaunchedEffect(model.task) {
-                if (model.task != null) {
-                    titleState.setTextAndPlaceCursorAtEnd(model.task.title)
-                    descriptionState.setTextAndPlaceCursorAtEnd(model.task.description)
+                // A local copy: the model comes from another module, so its properties cannot be smart cast.
+                val task = model.task
+                if (task != null) {
+                    titleState.setTextAndPlaceCursorAtEnd(task.title)
+                    descriptionState.setTextAndPlaceCursorAtEnd(task.description)
                 }
             }
 
