@@ -232,6 +232,48 @@ final class VIEHelpersTests: XCTestCase {
         XCTAssertEqual(handled.entries, [1])
     }
 
+    func testAnEffectEmittedAfterTheViewDisappearedIsLeftToAnotherCollection() async throws {
+        let stage = Stage()
+        let host = TestHost(newVM: { HelperTestVM() })
+        defer { host.clear() }
+        let scope = TestScope(host.scope)
+        let handled = Log<Int32>()
+        let gate = Gate()
+        defer { gate.open() }
+        let cancellation = Flag()
+        try await mount {
+            if stage.isShown {
+                Color.clear.onVIESignal(of: scope) { signal in
+                    handled.append(shownId(signal))
+                    await withTaskCancellationHandler {
+                        await gate.wait()
+                    } onCancel: {
+                        cancellation.raise()
+                    }
+                }
+            }
+        }
+        scope.post(HelperTestVIEIntentShow(id: 1))
+        await eventually("the first signal to be handled") { handled.entries == [1] }
+
+        // The view disappears, and its `perform` ignores the cancellation: it still runs.
+        stage.isShown = false
+        await eventually("the task of the view to be cancelled") { cancellation.isRaised }
+
+        // The collection of the view is over all the same: an Effect emitted now goes to the
+        // collection that listens, as it would wait for the view to come back.
+        let later = Log<Int32>()
+        let collection = VIESignalsKt.collectSignals(host.scope) { signal, done in
+            later.append(shownId(signal as! any VIESignal))
+            _ = done()
+        }
+        defer { collection.cancel() }
+        scope.post(HelperTestVIEIntentShow(id: 2))
+
+        await eventually("the later signal to reach the other collection") { later.entries == [2] }
+        XCTAssertEqual(handled.entries, [1])
+    }
+
     func testAnotherScopeRestartsTheCollection() async throws {
         let stage = Stage()
         let first = TestHost(newVM: { HelperTestVM() })
