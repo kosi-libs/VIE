@@ -27,6 +27,8 @@ extension View {
     /// Effect that the view is handling when it disappears, before `perform` returned, together
     /// with the Effects already queued behind it.
     ///
+    /// The collection restarts if the view is given another scope.
+    ///
     /// `perform` runs in the task of the view, so it is cancelled when the view disappears. As any
     /// cancellation in Swift, it is cooperative: a `perform` that never awaits something
     /// cancellable and never checks `Task.isCancelled` still runs to its end. The next signal is
@@ -65,7 +67,10 @@ private struct VIESignalModifier<Intent: VIEIntent, Signal: VIESignal>: ViewModi
     func body(content: Content) -> some View {
         latest.perform = perform
         let latest = latest
-        return content.task {
+        // The identity of the Kotlin scope restarts the collection when the view is kept by SwiftUI
+        // but given another scope: it would otherwise go on collecting the old one, whose ViewModel
+        // may be cleared. The base scope is always a Kotlin object.
+        return content.task(id: ObjectIdentifier(scope.base as AnyObject)) {
             await collectVIESignals(of: scope.base) { signal in
                 guard let signal = signal as? Signal else {
                     preconditionFailure(
