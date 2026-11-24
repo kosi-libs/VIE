@@ -16,8 +16,9 @@ import kotlin.coroutines.resume
  * waits for its suspending lambda to return.
  *
  * It works on any [VIEViewScope]: a [VIEHost]'s [VIEHost.scope], or `EmptyVIE` in a preview, whose
- * signals never fire. A signal taken by an observation that is cancelled before it called `done`
- * is lost, as with `SignalEffect`.
+ * signals never fire. An Effect taken by an observation that is cancelled before it called `done`
+ * is lost, as with `SignalEffect`, and only that one: the Effects queued behind it go to the next
+ * observation.
  *
  * The callbacks run on the main thread.
  *
