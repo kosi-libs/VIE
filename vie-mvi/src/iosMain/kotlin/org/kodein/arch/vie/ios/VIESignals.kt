@@ -4,7 +4,6 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import org.kodein.arch.vie.VIE
@@ -57,12 +56,4 @@ public fun <Signal : VIE.Signal> VIEViewScope<*, Signal>.collectSignals(
         }
     }
     return VIECancellable(job)
-}
-
-/** Stops an observation started by [VIEHost.observeModels] or [collectSignals]. */
-public class VIECancellable internal constructor(internal val job: Job) {
-    /** Stops the observation. Idempotent. */
-    public fun cancel() {
-        job.cancel()
-    }
 }
