@@ -6,7 +6,7 @@ on:
 
 jobs:
   build-upload:
-    runs-on: macOS-latest
+    runs-on: [self-hosted, macOS, ARM64, vie]
     steps:
       - name: Setup
         uses: KodeinKoders/kodein-github-actions/gradle-kotlin-setup@v0.4
