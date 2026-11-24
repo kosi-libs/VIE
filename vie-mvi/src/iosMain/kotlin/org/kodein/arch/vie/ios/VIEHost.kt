@@ -35,9 +35,7 @@ public class VIEHost<Model : VIE.Model, Intent : VIE.Intent, Signal : VIE.Signal
 
     private var cleared = false
 
-    private val vm: VIEViewModel<Model, Intent, Signal> by lazy {
-        // A ViewModel created after clear would never be cleared.
-        check(!cleared) { "This VIEHost has been cleared" }
+    private val created: VIEViewModel<Model, Intent, Signal> by lazy {
         val factory = object : ViewModelProvider.Factory {
             override fun <T : ViewModel> create(modelClass: KClass<T>, extras: CreationExtras): T {
                 @Suppress("UNCHECKED_CAST")
@@ -49,13 +47,27 @@ public class VIEHost<Model : VIE.Model, Intent : VIE.Intent, Signal : VIE.Signal
         ViewModelProvider.create(store, factory)[VIEViewModel::class] as VIEViewModel<Model, Intent, Signal>
     }
 
-    /** The current model: always complete, so a view's first render needs no placeholder. */
+    // Every member but `clear` goes through here, so a cleared host hands out nothing, used or not,
+    // and creates no ViewModel after the clear, which nobody would clear.
+    private val vm: VIEViewModel<Model, Intent, Signal>
+        get() {
+            check(!cleared) { "This VIEHost has been cleared" }
+            return created
+        }
+
+    /**
+     * The current model: always complete, so a view's first render needs no placeholder.
+     *
+     * @throws IllegalStateException If this host has been cleared.
+     */
     public val model: Model get() = vm.modelFlow.value
 
     /**
      * What a view sees of the ViewModel: it posts intents to it, and [collectSignals] reads its signals.
      * Typed as a [VIEViewScope] only (the object is the ViewModel itself, but its static type
      * exposes no more), so that a view renders just as well against `EmptyVIE`.
+     *
+     * @throws IllegalStateException If this host has been cleared.
      */
     public val scope: VIEViewScope<Intent, Signal> get() = vm
 
@@ -69,16 +81,26 @@ public class VIEHost<Model : VIE.Model, Intent : VIE.Intent, Signal : VIE.Signal
      * same way. Rely on neither order.
      *
      * @param onModel Called with each model.
+     * @throws IllegalStateException If this host has been cleared.
      */
-    public fun observeModels(onModel: (Model) -> Unit): VIECancellable =
-        VIECancellable(vm.viewModelScope.launch {
+    public fun observeModels(onModel: (Model) -> Unit): VIECancellable {
+        // Read once, so that the guard can only fail here, never inside the coroutine.
+        val vm = vm
+        return VIECancellable(vm.viewModelScope.launch {
             vm.modelFlow.collect { onModel(it) }
         })
+    }
 
     /**
      * Clears the ViewModel, which cancels its `viewModelScope` and with it [observeModels] and the
      * collections started by [collectSignals] on [scope].
      * Idempotent. A host cleared before its ViewModel was created never creates one.
+     *
+     * After it, [model], [scope] and [observeModels] throw an [IllegalStateException], whether the
+     * ViewModel was created or not. They are not declared with `@Throws`, so called from Swift the
+     * exception ends the process, as a failed `precondition` does: a view must not read a host it
+     * cleared. What was handed out before keeps working without error but does nothing: a [scope]
+     * taken earlier ignores the intents posted to it, and a collection started on it ends at once.
      */
     public fun clear() {
         cleared = true

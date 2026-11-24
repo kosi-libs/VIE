@@ -392,6 +392,44 @@ internal class VIEHostTest : VIETest() {
         host.clear()
 
         assertFailsWith<IllegalStateException> { host.model }
+        assertFailsWith<IllegalStateException> { host.scope }
+        assertFailsWith<IllegalStateException> { host.observeModels { } }
         assertFalse(created)
+    }
+
+    // Used or not, a cleared host fails the same way.
+    @Test
+    fun aHostClearedAfterUseFailsAsOneNeverUsed() = runTest {
+        val host = VIEHost { HostVM() }
+        host.observeModels { }
+        advanceUntilIdle()
+        host.clear()
+
+        assertFailsWith<IllegalStateException> { host.model }
+        assertFailsWith<IllegalStateException> { host.scope }
+        assertFailsWith<IllegalStateException> { host.observeModels { } }
+    }
+
+    // What the host handed out before `clear` is the cleared ViewModel itself: it ignores what is
+    // posted to it, and a collection started on it ends at once.
+    @Test
+    fun aScopeTakenBeforeClearIgnoresWhatComesAfter() = runTest {
+        var vm: HostVM? = null
+        val host = VIEHost { HostVM().also { vm = it } }
+        val scope = host.scope
+        host.clear()
+
+        scope.post(HostIntent.Increment)
+        advanceUntilIdle()
+        assertEquals(HostModel(0), vm!!.modelFlow.value)
+
+        val signals = mutableListOf<HostSignal>()
+        val collection = scope.collectSignals { signal, done ->
+            signals += signal
+            done()
+        }
+        advanceUntilIdle()
+        assertFalse(collection.job.isActive)
+        assertEquals(emptyList(), signals)
     }
 }
