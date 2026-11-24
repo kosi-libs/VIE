@@ -20,7 +20,7 @@ import SwiftUI
 ///
 /// Prefer `VIEContainer`, which holds one for you. Use `VIEState` directly to keep it in your own
 /// `@State`.
-final class VIEState<Model: AnyObject, Intent: AnyObject, Signal: AnyObject>: Observable {
+final class VIEState<Model: VIEModel, Intent: VIEIntent, Signal: VIESignal>: Observable {
 
     // Observable by hand rather than with @Observable: the first read of `model` stores the model
     // without notifying, since it happens while SwiftUI is computing a body.
@@ -85,7 +85,11 @@ final class VIEState<Model: AnyObject, Intent: AnyObject, Signal: AnyObject>: Ob
 /// ```
 ///
 /// To get a new ViewModel, give the view a new identity with `.id(…)`.
-struct VIEContainer<Model: AnyObject, Intent: AnyObject, Signal: AnyObject, Content: View>: View {
+///
+/// `Model`, `Intent` and `Signal` are bound to the VIE marker protocols to state the contract. Swift
+/// does not enforce it at the call site: Kotlin/Native drops the bounds of a type parameter when it
+/// exports to Objective-C, so `VIEHost<NSString, …>` still compiles.
+struct VIEContainer<Model: VIEModel, Intent: VIEIntent, Signal: VIESignal, Content: View>: View {
 
     @State private var state: VIEState<Model, Intent, Signal>
     private let content: (Model, any VIEViewScope) -> Content
