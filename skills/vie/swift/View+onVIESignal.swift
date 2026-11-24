@@ -1,9 +1,10 @@
 // VIE for SwiftUI - https://github.com/kosi-libs/VIE
 //
-// Copy the files of this directory into your iOS app, and change the import below to the name of
-// the Kotlin framework your app links. That framework must export org.kodein.arch.vie:vie-mvi
-// (`export(...)` in its `binaries.framework`), so that VIEViewModel and VIEHost are part of its
-// header. Requires iOS 17 (Observation).
+// Copy the files of this directory into your iOS app, all of them, and change the import below to
+// the name of the Kotlin framework your app links. That framework must export
+// org.kodein.arch.vie:vie-mvi (`export(...)` in its `binaries.framework`), so that VIEViewModel and
+// VIEHost are part of its header. Together, the files require iOS 17 (Observation) and a Swift 6.2
+// toolchain (Xcode 26, for `isolated deinit`): VIEContainer.swift is the one that needs both.
 
 import Shared // ← Replace with the name of your Kotlin framework.
 import SwiftUI
