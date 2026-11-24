@@ -13,9 +13,8 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.onSubscription
-import kotlinx.coroutines.flow.transform
-import kotlinx.coroutines.flow.updateAndGet
+import kotlinx.coroutines.flow.merge
+import kotlinx.coroutines.flow.receiveAsFlow
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
@@ -122,42 +121,27 @@ public abstract class VIEViewModel<Model : VIE.Model, Intent : VIE.Intent, Signa
         signalCollector = MutableSharedFlow()
         val allSignalsFlow =
             middlewares.foldRight(signalCollector.asFlow()) { middleware, flow -> middleware.interceptSignals(flow) }
-        // An Effect waits in a queue shared by every collector, not in the dispatch loop: later signals,
-        // Events included, and `signal` callers do not wait behind it. A collector takes an Effect out of
-        // the queue only at the moment it hands it downstream, never ahead of time: a collector that is
-        // cancelled while it handles an Effect loses that one, and none of the Effects queued behind it.
-        val effects = EffectQueue()
-        // Events, and the markers that tell a collector an Effect is waiting, go through one SharedFlow,
-        // so that a collector sees them in the order they were emitted. Its buffer is unbounded, so that
-        // the dispatch loop never waits on a collector: one that never returns holds what follows it in memory.
-        val deliveries = MutableSharedFlow<Delivery>(extraBufferCapacity = Channel.UNLIMITED)
+        // Buffered, so an Effect that no view collects yet waits in the channel, not in the dispatch loop:
+        // later signals, Events included, and `signal` callers do not wait behind it.
+        val effectChannel = Channel<VIE.Signal.Effect /* & Signal */>(Channel.UNLIMITED)
+        val eventFlow = MutableSharedFlow<VIE.Signal.Event /* & Signal */>()
         viewModelScope.launch {
             allSignalsFlow.collect { signal ->
                 when (signal) {
-                    // Queued before it is announced: a collector that sees the marker finds the Effect.
-                    is VIE.Signal.Effect -> deliveries.emit(Delivery.EffectQueued(effects.enqueue(signal)))
-                    is VIE.Signal.Event -> deliveries.emit(Delivery.Event(signal))
+                    is VIE.Signal.Effect -> effectChannel.send(signal)
+                    is VIE.Signal.Event -> eventFlow.emit(signal)
                     is VIE.Signal.None -> error("Cannot send None signal")
                 }
             }
         }
+        // `merge` takes Effects out of the channel ahead of time, into a buffer of its own: a collector that is
+        // cancelled while it handles an Effect loses it, and the Effects already queued behind it. A burst of
+        // Effects is a design flaw of the screen that emits it, so this is a documented limit, not handled.
         @Suppress("UNCHECKED_CAST")
-        signalFlow = deliveries
-            // The Effects queued before this collector subscribed are handed to it first. Those queued
-            // since arrive with their marker, which keeps their place among the Events.
-            .onSubscription { emit(Delivery.Subscribed(effects.lastSeq)) }
-            .transform { delivery ->
-                when (delivery) {
-                    is Delivery.Event -> emit(delivery.event as Signal)
-                    is Delivery.EffectQueued -> effects.takeUpTo(delivery.seq)?.let { emit(it as Signal) }
-                    is Delivery.Subscribed -> while (true) {
-                        // A handler that swallowed its cancellation returns normally: stop before taking
-                        // an Effect that would be dropped on its way downstream.
-                        currentCoroutineContext().ensureActive()
-                        emit((effects.takeUpTo(delivery.lastSeq) ?: break) as Signal)
-                    }
-                }
-            }
+        signalFlow = merge(
+            effectChannel.receiveAsFlow() as Flow<Signal>,
+            eventFlow as Flow<Signal>,
+        )
     }
 
     /** Sends [intent] through the middlewares to [process]. */
@@ -202,46 +186,4 @@ public abstract class VIEViewModel<Model : VIE.Model, Intent : VIE.Intent, Signa
     public suspend fun <S> signal(signal: S) where S : Signal, S : VIE.Signal.Type {
         signalCollector.emit(signal)
     }
-}
-
-/**
- * The Effects no collector has taken yet, shared by all of them, each numbered in the order it was
- * queued. Taking is atomic: an Effect is handed to exactly one collector.
- */
-private class EffectQueue {
-
-    private class Item(val seq: Long, val effect: VIE.Signal.Effect)
-
-    // Compared by identity, not by content: `compareAndSet` below succeeds only if no one else changed
-    // the queue since it was read, which is what makes a take atomic.
-    private class Snapshot(val lastSeq: Long, val items: List<Item>)
-
-    // A StateFlow only for its atomic compare-and-set: nothing collects it.
-    private val state = MutableStateFlow(Snapshot(lastSeq = 0, items = emptyList()))
-
-    /** The number of the last Effect queued, `0` if none was. */
-    val lastSeq: Long get() = state.value.lastSeq
-
-    /** Queues [effect] behind the others, and returns its number. */
-    fun enqueue(effect: VIE.Signal.Effect): Long =
-        state.updateAndGet { Snapshot(it.lastSeq + 1, it.items + Item(it.lastSeq + 1, effect)) }.lastSeq
-
-    /** Takes the oldest Effect if its number is at most [seq]: the later ones are left to their own marker. */
-    fun takeUpTo(seq: Long): VIE.Signal.Effect? {
-        while (true) {
-            val snapshot = state.value
-            val head = snapshot.items.firstOrNull()?.takeIf { it.seq <= seq } ?: return null
-            if (state.compareAndSet(snapshot, Snapshot(snapshot.lastSeq, snapshot.items.drop(1)))) return head.effect
-        }
-    }
-}
-
-/** What a collector of `signalFlow` is told, in order. */
-private sealed interface Delivery {
-    /** An Event, for every collector. */
-    class Event(val event: VIE.Signal.Event) : Delivery
-    /** The Effect numbered [seq] is waiting: the collector that takes it from the queue handles it. */
-    class EffectQueued(val seq: Long) : Delivery
-    /** First thing a collector is told: the Effects up to [lastSeq] were queued before it subscribed. */
-    class Subscribed(val lastSeq: Long) : Delivery
 }

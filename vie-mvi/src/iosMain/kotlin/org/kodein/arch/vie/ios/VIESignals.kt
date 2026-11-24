@@ -20,9 +20,8 @@ import kotlin.coroutines.resume
  * waits for its suspending lambda to return.
  *
  * It works on any [VIEViewScope]: a [VIEHost]'s [VIEHost.scope], or `EmptyVIE` in a preview, whose
- * signals never fire. An Effect taken by an observation that is cancelled before it called `done`
- * is lost, as with `SignalEffect`, and only that one: the Effects queued behind it go to the next
- * observation.
+ * signals never fire. A signal taken by an observation that is cancelled before it called `done`
+ * is lost, as with `SignalEffect`, together with the Effects already queued behind it.
  *
  * Unlike `SignalEffect`, which always calls the lambda of its latest composition, [onSignal] is
  * the very lambda passed to this call, for every signal: values it captured are not refreshed.
