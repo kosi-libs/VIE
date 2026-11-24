@@ -230,16 +230,16 @@ internal class VIEHostTest : VIETest() {
     fun clearClearsTheViewModelAndStopsModelObservation() = runTest {
         var vm: HostVM? = null
         val host = VIEHost { HostVM().also { vm = it } }
-        val models = mutableListOf<HostModel>()
-        host.observeModels { models += it }
+        val observation = host.observeModels { }
         advanceUntilIdle()
+        assertTrue(observation.isActive)
 
         host.clear()
-        host.clear()
+        host.clear() // Clearing twice is harmless.
         advanceUntilIdle()
 
         assertTrue(vm!!.cleared)
-        assertEquals(listOf(HostModel(0)), models)
+        assertFalse(observation.isActive)
     }
 
     @Test
