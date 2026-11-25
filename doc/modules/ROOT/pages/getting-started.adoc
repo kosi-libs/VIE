@@ -2,6 +2,7 @@
 
 This page adds a first VIE screen, a counter, to an existing Compose Multiplatform project, such as one created by the https://kmp.jetbrains.com[Kotlin Multiplatform wizard].
 For an Android-only or JVM-only project, or to add the test helpers, see xref:core:setup.adoc#jvm-or-android-only[].
+To write the view in SwiftUI instead, see xref:guides:swiftui.adoc[].
 
 1. Add VIE to the common dependencies of your shared module:
 +
@@ -11,11 +12,14 @@ For an Android-only or JVM-only project, or to add the test helpers, see xref:co
 kotlin {
     sourceSets {
         commonMain.dependencies {
-            implementation("org.kodein.arch.vie:vie-mvi:{version}")
+            implementation("org.kodein.arch.vie:vie-mvi:{version}") // <1>
+            implementation("org.kodein.arch.vie:vie-compose:{version}") // <2>
         }
     }
 }
 ----
+<1> The contract, the ViewModel and the middlewares.
+<2> `VIEView` and `SignalEffect`, which render a screen in Compose.
 
 2. Declare the screen's contract:
 +

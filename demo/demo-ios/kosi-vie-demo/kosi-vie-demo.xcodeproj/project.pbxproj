@@ -25,9 +25,9 @@
 		AA0000000000000000000043 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		AA0000000000000000000044 /* Preview Assets.xcassets */ = {isa = PBXFileReference; lastKnownFileType = folder.assetcatalog; path = "Preview Assets.xcassets"; sourceTree = "<group>"; };
 		AA0000000000000000000045 /* TaskListScreen.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = TaskListScreen.swift; path = "../../demo-swiftui/kosi-vie-swiftui-demo/kosi-vie-swiftui-demo/TaskListScreen.swift"; sourceTree = SOURCE_ROOT; };
-		AA0000000000000000000047 /* VIEContainer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = VIEContainer.swift; path = "../../../skills/vie/swift/VIEContainer.swift"; sourceTree = SOURCE_ROOT; };
+		AA0000000000000000000047 /* VIEContainer.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = VIEContainer.swift; path = ../../../skills/vie/swift/VIEContainer.swift; sourceTree = SOURCE_ROOT; };
 		AA0000000000000000000048 /* View+onVIESignal.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = "View+onVIESignal.swift"; path = "../../../skills/vie/swift/View+onVIESignal.swift"; sourceTree = SOURCE_ROOT; };
-		AA0000000000000000000059 /* VIEScope.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = VIEScope.swift; path = "../../../skills/vie/swift/VIEScope.swift"; sourceTree = SOURCE_ROOT; };
+		AA0000000000000000000059 /* VIEScope.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; name = VIEScope.swift; path = ../../../skills/vie/swift/VIEScope.swift; sourceTree = SOURCE_ROOT; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -173,7 +173,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "if [ -z \"$JAVA_HOME\" ]; then\n  export JAVA_HOME=\"$(/usr/libexec/java_home)\"\nfi\ncd \"$SRCROOT/../../..\"\n./gradlew :demo:demo-ios:embedAndSignAppleFrameworkForXcode\n";
+			shellScript = "if [ \"YES\" = \"$OVERRIDE_KOTLIN_BUILD_IDE_SUPPORTED\" ]; then\n  echo \"Skipping Gradle build task invocation due to OVERRIDE_KOTLIN_BUILD_IDE_SUPPORTED environment variable set to \\\"YES\\\"\"\n  exit 0\nfi\nif [ -z \"$JAVA_HOME\" ]; then\n  export JAVA_HOME=\"$(/usr/libexec/java_home)\"\nfi\ncd \"$SRCROOT/../../..\"\n./gradlew :demo:demo-ios:embedAndSignAppleFrameworkForXcode";
 		};
 /* End PBXShellScriptBuildPhase section */
 
@@ -322,8 +322,8 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "\"kosi-vie-demo/Preview Content\"";
 				DEVELOPMENT_TEAM = "";
-				"EXCLUDED_ARCHS[sdk=iphonesimulator*]" = x86_64;
 				ENABLE_PREVIEWS = YES;
+				"EXCLUDED_ARCHS[sdk=iphonesimulator*]" = x86_64;
 				FRAMEWORK_SEARCH_PATHS = "$(SRCROOT)/../build/xcode-frameworks/$(CONFIGURATION)/$(SDK_NAME)";
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "kosi-vie-demo/Info.plist";
@@ -338,7 +338,7 @@
 					"-framework",
 					Shared,
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = "org.kodein.arch.vie.demo.ios";
+				PRODUCT_BUNDLE_IDENTIFIER = org.kodein.arch.vie.demo.ios;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;
@@ -355,8 +355,8 @@
 				CURRENT_PROJECT_VERSION = 1;
 				DEVELOPMENT_ASSET_PATHS = "\"kosi-vie-demo/Preview Content\"";
 				DEVELOPMENT_TEAM = "";
-				"EXCLUDED_ARCHS[sdk=iphonesimulator*]" = x86_64;
 				ENABLE_PREVIEWS = YES;
+				"EXCLUDED_ARCHS[sdk=iphonesimulator*]" = x86_64;
 				FRAMEWORK_SEARCH_PATHS = "$(SRCROOT)/../build/xcode-frameworks/$(CONFIGURATION)/$(SDK_NAME)";
 				GENERATE_INFOPLIST_FILE = NO;
 				INFOPLIST_FILE = "kosi-vie-demo/Info.plist";
@@ -371,7 +371,7 @@
 					"-framework",
 					Shared,
 				);
-				PRODUCT_BUNDLE_IDENTIFIER = "org.kodein.arch.vie.demo.ios";
+				PRODUCT_BUNDLE_IDENTIFIER = org.kodein.arch.vie.demo.ios;
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
 				SWIFT_VERSION = 5.0;

@@ -5,16 +5,16 @@
 :idseparator: -
 :icons: font
 :source-highlighter: highlight.js
-:version: 0.1.0
+:version: 0.2.0
 
 [.lead]
-Model-View-Intent for Compose Multiplatform: one state flow down, intents up, signals sideways.
+Model-View-Intent for Kotlin Multiplatform: one state flow down, intents up, signals sideways.
 
 VIE gives a screen three types and a contract between them.
 A _Model_ is the state the view renders.
 An _Intent_ is a UI event: most often something the user did, but not always.
 A _Signal_ is a one-off the view reacts to but does not render: a navigation, a snackbar, a toast.
-You declare the three in an interface, a `VIEViewModel` implements it, and a `VIEView` renders it.
+You declare the three in an interface, a `VIEViewModel` implements it, and a view renders it, written in Compose or in SwiftUI.
 The view only ever sees the contract, never the ViewModel.
 
 The name is the French translation of MVI: **V**ue **I**ntention **É**tat.
@@ -105,6 +105,11 @@ Rendering the view in a preview or a test is a different receiver, nothing more.
 Inside `VIEView`, the view sees a `VIEViewScope` with exactly two members: `post(intent)` and `signalFlow`.
 It cannot read `modelFlow`, call `update`, or reach `viewModelScope`.
 
+*The same ViewModels serve Compose and SwiftUI.*
+The core, `vie-mvi`, has no Compose in it.
+A Compose view comes from `vie-compose`, and a SwiftUI view from a few Swift files that you copy into your app.
+The contracts and the ViewModels are written once, in Kotlin.
+
 *Events and Effects are different delivery channels.*
 An Event is broadcast to every view that currently listens, and dropped if none does.
 An Effect reaches exactly one view, so a "navigate back" fires once even when two views observe the same ViewModel.
@@ -124,8 +129,11 @@ Neither the ViewModel nor the view knows it is there.
 
 == Installation
 
-VIE is a Kotlin Multiplatform library for Compose Multiplatform.
-Add it to the common dependencies of your shared module:
+WARNING: Version 0.2 moves `VIEView` and `SignalEffect` out of `vie-mvi`, into the new `vie-compose` artifact and the `org.kodein.arch.vie.compose` package.
+If you are on version 0.1, see the https://kosi-libs.org/vie/0.2/migration/0.1to0.2.html[0.1 to 0.2 migration guide].
+
+VIE is a Kotlin Multiplatform library.
+Add the core to the common dependencies of your shared module, and `vie-compose` where your views are written in Compose:
 
 [source,kotlin,subs="verbatim,attributes"]
 .build.gradle.kts
@@ -134,25 +142,32 @@ kotlin {
     sourceSets {
         commonMain.dependencies {
             implementation("org.kodein.arch.vie:vie-mvi:{version}") // <1>
+            implementation("org.kodein.arch.vie:vie-compose:{version}") // <2>
         }
     }
 }
 ----
-<1> Brings Compose runtime, `ViewModel` and coroutines along.
+<1> The contract, the ViewModel and the middlewares.
+Brings `ViewModel` and coroutines along.
+<2> `VIEView` and `SignalEffect`, which render a screen in Compose.
+Brings the Compose runtime along.
+A SwiftUI app leaves it out.
 
-For the requirements, the test helpers, single-platform projects and the supported platforms, see the https://kosi-libs.org/vie/{version}/core/setup.html[setup page].
+For the requirements, the test helpers, single-platform projects and the supported platforms, see the https://kosi-libs.org/vie/latest/core/setup.html[setup page].
+For SwiftUI, see the https://kosi-libs.org/vie/latest/guides/swiftui.html[SwiftUI guide].
 
 
 == Documentation
 
 The full documentation is on https://kosi-libs.org/vie[kosi-libs.org].
 
-For a complete application built with VIE, see the task-list demo in link:demo/demo-shared[`demo/demo-shared`].
+For a complete application built with VIE, see the task-list demos: link:demo/demo-compose[`demo/demo-compose`] in Compose, link:demo/demo-swiftui[`demo/demo-swiftui`] in SwiftUI, and link:demo/demo-ios[`demo/demo-ios`], which mixes both on iOS.
+They share the contracts and the ViewModels of link:demo/demo-shared[`demo/demo-shared`].
 
 
 == AI agent skill
 
-VIE ships an Agent Skill that teaches your coding agent VIE's good practices, reviews VIE code, and scaffolds new screens.
+VIE ships an Agent Skill that teaches your coding agent VIE's good practices, reviews VIE code, scaffolds new screens, and installs the SwiftUI helpers in an iOS app.
 Install it in a project that uses VIE:
 
 [source,bash]

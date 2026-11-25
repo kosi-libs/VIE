@@ -1,0 +1,255 @@
+= SwiftUI
+
+A SwiftUI app shares the contracts and the ViewModels of its Kotlin module with the other platforms, and writes only its views.
+This page sets the app up, writes a screen with the helpers that VIE gives you to copy, then shows what to know before relying on them.
+
+The samples come from the task-list demo, `demo/demo-swiftui` in the VIE repository.
+
+
+[#how-it-works]
+== How it works
+
+Swift can neither collect a Kotlin `Flow` nor clear a ViewModel by itself.
+The core, `vie-mvi`, therefore holds a small part for iOS: `VIEHost` owns a ViewModel for a Swift view, and `collectSignals` turns the signals of a `VIEViewScope` into callbacks.
+Three Swift files wrap them: `VIEContainer`, the SwiftUI counterpart of `VIEView`, `VIEScope`, the typed scope a view sees, and `.onVIESignal`, the counterpart of `SignalEffect`.
+
+Those files are meant to be copied into your app, not depended on.
+A Swift package would force you to name your Kotlin framework as the package imports it.
+They need neither SKIE nor KMP-NativeCoroutines, only the Objective-C export that Kotlin/Native always does.
+
+
+[#setup]
+== Setup
+
+The Kotlin module that builds the framework your app links must export `vie-mvi`:
+
+[source,kotlin,subs="verbatim,attributes"]
+.build.gradle.kts
+----
+kotlin {
+    listOf(iosArm64(), iosSimulatorArm64()).forEach { target ->
+        target.binaries.framework {
+            baseName = "Shared" // <1>
+            isStatic = true
+            export("org.kodein.arch.vie:vie-mvi:{version}") // <2>
+        }
+    }
+    sourceSets {
+        commonMain.dependencies {
+            api("org.kodein.arch.vie:vie-mvi:{version}") // <3>
+        }
+    }
+}
+----
+<1> The name the Swift files import.
+<2> Only the declarations of an exported module reach the framework header: without the export, Swift could not name `VIEViewModel`.
+<3> An exported module must be an `api` dependency.
+
+Export the module that holds your contracts and your ViewModels the same way, if it is not the one that builds the framework: Swift names their classes too.
+
+Then copy the files of https://github.com/kosi-libs/VIE/tree/main/skills/vie/swift[`skills/vie/swift`] into your Xcode project, and change their `import Shared` line to the name of your framework.
+The helpers use Observation, so the app must target iOS 17 or later.
+They also need a Swift 6.2 toolchain, so Xcode 26 or later: with an older one, `VIEContainer.swift` fails on an `#error` that says so.
+
+TIP: The agent skill does all of this for you: see xref:ROOT:ai-skill.adoc[].
+
+
+[#screen]
+== A screen
+
+A screen has two views, as in Compose: a container that owns the ViewModel, and a content view that knows nothing but a model and a scope.
+
+[source,swift]
+.TaskListScreen.swift
+----
+struct TaskListScreen: View {
+    let goToTask: (KotlinUuid) -> Void
+
+    var body: some View {
+        VIEContainer(newVM: { DemoViewModels.shared.taskList() }) { model, scope in // <1>
+            TaskListContent(model: model, scope: scope, goToTask: goToTask)
+        }
+    }
+}
+----
+<1> `newVM` runs once, when the model is first read, and the ViewModel lives as long as the view keeps its SwiftUI identity.
+The content is rendered again with every new model.
+
+`VIEContainer` clears the ViewModel when the view is gone.
+To get a new ViewModel for another item, give the view a new identity with `.id(item.id)`.
+
+[source,swift]
+.TaskListContent.swift
+----
+typealias TaskListScope = VIEScope<TaskListVIEIntent, TaskListVIESignal> // <1>
+
+struct TaskListContent: View {
+    let model: TaskListVIEModel // <2>
+    let scope: TaskListScope // <3>
+    let goToTask: (KotlinUuid) -> Void
+
+    @State private var errorMessage: String?
+
+    var body: some View {
+        List(model.tasks ?? [], id: \.first) { pair in
+            if let id = pair.first, let task = pair.second {
+                Button(task.title) {
+                    scope.post(TaskListVIEIntentUpdateTaskCompletion( // <4>
+                        taskId: id,
+                        completed: !task.completed
+                    ))
+                }
+            }
+        }
+        .onVIESignal(of: scope) { signal in // <5>
+            switch signal {
+            case let error as TaskListVIESignalError: // <6>
+                errorMessage = error.message
+            default: // <7>
+                break
+            }
+        }
+        .alert(errorMessage ?? "", isPresented: Binding(
+            get: { errorMessage != nil },
+            set: { if !$0 { errorMessage = nil } }
+        )) {}
+    }
+}
+----
+<1> Name the scope of each screen once, or every signature that takes it gets long.
+<2> The screen's model, complete from the first render.
+<3> What the view sees of the ViewModel: it posts intents to it, never more.
+<4> The view talks back by posting an intent, and only one of this screen's own contract compiles.
+<5> Collects the signals while the view is on screen.
+<6> The signals of a sealed hierarchy reach Swift as distinct classes: cast each one to the one you handle.
+<7> Swift cannot check that `switch` for exhaustiveness, so keep a `default`.
+
+
+[#signals]
+== Reacting to signals
+
+`.onVIESignal(of:perform:)` collects the signals of a scope between the appearance and the disappearance of the view, as `SignalEffect` does between the composition and the disposal of a composable.
+It calls `perform` with each signal, in order, and not before the previous call has returned.
+`perform` is always the closure of the latest rendering of the view, as `SignalEffect` calls the lambda of its latest composition, so what it captures is never stale.
+The collection starts again if the view is given another scope.
+
+* An Effect emitted while the view is not on screen waits for it to come back.
+* An Event emitted while no view is on screen is lost.
+
+[WARNING]
+====
+An Effect that the view is handling when it disappears, before `perform` returned, is lost, together with the Effects already queued behind it.
+====
+
+`perform` runs in the task of the view, so it is cancelled with it.
+Cancellation is cooperative: a `perform` that never awaits anything cancellable and never checks `Task.isCancelled` still runs to its end, though the next signal is not handed to it.
+
+
+[#previews]
+== Previews
+
+The content view takes a `VIEScope`, not the ViewModel, so a preview renders it against `VIEScope.empty`:
+
+[source,swift]
+----
+#Preview {
+    TaskListContent(
+        model: TaskListVIEModel(tasks: nil, work: []),
+        scope: .empty, // <1>
+        goToTask: { _ in }
+    )
+}
+----
+<1> Posts go nowhere, and no signal ever fires.
+
+
+[#names]
+== Kotlin names in Swift
+
+[cols="2,3"]
+|===
+| Kotlin | Swift
+
+| `TaskListVIE.Model`
+| `TaskListVIEModel`, the nested names are joined.
+
+| `TaskListVIE.Intent.DeleteTask(taskId)`, a data class
+| `TaskListVIEIntentDeleteTask(taskId:)`
+
+| `EditTaskVIE.Signal.Edited`, a data object
+| `EditTaskVIESignalEdited.shared`
+
+| A property named `description`
+| `description_`, since `description` is taken by `NSObject`.
+
+| `Uuid`, `Pair<A, B>`
+| `KotlinUuid`, `KotlinPair<A, B>`, whose `first` and `second` are optional.
+|===
+
+
+[#limits]
+== Limits
+
+Signals are cast, not typed::
+Kotlin exports `VIEViewScope` to Swift as a protocol without type parameters, so an intent of another screen would compile against it and fail at run time.
+`VIEScope` puts the intent type back: `scope.post(_:)` takes the screen's own `Intent` only.
+A sealed hierarchy of signals still reaches Swift as distinct classes, so the `switch` on a signal casts each one, and Swift cannot check it for exhaustiveness.
+Kotlin erases the signal type too: a `VIEScope` that you wrap by hand around the Kotlin scope of another screen fails a precondition at its first signal.
+
+A Kotlin class named `Task` hides Swift's `Task`::
+Once a file imports a framework that exports a class named `Task`, `Task.sleep` no longer compiles in that file.
+Write `_Concurrency.Task` for Swift's own.
+
+The helpers are checked in both language modes::
+They compile in the Swift 5 and in the Swift 6 language mode, with a Swift 6.2 toolchain.
+
+
+[#compose]
+== Mixing with Compose
+
+A Compose screen can be one screen of a SwiftUI app.
+The demo `demo/demo-ios` shows its task list in SwiftUI, and opens the Compose task editor in a sheet, both on the same ViewModels.
+
+On the Kotlin side, the editor is a `UIViewController`:
+
+[source,kotlin]
+.DemoApp.kt
+----
+fun EditTaskViewController(taskId: Uuid?, goBack: () -> Unit): UIViewController =
+    ComposeUIViewController {
+        val owner = remember { // <1>
+            object : ViewModelStoreOwner {
+                override val viewModelStore = ViewModelStore()
+            }
+        }
+        DisposableEffect(owner) {
+            onDispose { owner.viewModelStore.clear() }
+        }
+        CompositionLocalProvider(LocalViewModelStoreOwner provides owner) {
+            MaterialTheme {
+                ProvideAppModule(DemoViewModels.appModule) { // <2>
+                    EditTask(taskId = taskId, goBack = goBack)
+                }
+            }
+        }
+    }
+----
+<1> A `ViewModelStoreOwner` of its own, cleared when the composition is disposed, so that the ViewModel of the editor ends with the sheet.
+<2> The same `AppModule` as the SwiftUI list, so an edit made here shows in it.
+
+On the Swift side, a `UIViewControllerRepresentable` presents it:
+
+[source,swift]
+.ContentView.swift
+----
+struct EditTaskSheet: UIViewControllerRepresentable {
+    let taskId: KotlinUuid?
+    let goBack: () -> Void
+
+    func makeUIViewController(context: Context) -> UIViewController {
+        DemoAppKt.EditTaskViewController(taskId: taskId, goBack: goBack)
+    }
+
+    func updateUIViewController(_ uiViewController: UIViewController, context: Context) {}
+}
+----

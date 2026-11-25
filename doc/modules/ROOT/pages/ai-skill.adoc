@@ -11,15 +11,18 @@ It gives the agent:
 
 * VIE's good practices, each with the reason behind it;
 * a review checklist of the mistakes VIE's types allow, with how to spot and fix each one;
-* templates to scaffold a new screen: its contract, its ViewModel, and its view with a preview.
+* templates to scaffold a new screen: its contract, its ViewModel, and its view with a preview, in Compose or in SwiftUI;
+* the steps to install the xref:guides:swiftui.adoc[SwiftUI helpers] in an iOS app: the framework export, the iOS version check, and the Swift files with their `import` rewritten for your framework.
 
 You use it by asking in plain words, for instance:
 
 * "Create a VIE screen named Profile."
+* "Create the SwiftUI view of ProfileVIE."
+* "Install the VIE helpers for SwiftUI in my iOS app."
 * "Review the VIE code of the settings feature."
 * "Why does this view take the ViewModel?"
 
-When scaffolding a screen, the agent matches the layout of your existing screens, and never overwrites a file without asking.
+When scaffolding a screen or installing the helpers, the agent matches the layout of your existing project, and never overwrites a file without asking.
 
 
 [#install]

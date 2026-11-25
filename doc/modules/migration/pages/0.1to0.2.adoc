@@ -1,0 +1,63 @@
+= 0.1 to 0.2
+
+Version 0.2 takes the Compose part out of the core, so that an app can use VIE without Compose, with SwiftUI for instance.
+The contracts, the ViewModels and the middlewares do not change.
+
+
+[#what-changes]
+== What changes
+
+* `VIEView` and `SignalEffect` move from `vie-mvi` to a new artifact, `vie-compose`.
+* They move from the `org.kodein.arch.vie` package to `org.kodein.arch.vie.compose`.
+* `vie-mvi` no longer brings the Compose runtime along.
+* The lifecycle dependencies are Google's `androidx.lifecycle` artifacts, instead of the `org.jetbrains.androidx.lifecycle` republication.
+
+
+[#migrating]
+== Migrating a Compose project
+
+1. Add `vie-compose` to the modules that write views:
++
+[source,kotlin,subs="verbatim,attributes"]
+.build.gradle.kts
+----
+commonMain.dependencies {
+    implementation("org.kodein.arch.vie:vie-mvi:{version}")
+    implementation("org.kodein.arch.vie:vie-compose:{version}") // <1>
+}
+----
+<1> New.
+A module that only declares contracts and ViewModels does not need it.
+
+2. Import `VIEView` and `SignalEffect` from their new package:
++
+[source,kotlin]
+----
+// before
+import org.kodein.arch.vie.SignalEffect
+import org.kodein.arch.vie.VIEView
+
+// after
+import org.kodein.arch.vie.compose.SignalEffect
+import org.kodein.arch.vie.compose.VIEView
+----
+
+3. If you declare the lifecycle artifacts yourself, use Google's coordinates, with the same version:
++
+[source,kotlin,subs="verbatim,attributes"]
+----
+// before
+implementation("org.jetbrains.androidx.lifecycle:lifecycle-viewmodel-navigation3:{androidx-lifecycle-version}")
+
+// after
+implementation("androidx.lifecycle:lifecycle-viewmodel-navigation3:{androidx-lifecycle-version}")
+----
+
+Nothing else changes in your code.
+
+
+[#swiftui]
+== Using VIE from SwiftUI
+
+Version 0.2 also lets a SwiftUI app share your contracts and ViewModels, without Compose in its framework.
+See xref:guides:swiftui.adoc[].

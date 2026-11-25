@@ -1,6 +1,7 @@
 .Core
 * xref:setup.adoc[]
 ** xref:setup.adoc#jvm-or-android-only[JVM or Android only]
+** xref:setup.adoc#jetpack-compose[Jetpack Compose]
 ** xref:setup.adoc#what-comes-along[What comes along]
 ** xref:setup.adoc#platforms[Supported platforms]
 * xref:contract.adoc[]

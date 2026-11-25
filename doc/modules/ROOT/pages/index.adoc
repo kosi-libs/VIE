@@ -1,13 +1,13 @@
 = VIE
 
 [.lead]
-Model-View-Intent for Compose Multiplatform: one state flow down, intents up, signals sideways.
+Model-View-Intent for Kotlin Multiplatform: one state flow down, intents up, signals sideways.
 
 VIE gives a screen three types and a contract between them.
 A _Model_ is the state the view renders.
 An _Intent_ is a UI event: most often something the user did, but not always.
 A _Signal_ is a one-off the view reacts to but does not render: a navigation, a snackbar, a toast.
-You declare the three in an interface, a `VIEViewModel` implements it, and a `VIEView` renders it.
+You declare the three in an interface, a `VIEViewModel` implements it, and a view renders it, written in Compose or in SwiftUI.
 The view only ever sees the contract, never the ViewModel.
 
 The name is the French translation of MVI: **V**ue **I**ntention **É**tat.
@@ -96,6 +96,11 @@ The view never holds the ViewModel::
 Inside `VIEView`, the view sees a `VIEViewScope` with exactly two members: `post(intent)` and `signalFlow`.
 It cannot read `modelFlow`, call `update`, or reach `viewModelScope`.
 
+The same ViewModels serve Compose and SwiftUI::
+The core, `vie-mvi`, has no Compose in it.
+A Compose view comes from `vie-compose`, and a SwiftUI view from a few Swift files that you copy into your app: see xref:guides:swiftui.adoc[].
+The contracts and the ViewModels are written once, in Kotlin.
+
 Events and Effects are different delivery channels::
 An Event is broadcast to every view that currently listens, and dropped if none does.
 An Effect reaches exactly one view, so a "navigate back" fires once even when two views observe the same ViewModel.
@@ -118,5 +123,6 @@ Neither the ViewModel nor the view knows it is there.
 * xref:getting-started.adoc[] gets a first screen running in a few minutes.
 * The *Core* section explains VIE from the ground up: the contract, the ViewModel, the view, then middlewares.
 * The *Testing* section shows how to preview a view and test both sides of a screen without running the other.
-* The *Guides* section answers questions the core pages leave open, starting with xref:guides:navigation.adoc[], xref:guides:dependency-injection.adoc[], xref:guides:forms.adoc[] and xref:guides:lifecycles.adoc[].
+* The *Guides* section answers questions the core pages leave open, starting with xref:guides:navigation.adoc[], xref:guides:dependency-injection.adoc[], xref:guides:forms.adoc[], xref:guides:lifecycles.adoc[] and xref:guides:swiftui.adoc[].
+* The *Migration* section lists what changes from one version to the next, starting with xref:migration:0.1to0.2.adoc[].
 * xref:ai-skill.adoc[] installs the agent skill that teaches VIE to your coding assistant.

@@ -1,17 +1,18 @@
 name: vie
 title: VIE
-version: '0.1'
-display_version: '0.1.0'
+version: '0.2'
+display_version: '0.2.0'
 nav:
   - modules/ROOT/nav.adoc
   - modules/core/nav.adoc
   - modules/testing/nav.adoc
   - modules/guides/nav.adoc
+  - modules/migration/nav.adoc
 asciidoc:
   attributes:
-    version: '0.1.0'
+    version: '0.2.0'
     kotlin-version: '2.4.20'
     compose-multiplatform-version: '1.12.0'
-    androidx-jb-lifecycle-version: '2.11.0'
+    androidx-lifecycle-version: '2.11.0'
     jdk: '17'
     android-min-sdk: '26'
