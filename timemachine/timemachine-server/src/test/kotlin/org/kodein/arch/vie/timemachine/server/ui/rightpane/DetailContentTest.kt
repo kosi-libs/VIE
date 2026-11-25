@@ -3,10 +3,12 @@
 package org.kodein.arch.vie.timemachine.server.ui.rightpane
 
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.isDisplayed
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import kotlin.test.Test
+import kotlinx.serialization.json.JsonPrimitive
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
@@ -24,6 +26,9 @@ import org.kodein.arch.vie.timemachine.server.fixtures.contentTest
 import org.kodein.arch.vie.timemachine.server.fixtures.shown
 import org.kodein.arch.vie.timemachine.server.fixtures.state
 import org.kodein.arch.vie.timemachine.server.fixtures.taskListScope
+import org.kodein.arch.vie.timemachine.server.ui.common.DiffKind
+import org.kodein.arch.vie.timemachine.server.ui.common.DiffOp
+import org.kodein.arch.vie.timemachine.server.ui.common.ModelDiff
 import org.kodein.arch.vie.timemachine.server.ui.common.ModelDiffs
 import org.kodein.arch.vie.timemachine.server.ui.core.Selection
 
@@ -79,6 +84,33 @@ class DetailContentTest {
             onNodeWithText("Edit & intervene").performClick()
 
             assertEquals(listOf<DetailVIE.Intent>(DetailVIE.Intent.EditAndIntervene), vie.pendingIntents())
+        }
+    }
+
+    /** Row #208's Detail, with a diff of [count] additions at `item0`, `item1`…: what the section lists says which it kept. */
+    private fun detailWithChanges(count: Int): MockVIE<DetailVIE.Model, DetailVIE.Intent, NoSignal> {
+        val projection = detail(208).model.projection
+        val ops = List(count) { DiffOp(DiffKind.Added, listOf("item$it"), old = null, new = JsonPrimitive(it)) }
+        return MockVIE(DetailVIE.Model(projection = projection.copy(diff = ModelDiff(projection.diff!!.previous, ops))))
+    }
+
+    @Test
+    fun `a diff of a replaced list lists the first differences only, and counts the others`() {
+        val vie = detailWithChanges(MaxDetailDiffOps + 50)
+        contentTest(width = 420, height = 900, content = { vie.Rendered { DetailPaneContent(it) } }) {
+            fun listed(path: String) = onAllNodes(hasText("+ $path ", substring = true)).fetchSemanticsNodes().isNotEmpty()
+            assertTrue(listed("item${MaxDetailDiffOps - 1}"), "the last difference listed")
+            assertFalse(listed("item$MaxDetailDiffOps"), "the first one left out")
+            assertTrue(shown("… 50 more changes"))
+        }
+    }
+
+    @Test
+    fun `a diff that fits lists every difference, and counts none`() {
+        val vie = detailWithChanges(3)
+        contentTest(width = 420, height = 900, content = { vie.Rendered { DetailPaneContent(it) } }) {
+            assertTrue(onAllNodes(hasText("+ item2 ", substring = true)).fetchSemanticsNodes().isNotEmpty())
+            assertTrue(onAllNodes(hasText("more change", substring = true)).fetchSemanticsNodes().isEmpty())
         }
     }
 

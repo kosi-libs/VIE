@@ -175,10 +175,24 @@ private fun DetailChanges(diff: ModelDiff, modifier: Modifier = Modifier) {
                 .border(1.dp, scheme.outlineVariant, RoundedCornerShape(8.dp)).padding(vertical = 6.dp),
         ) {
             if (diff.ops.isEmpty()) Text("No differences.", style = InspectorTheme.text.body, color = scheme.outline, modifier = Modifier.padding(horizontal = 10.dp, vertical = 3.dp))
-            diff.ops.forEach { Box(Modifier.padding(horizontal = 10.dp, vertical = 3.dp)) { DiffText(it) } }
+            diff.ops.take(MaxDetailDiffOps).forEach { Box(Modifier.padding(horizontal = 10.dp, vertical = 3.dp)) { DiffText(it) } }
+            val more = diff.ops.size - MaxDetailDiffOps
+            if (more > 0) {
+                Text(
+                    "… $more more ${if (more == 1) "change" else "changes"}",
+                    style = InspectorTheme.text.codeRow, color = scheme.outline, maxLines = 1, modifier = Modifier.padding(horizontal = 10.dp, vertical = 3.dp),
+                )
+            }
         }
     }
 }
+
+/**
+ * How many differences the Changes section lists. The section is one item of the tab's list, composed whole, and the
+ * diff of a replaced list has an operation per element: past this, the others are counted, not listed. The document
+ * is whole below, and the pinned Model marks the nodes its latest diff changed in its own tree.
+ */
+internal const val MaxDetailDiffOps = 200
 
 /** What separates two sections of the tab. */
 private val SectionGap = 14.dp
