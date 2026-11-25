@@ -26,6 +26,8 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.toggleableState
+import androidx.compose.ui.state.ToggleableState
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorTheme
@@ -62,6 +64,9 @@ internal fun rememberCopy(): (String) -> Unit {
  *   the indication keeps to the element's bounds. A component of the design system always passes its own.
  * @param description What a glyph with no text says it is.
  * @param selected Whether it is the one chosen among its siblings; `null` when it is not a choice.
+ * @param checked Whether it is on, for an element that is switched on and off by itself, as a checkbox is: it
+ *   sets the toggle state that accessibility services and `assertIsOn` read. `null` when it is not a switch.
+ *   An element is a choice among siblings ([selected]) or a switch ([checked]), not both.
  * @param interactionSource What the element reports its hover and press to, and shows them from; `null`
  *   for one of its own. A test or the gallery gives one, to show a state with no pointer.
  */
@@ -71,6 +76,7 @@ internal fun Modifier.action(
     role: Role = Role.Button,
     description: String? = null,
     selected: Boolean? = null,
+    checked: Boolean? = null,
     interactionSource: MutableInteractionSource? = null,
     onClick: () -> Unit,
 ): Modifier = this
@@ -78,10 +84,11 @@ internal fun Modifier.action(
     .then(if (enabled) Modifier.pointerHoverIcon(PointerIcon.Hand) else Modifier)
     .clickable(enabled = enabled, role = role, interactionSource = interactionSource, onClick = onClick)
     .then(
-        if (description == null && selected == null) Modifier
+        if (description == null && selected == null && checked == null) Modifier
         else Modifier.semantics {
             description?.let { contentDescription = it }
             selected?.let { this.selected = it }
+            checked?.let { toggleableState = ToggleableState(it) }
         },
     )
 

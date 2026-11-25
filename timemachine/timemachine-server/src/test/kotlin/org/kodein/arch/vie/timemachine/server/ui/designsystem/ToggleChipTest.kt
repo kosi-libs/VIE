@@ -9,8 +9,8 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.SemanticsMatcher
-import androidx.compose.ui.test.assertIsNotSelected
-import androidx.compose.ui.test.assertIsSelected
+import androidx.compose.ui.test.assertIsOff
+import androidx.compose.ui.test.assertIsOn
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.performClick
 import kotlin.test.Test
@@ -29,11 +29,11 @@ class ToggleChipTest {
             ToggleChip("Intervened only", selected = on, onClick = { on = !on }, tone = ChipTone.Intervened, count = 2, glyph = Glyph.TouchApp)
         }) {
             val chip = onNode(hasText("Intervened only") and SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Checkbox))
-            chip.assertIsNotSelected()
+            chip.assertIsOff()
             assertTrue(onAllNodes(hasText(Glyph.TouchApp.ligature)).fetchSemanticsNodes().isNotEmpty())
             chip.performClick()
             waitForIdle()
-            chip.assertIsSelected()
+            chip.assertIsOn()
             assertTrue(onAllNodes(hasText(Glyph.Check.ligature)).fetchSemanticsNodes().isNotEmpty())
         }
     }
