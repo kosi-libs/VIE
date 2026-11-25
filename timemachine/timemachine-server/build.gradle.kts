@@ -29,6 +29,7 @@ if (providers.gradleProperty("vie.composeReports").orNull == "true") {
 
 dependencies {
     implementation(projects.timemachine.vieTimemachineShared)
+    implementation(projects.vieCompose)
     implementation(projects.vieMvi)
 
     implementation(compose.desktop.currentOs)

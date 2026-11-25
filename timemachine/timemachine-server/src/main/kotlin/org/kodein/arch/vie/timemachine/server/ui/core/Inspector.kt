@@ -25,9 +25,9 @@ import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.update
 import org.kodein.arch.vie.VIE
-import org.kodein.arch.vie.VIEView
 import org.kodein.arch.vie.VIEViewModel
 import org.kodein.arch.vie.VIEViewScope
+import org.kodein.arch.vie.compose.VIEView
 import org.kodein.arch.vie.timemachine.server.store.TimeMachineState
 import org.kodein.arch.vie.timemachine.server.store.TimeMachineStore
 import org.kodein.arch.vie.timemachine.server.ui.common.ModelDiffs
