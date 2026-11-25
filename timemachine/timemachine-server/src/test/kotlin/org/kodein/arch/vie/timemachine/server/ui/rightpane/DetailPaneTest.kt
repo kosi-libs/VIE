@@ -20,8 +20,9 @@ import org.kodein.arch.vie.timemachine.server.ui.common.ModelDiffs
 import org.kodein.arch.vie.timemachine.server.ui.core.Inspector
 import org.kodein.arch.vie.timemachine.server.ui.core.RightTab
 import org.kodein.arch.vie.timemachine.server.ui.core.Selection
+import org.kodein.arch.vie.timemachine.server.ui.timeline.FollowState
+import org.kodein.arch.vie.timemachine.server.ui.timeline.TimelineFilter
 import org.kodein.arch.vie.timemachine.server.ui.timeline.TimelineProjector
-import org.kodein.arch.vie.timemachine.server.ui.timeline.TimelineVIE
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -151,7 +152,7 @@ class DetailPaneTest {
     fun `the Detail tab shows the very diff the Timeline computed for its row`() {
         val state = ScenarioData.of("main").state()
         val diffs = ModelDiffs()
-        val timeline = TimelineProjector(taskListScope, diffs).project(state, Selection(taskListScope), TimelineVIE.Controls())
+        val timeline = TimelineProjector(taskListScope, diffs).project(state, Selection(taskListScope), TimelineFilter(), FollowState.Following)
         val detail = detailProjection(state, Selection(taskListScope, row = TimeMachineSequence(208)), raw = false, diffs)
 
         assertSame(timeline.items.first { it.sequence == TimeMachineSequence(208) }.diff, assertNotNull(detail.diff))

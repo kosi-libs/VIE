@@ -3,6 +3,7 @@
 package org.kodein.arch.vie.timemachine.server.ui.timeline
 
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.TestResult
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
@@ -68,6 +69,28 @@ class TimelinePaneTest {
         val diff = model.projection.items.first { it.sequence == seq(208) }.diff
         assertEquals(seq(206), diff?.previous)
         assertEquals(listOf(DiffKind.Added), diff?.ops?.map { it.kind })
+    }
+
+    @Test
+    fun `the inputs of the projection change with the filter and with following, not with what is expanded`() = timeline { inspector ->
+        val controls = MutableStateFlow(TimelineVIE.Controls())
+        val seen = mutableListOf<TimelineInputs>()
+        backgroundScope.launch(UnconfinedTestDispatcher(testScheduler)) { inspector.timelineInputs(controls).collect { seen += it } }
+        assertEquals(1, seen.size, "the first inputs")
+
+        controls.value = controls.value.copy(expanded = setOf(seq(208)))
+        runCurrent()
+        assertEquals(1, seen.size, "what is expanded is no input of the projection")
+
+        controls.value = controls.value.copy(filter = TimelineFilter(query = "Error"))
+        runCurrent()
+        assertEquals(2, seen.size)
+        assertEquals("Error", seen.last().filter.query)
+
+        controls.value = controls.value.copy(follow = FollowState.Paused(seq(270)))
+        runCurrent()
+        assertEquals(3, seen.size)
+        assertEquals(FollowState.Paused(seq(270)), seen.last().follow)
     }
 
     @Test
@@ -318,13 +341,13 @@ class TimelinePaneTest {
         val projector = TimelineProjector(taskListScope, ModelDiffs())
         val controls = TimelineVIE.Controls(filter = TimelineFilter(query = "no row has this"))
         val state = data.state()
-        projector.project(state, Selection(), controls)
+        projector.project(state, Selection(), controls.filter, controls.follow)
         val oldest = state.sessions.getValue(Demo.session.id).viewModels.getValue(Demo.taskList).rows.first().sequence
         assertTrue(oldest in projector.cachedRows)
 
         // One more row: the bounds evict the oldest.
         val after = state.on(rowOfTaskList(272)).state
-        projector.project(after, Selection(), controls)
+        projector.project(after, Selection(), controls.filter, controls.follow)
 
         assertTrue(oldest !in projector.cachedRows)
         assertTrue(seq(272) in projector.cachedRows)
@@ -348,17 +371,17 @@ class TimelinePaneTest {
         fun TimelineProjection.dividers() = items.filter { it.entry is SessionTimelineEntry.Divider }.map { it.key }
         fun TimelineProjection.assertKeysAreDistinct() = assertEquals(items.size, items.map { it.key }.toSet().size, "two items share a key")
 
-        val whole = projector.project(state, Selection(), TimelineVIE.Controls())
+        val whole = projector.project(state, Selection(), TimelineFilter(), FollowState.Following)
         assertEquals(3, whole.dividers().size, "connected, disconnected, reconnected")
         whole.assertKeysAreDistinct()
 
-        val filtered = projector.project(state, Selection(), TimelineVIE.Controls(filter = TimelineFilter(query = "no row has this")))
+        val filtered = projector.project(state, Selection(), TimelineFilter(query = "no row has this"), FollowState.Following)
         assertTrue(filtered.items.size < whole.items.size)
         assertEquals(whole.dividers(), filtered.dividers(), "a filter hid rows before them")
         filtered.assertKeysAreDistinct()
 
         // One more row of TaskListVM: the bounds evict its oldest, which is before the last two dividers.
-        val evicted = projector.project(state.on(rowOf(Demo.taskList, 272, reconnection)).state, Selection(), TimelineVIE.Controls())
+        val evicted = projector.project(state.on(rowOf(Demo.taskList, 272, reconnection)).state, Selection(), TimelineFilter(), FollowState.Following)
         assertTrue(evicted.items.any { it.sequence == seq(272) })
         assertEquals(whole.dividers(), evicted.dividers(), "a row before them was evicted")
         evicted.assertKeysAreDistinct()

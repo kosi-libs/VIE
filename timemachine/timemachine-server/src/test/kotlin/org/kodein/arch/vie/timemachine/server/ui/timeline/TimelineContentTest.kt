@@ -64,7 +64,7 @@ class TimelineContentTest {
         scope: InspectorScope,
         data: ScenarioData = ScenarioData.of("main"),
         controls: TimelineVIE.Controls = TimelineVIE.Controls(),
-    ) = TimelineVIE.Model(controls, TimelineProjector(scope, ModelDiffs()).project(data.state(), Selection(scope), controls))
+    ) = TimelineVIE.Model(controls, TimelineProjector(scope, ModelDiffs()).project(data.state(), Selection(scope), controls.filter, controls.follow))
 
     private fun mock(model: TimelineVIE.Model) = MockVIE<TimelineVIE.Model, TimelineVIE.Intent, NoSignal>(model)
 
@@ -88,7 +88,7 @@ class TimelineContentTest {
         val chosen = observations.last()
         val other = observations[observations.lastIndex - 1]
         val controls = TimelineVIE.Controls()
-        val vie = mock(TimelineVIE.Model(controls, TimelineProjector(taskList, ModelDiffs()).project(ScenarioData.of("main").state(), Selection(taskList, row = chosen), controls)))
+        val vie = mock(TimelineVIE.Model(controls, TimelineProjector(taskList, ModelDiffs()).project(ScenarioData.of("main").state(), Selection(taskList, row = chosen), controls.filter, controls.follow)))
         contentTest(height = 300, content = { vie.Rendered { TimelineContent(taskList, it, selectedRow = { chosen }) } }) {
             onNode(hasClickAction() and hasText("#$chosen")).assertIsSelected()
             onNode(hasClickAction() and hasText("#$other")).assertIsNotSelected()

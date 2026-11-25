@@ -1,5 +1,6 @@
 package org.kodein.arch.vie.timemachine.server.ui.timeline
 
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
@@ -180,7 +181,11 @@ internal class TimelineProjector(private val scope: InspectorScope, private val 
     /** The rows whose JSON text is cached. */
     val cachedRows: Set<TimeMachineSequence> get() = jsonText.keys.toSet()
 
-    fun project(state: TimeMachineState, selection: Selection, controls: TimelineVIE.Controls): TimelineProjection {
+    /**
+     * The timeline of [state] under [filter], with [follow] for what is new. These two are all that the projection
+     * reads of the controls: what is expanded is the view's, and is no input of this.
+     */
+    fun project(state: TimeMachineState, selection: Selection, filter: TimelineFilter, follow: FollowState): TimelineProjection {
         val session = state.sessions[scope.sessionId]
         val vm = (scope as? InspectorScope.ViewModel)?.let { session?.viewModels?.get(it.viewModelId) }
         if (session == null || (scope is InspectorScope.ViewModel && vm == null)) return TimelineProjection()
@@ -193,8 +198,8 @@ internal class TimelineProjector(private val scope: InspectorScope, private val 
         trim(rows)
         diffs.retain(state)
 
-        val filtered = controls.filter.apply(entries, { it.timelineEntry }, ::json)
-        val query = controls.filter.query
+        val filtered = filter.apply(entries, { it.timelineEntry }, ::json)
+        val query = filter.query
         val items = filtered.items.map { item(session, it, query) }
         val selected = selection.row
         val observations = rows.mapNotNull { (it.message as? TimeMachineClientMessage.Observed)?.observation }
@@ -209,7 +214,7 @@ internal class TimelineProjector(private val scope: InspectorScope, private val 
             kindCounts = observations.groupingBy { it.kind }.eachCount(),
             intervenedCount = observations.count { it.interventionId != null },
             lastSequence = rows.maxOfOrNull { it.sequence },
-            newCount = when (val follow = controls.follow) {
+            newCount = when (follow) {
                 FollowState.Following -> 0
                 is FollowState.Paused -> items.count { item -> item.sequence?.let { follow.after == null || it > follow.after } ?: false }
             },
@@ -261,6 +266,20 @@ internal class TimelineProjector(private val scope: InspectorScope, private val 
     }
 }
 
+/** What a timeline is projected from: the store, the selection, and of the controls only what [TimelineProjector.project] reads. */
+internal data class TimelineInputs(val state: TimeMachineState, val selection: Selection, val filter: TimelineFilter, val follow: FollowState)
+
+/**
+ * The inputs of a timeline's projection, given the pane's [controls]. A change of the controls that is neither the
+ * filter nor following, as expanding a row is, is not a change of the inputs: the projection does not run for it,
+ * and it filters, counts and builds an item for every row of the timeline.
+ */
+internal fun Inspector.timelineInputs(controls: Flow<TimelineVIE.Controls>): Flow<TimelineInputs> = combine(
+    store.state,
+    selection.state,
+    controls.map { it.filter to it.follow }.distinctUntilChanged(),
+) { state, selection, (filter, follow) -> TimelineInputs(state, selection.resolvedIn(state), filter, follow) }
+
 /**
  * The Timeline of one scope. Unlike the other panes, it starts without a projection: projecting a
  * timeline diffs every Model row it retains, which is not the main thread's to do, so its view draws
@@ -272,15 +291,10 @@ internal class TimelineVM(
 ) : TimelineVIE, PaneViewModel<TimelineVIE.Model, TimelineVIE.Intent, VIE.NoSignal>(TimelineVIE.Model()) {
 
     init {
-        val inputs = combine(
-            inspector.store.state,
-            inspector.selection.state,
-            modelFlow.map { it.controls }.distinctUntilChanged(),
-        ) { state, selection, controls -> Triple(state, selection.resolvedIn(state), controls) }
         project(
-            inspector.whileShown(key(scope), inputs) {
+            inspector.whileShown(key(scope), inspector.timelineInputs(modelFlow.map { it.controls })) {
                 val projector = TimelineProjector(scope, inspector.modelDiffs);
-                { (state, selection, controls) -> projector.project(state, selection, controls) }
+                { (state, selection, filter, follow) -> projector.project(state, selection, filter, follow) }
             },
         ) { copy(projection = it) }
     }
