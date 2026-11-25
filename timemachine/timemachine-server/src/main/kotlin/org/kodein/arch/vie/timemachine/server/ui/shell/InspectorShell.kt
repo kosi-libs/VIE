@@ -33,6 +33,7 @@ import org.kodein.arch.vie.timemachine.server.ui.common.ProvideCompact
 import org.kodein.arch.vie.timemachine.server.ui.core.InspectorPane
 import org.kodein.arch.vie.timemachine.server.ui.core.InspectorScope
 import org.kodein.arch.vie.timemachine.server.ui.core.LocalInspector
+import org.kodein.arch.vie.timemachine.server.ui.core.InspectorViewState
 import org.kodein.arch.vie.timemachine.server.ui.core.LocalInspectorViewState
 import org.kodein.arch.vie.timemachine.server.ui.core.releaseDroppedScopes
 import org.kodein.arch.vie.timemachine.server.ui.designsystem.EmptyState
@@ -134,15 +135,49 @@ private fun PanesLayout(
     rightPane: @Composable (Modifier) -> Unit,
 ) {
     val viewState = LocalInspectorViewState.current
-    val sessions = viewState.sessionsWidth.coerceIn(InspectorDimens.minSessionsPane, widest(total - viewState.rightWidth - MinCentre, InspectorDimens.minSessionsPane))
-    val right = viewState.rightWidth.coerceIn(InspectorDimens.minRightPane, widest(total - sessions - MinCentre, InspectorDimens.minRightPane))
+    val sessions = viewState.shownSessionsWidth(total)
+    val right = viewState.shownRightWidth(total)
     Row(Modifier.fillMaxSize()) {
         sessionsPane(SessionsPresentation.Pane, Modifier.width(sessions).fillMaxHeight())
-        Splitter(onDrag = { viewState.sessionsWidth = (sessions + it).coerceIn(InspectorDimens.minSessionsPane, widest(total - right - MinCentre, InspectorDimens.minSessionsPane)) })
+        Splitter(onDrag = { viewState.dragSessions(it, total) })
         centrePane(Modifier.weight(1f).fillMaxHeight())
-        Splitter(onDrag = { viewState.rightWidth = (right - it).coerceIn(InspectorDimens.minRightPane, widest(total - sessions - MinCentre, InspectorDimens.minRightPane)) })
+        Splitter(onDrag = { viewState.dragRight(it, total) })
         rightPane(Modifier.width(right).fillMaxHeight())
     }
+}
+
+// What each pane is given of [total], and what a drag does to it. A drag is several movements, and those that
+// arrive between two frames all reach a splitter's callback before it is composed again: it must not hold a
+// width from the last composition, which the first movement already made stale. The width a movement starts from
+// is the one now shown, read here from the view state, never the raw width, which a narrow window may have
+// clamped: dragging from that one would move nothing until it came back within the range.
+
+internal fun InspectorViewState.shownSessionsWidth(total: Dp): Dp =
+    sessionsWidth.coerceIn(InspectorDimens.minSessionsPane, widest(total - rightWidth - MinCentre, InspectorDimens.minSessionsPane))
+
+internal fun InspectorViewState.shownRightWidth(total: Dp): Dp =
+    rightWidth.coerceIn(InspectorDimens.minRightPane, widest(total - shownSessionsWidth(total) - MinCentre, InspectorDimens.minRightPane))
+
+/** Moves the sessions pane's splitter by [delta], to the right if positive. */
+internal fun InspectorViewState.dragSessions(delta: Dp, total: Dp) {
+    val right = shownRightWidth(total)
+    sessionsWidth = (shownSessionsWidth(total) + delta).coerceIn(InspectorDimens.minSessionsPane, widest(total - right - MinCentre, InspectorDimens.minSessionsPane))
+}
+
+/** Moves the right pane's splitter by [delta], to the right if positive: the pane gets narrower. */
+internal fun InspectorViewState.dragRight(delta: Dp, total: Dp) {
+    val sessions = shownSessionsWidth(total)
+    rightWidth = (shownRightWidth(total) - delta).coerceIn(InspectorDimens.minRightPane, widest(total - sessions - MinCentre, InspectorDimens.minRightPane))
+}
+
+/** What the compact layout's right pane may take of [total]: what the rail and the centre pane leave. */
+private fun compactRoom(total: Dp): Dp = widest(total - InspectorDimens.navigationRail - MinCentre, InspectorDimens.minRightPane)
+
+internal fun InspectorViewState.shownCompactRightWidth(total: Dp): Dp = compactRightWidth.coerceIn(InspectorDimens.minRightPane, compactRoom(total))
+
+/** Moves the compact right pane's splitter by [delta], to the right if positive: the pane gets narrower. */
+internal fun InspectorViewState.dragCompactRight(delta: Dp, total: Dp) {
+    compactRightWidth = (shownCompactRightWidth(total) - delta).coerceIn(InspectorDimens.minRightPane, compactRoom(total))
 }
 
 /**
@@ -178,9 +213,8 @@ private fun CompactPanes(
             if (viewState.rightCollapsed) {
                 CollapsedRightPane { viewState.rightCollapsed = false }
             } else {
-                val room = widest(total - rail - MinCentre, InspectorDimens.minRightPane)
-                val right = viewState.compactRightWidth.coerceIn(InspectorDimens.minRightPane, room)
-                Splitter(onDrag = { viewState.compactRightWidth = (right - it).coerceIn(InspectorDimens.minRightPane, room) })
+                val right = viewState.shownCompactRightWidth(total)
+                Splitter(onDrag = { viewState.dragCompactRight(it, total) })
                 rightPane(Modifier.width(right).fillMaxHeight())
             }
         }
