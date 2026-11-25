@@ -4,9 +4,11 @@ package org.kodein.arch.vie.timemachine.server.ui.shell
 
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.input.key.Key
+import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.DesktopComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.click
+import androidx.compose.ui.test.isFocused
 import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
@@ -130,6 +132,62 @@ class CompactLayoutTest {
         // The sheet had the keyboard; the centre pane was given it back.
         onRoot().performKeyInput { pressKey(Key.DirectionDown) }
         until { inspector.selection.state.value.row != null }
+    }
+
+    @Test
+    fun `with the drawer open, Tab never reaches the timeline behind it`() = window { inspector, viewState, _ ->
+        until { described(RailMenuDescription) }
+        inspector.selection.selectScope(taskList)
+        until { inspector.viewModel(inspector.timelinePane(taskList)).modelFlow.value.projection.items.isNotEmpty() }
+        onNodeWithContentDescription(RailMenuDescription).performClick()
+        until { shown("Clear disconnected") }
+
+        // Tab across everything there is to reach, then a key that the timeline would take for a step.
+        repeat(40) {
+            onRoot().performKeyInput { pressKey(Key.Tab) }
+            onRoot().performKeyInput { pressKey(Key.DirectionDown) }
+        }
+        waitForIdle()
+
+        assertTrue(viewState.drawerOpen)
+        assertEquals(null, inspector.selection.state.value.row, "a key reached the timeline behind the drawer")
+    }
+
+    @Test
+    fun `with the drawer open, Tab still moves the focus within the sheet, and Escape still closes it`() = window { _, viewState, _ ->
+        until { described(RailMenuDescription) }
+        onNodeWithContentDescription(RailMenuDescription).performClick()
+        until { shown("Clear disconnected") }
+        waitForIdle()
+
+        val seen = mutableSetOf<Int>()
+        repeat(6) {
+            onRoot().performKeyInput { pressKey(Key.Tab) }
+            waitForIdle()
+            seen += onAllNodes(isFocused()).fetchSemanticsNodes().map { it.id }
+        }
+        assertTrue(seen.size > 2, "Tab did not move through the sheet: $seen")
+
+        onRoot().performKeyInput { pressKey(Key.Escape) }
+        until { !viewState.drawerOpen }
+    }
+
+    @Test
+    fun `with the drawer open, what is behind it is hidden from accessibility, and the scrim can be activated`() = window { _, viewState, _ ->
+        until { described("SettingsVM c3d7") }
+        onNodeWithContentDescription(RailMenuDescription).performClick()
+        until { shown("Clear disconnected") }
+        waitForIdle()
+
+        // The rail stays composed behind the scrim, and is marked hidden, on the node that holds it or one above.
+        val tile = onNodeWithContentDescription("SettingsVM c3d7").fetchSemanticsNode()
+        assertTrue(
+            generateSequence(tile) { it.parent }.any { SemanticsProperties.HideFromAccessibility in it.config },
+            "the rail is still exposed behind the drawer",
+        )
+
+        onNodeWithContentDescription("Close Sessions").performClick()
+        until { !viewState.drawerOpen }
     }
 
     /** Waits for the timeline of [scope] to have rows to step through, then presses ↓ on whatever has the keyboard. */

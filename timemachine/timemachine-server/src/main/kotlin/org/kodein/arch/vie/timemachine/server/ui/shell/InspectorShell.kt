@@ -17,6 +17,7 @@ import androidx.compose.runtime.movableContentOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
@@ -198,7 +199,11 @@ private fun CompactPanes(
     val centreFocus = remember { FocusRequester() }
     LaunchedEffect(viewState, centreFocus) {
         // The first value is where the sheet stands, not a change: after it, each `false` is a sheet that closed.
-        snapshotFlow { viewState.drawerOpen }.drop(1).filter { !it }.collect { runCatching { centreFocus.requestFocus() } }
+        // The sheet keeps the focus out of what is behind it until it is composed again with `open` off: a frame.
+        snapshotFlow { viewState.drawerOpen }.drop(1).filter { !it }.collect {
+            withFrameNanos { }
+            runCatching { centreFocus.requestFocus() }
+        }
     }
     ModalSheet(
         open = viewState.drawerOpen,
