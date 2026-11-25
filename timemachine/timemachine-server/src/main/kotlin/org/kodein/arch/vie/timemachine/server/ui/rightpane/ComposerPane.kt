@@ -46,7 +46,6 @@ internal interface ComposerVIE : VIE<ComposerVIE.Model, ComposerVIE.Intent, VIE.
      *   selection of another row of the timeline no longer moves it.
      * @property draft The text the developer edited, `null` while the editor shows the prefill: kind
      *   and type changes, reset and a request replace it.
-     * @property typeMenuOpen Whether the type dropdown is open.
      * @property requestId The intervention whose result the card shows: the latest sent from here, until
      *   another is asked for.
      * @property sending The latest intervention sent from here, whatever the card shows. Send waits for its
@@ -56,7 +55,6 @@ internal interface ComposerVIE : VIE<ComposerVIE.Model, ComposerVIE.Intent, VIE.
         val kind: VIEObjectKind = VIEObjectKind.Model,
         val chosenType: String? = null,
         val draft: String? = null,
-        val typeMenuOpen: Boolean = false,
         val requestId: Uuid? = null,
         val sending: Uuid? = null,
     )
@@ -74,7 +72,6 @@ internal interface ComposerVIE : VIE<ComposerVIE.Model, ComposerVIE.Intent, VIE.
         data class SetKind(val kind: VIEObjectKind) : Intent
         data class SetType(val type: String) : Intent
         data class SetText(val text: String) : Intent
-        data class SetTypeMenu(val open: Boolean) : Intent
         data object Format : Intent
         data object Reset : Intent
         data object Send : Intent
@@ -252,9 +249,8 @@ internal class ComposerVM(
 
     override suspend fun process(intent: ComposerVIE.Intent) {
         when (intent) {
-            is ComposerVIE.Intent.SetKind -> controls { copy(kind = intent.kind, chosenType = null, draft = null, typeMenuOpen = false) }
-            is ComposerVIE.Intent.SetType -> controls { copy(chosenType = intent.type, draft = null, typeMenuOpen = false) }
-            is ComposerVIE.Intent.SetTypeMenu -> controls { copy(typeMenuOpen = intent.open) }
+            is ComposerVIE.Intent.SetKind -> controls { copy(kind = intent.kind, chosenType = null, draft = null) }
+            is ComposerVIE.Intent.SetType -> controls { copy(chosenType = intent.type, draft = null) }
             is ComposerVIE.Intent.SetText -> if (intent.text != model.editorText) controls { withDraft(intent.text, shownType()) }
             ComposerVIE.Intent.Format -> {
                 // The text and the type it is the draft of, from the same target.

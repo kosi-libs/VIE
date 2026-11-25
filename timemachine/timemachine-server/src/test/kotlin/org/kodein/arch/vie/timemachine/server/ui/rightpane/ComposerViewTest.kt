@@ -16,6 +16,7 @@ import androidx.compose.ui.test.assertTextContains
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.onLast
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performSemanticsAction
@@ -23,6 +24,7 @@ import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.text.AnnotatedString
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 import kotlin.uuid.Uuid
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.StandardTestDispatcher
@@ -58,6 +60,8 @@ class ComposerViewTest {
 
     /** The segment of kind [name]: the type field shows a type's name as well, which can be "Model". */
     private fun segment(name: String) = hasText(name) and SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.RadioButton)
+
+    private fun Inspector.chosenType(): String? = viewModel(composerPane(Demo.session.id, Demo.taskList)).modelFlow.value.controls.chosenType
 
     private fun Inspector.draft(): String? = viewModel(composerPane(Demo.session.id, Demo.taskList)).modelFlow.value.controls.draft
 
@@ -109,6 +113,25 @@ class ComposerViewTest {
         projected { onAllNodes(option).fetchSemanticsNodes().size > 1 }
 
         assertEquals(listOf(width), onAllNodes(option).fetchSemanticsNodes().map { it.size.width }.distinct())
+    }
+
+    @Test
+    fun `the type menu opens from its field without touching the model, and choosing a type closes it`() = composer { inspector ->
+        projected { editorShown() }
+        onNode(segment("Intent")).performClick()
+        projected { runCatching { onNode(segment("Intent")).assertIsSelected() }.isSuccess }
+        val field = hasClickAction() and hasText(Glyph.ArrowDropDown.ligature)
+        val option = hasClickAction() and hasText(Glyph.Check.ligature) and SemanticsMatcher.expectValue(SemanticsProperties.Role, Role.Button)
+        projected { onAllNodes(field).fetchSemanticsNodes().size == 1 }
+        assertEquals(0, onAllNodes(option).fetchSemanticsNodes().size, "the menu starts closed")
+
+        onNode(field).performClick()
+        projected { onAllNodes(option).fetchSemanticsNodes().size > 1 }
+        assertNull(inspector.chosenType(), "opening the menu chooses nothing")
+
+        onAllNodes(option).onLast().performClick()
+        projected { onAllNodes(option).fetchSemanticsNodes().isEmpty() }
+        projected { inspector.chosenType() == Demo.UpdateTaskCompletion }
     }
 
     @Test

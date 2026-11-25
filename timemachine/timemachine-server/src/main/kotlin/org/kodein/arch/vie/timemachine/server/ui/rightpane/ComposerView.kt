@@ -25,8 +25,10 @@ import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -138,7 +140,7 @@ internal fun VIEViewScope<ComposerVIE.Intent, NoSignal>.ComposerContent(model: C
                         modifier = Modifier.fillMaxWidth(), enabled = !blocked, optionEnabled = { it in target.enabledKinds },
                     )
                     projection.unserializable?.let { (kind, typeName) -> KindReason(kind, typeName) }
-                    TypeField(target.type.orEmpty(), target.types, model.controls.typeMenuOpen, blocked) { post(it) }
+                    TypeField(target.type.orEmpty(), target.types, blocked) { post(it) }
                     JsonSection(model, editorHeight, blocked) { post(it) }
                     SendRow(target.kind, projection.canSend && !blocked) { post(ComposerVIE.Intent.Send) }
                 }
@@ -166,10 +168,15 @@ private fun KindReason(kind: VIEObjectKind, typeName: String) {
 }
 
 @Composable
-private fun TypeField(type: String, types: List<String>, open: Boolean, blocked: Boolean, post: (ComposerVIE.Intent) -> Unit) {
+private fun TypeField(type: String, types: List<String>, blocked: Boolean, post: (ComposerVIE.Intent) -> Unit) {
     val scheme = MaterialTheme.colorScheme
     val shape = MaterialTheme.shapes.small
     val choosable = types.size > 1 && !blocked
+    // Whether the menu is open is the field's own, short-lived and purely visual: it needs no intent, and it is
+    // gone with the field, when the developer goes to another tab.
+    var open by remember { mutableStateOf(false) }
+    // A field that can no longer be chosen from closes its menu, rather than opening it again when it can.
+    LaunchedEffect(choosable) { if (!choosable) open = false }
     // The field's width, for its menu: written when the field is laid out and read when the menu is
     // measured, so a field that is resized, as a dragged splitter does at each frame, composes nothing.
     var width by remember { mutableIntStateOf(0) }
@@ -177,7 +184,7 @@ private fun TypeField(type: String, types: List<String>, open: Boolean, blocked:
         Row(
             Modifier.fillMaxWidth().height(36.dp)
                 .border(if (open) 2.dp else 1.dp, if (open) scheme.primary else InspectorTheme.colors.strongOutline, shape)
-                .action(shape = shape, enabled = choosable) { post(ComposerVIE.Intent.SetTypeMenu(!open)) }
+                .action(shape = shape, enabled = choosable) { open = !open }
                 .padding(start = 12.dp, end = 6.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -190,7 +197,7 @@ private fun TypeField(type: String, types: List<String>, open: Boolean, blocked:
         )
         DropdownMenu(
             expanded = open && choosable,
-            onDismissRequest = { post(ComposerVIE.Intent.SetTypeMenu(false)) },
+            onDismissRequest = { open = false },
             modifier = Modifier
                 .layout { measurable, constraints ->
                     val fixed = constraints.constrainWidth(width)
@@ -202,7 +209,7 @@ private fun TypeField(type: String, types: List<String>, open: Boolean, blocked:
             for (option in types) {
                 Row(
                     Modifier.fillMaxWidth().height(32.dp).background(if (option == type) scheme.surfaceContainerHighest else Color.Transparent)
-                        .action { post(ComposerVIE.Intent.SetType(option)) }.padding(horizontal = 12.dp),
+                        .action { open = false; post(ComposerVIE.Intent.SetType(option)) }.padding(horizontal = 12.dp),
                     horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Symbol(Glyph.Check, size = 15.dp, tint = if (option == type) scheme.primary else Color.Transparent)

@@ -59,18 +59,6 @@ class ComposerPaneTest {
     }
 
     @Test
-    fun `the type menu opens, and choosing a type or a kind closes it`() = composer {
-        post(ComposerVIE.Intent.SetKind(VIEObjectKind.Intent))
-        post(ComposerVIE.Intent.SetTypeMenu(true))
-        runCurrent()
-        assertTrue(model.controls.typeMenuOpen)
-
-        post(ComposerVIE.Intent.SetType(Demo.DeleteTask))
-        runCurrent()
-        assertTrue(!model.controls.typeMenuOpen)
-    }
-
-    @Test
     fun `nothing blocks a live ViewModel, and the target is named`() = composer {
         assertNull(model.projection.blockText)
         assertEquals("TaskListVM", model.projection.name)
