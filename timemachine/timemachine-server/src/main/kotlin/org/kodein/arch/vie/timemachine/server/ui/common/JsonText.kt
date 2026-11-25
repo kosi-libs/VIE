@@ -88,7 +88,14 @@ private fun StringBuilder.appendUpTo(max: Int, value: JsonElement) {
     }
 }
 
-private val JsonToken = Regex("""("(?:[^"\\]|\\.)*")(\s*:)?|(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)|\b(true|false|null)\b""")
+/**
+ * A string, its colon if any, a number, or a literal.
+ *
+ * The string is matched with possessive quantifiers: on the JVM a plain `(?:a|b)*` recurses once per
+ * character, and a line holding a long string (a base64 blob, a token) overflows the stack. Nothing
+ * needs a backtrack there: only a `"` that no `\` precedes ends a string.
+ */
+private val JsonToken = Regex("""("(?:[^"\\]++|\\.)*+")(\s*:)?|(-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)|\b(true|false|null)\b""")
 
 internal fun colorJsonLine(line: String, colors: InspectorColors) = buildAnnotatedString {
     var last = 0
