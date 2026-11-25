@@ -20,6 +20,7 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipeDown
+import androidx.compose.ui.test.swipeUp
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
 import kotlin.test.Test
@@ -174,6 +175,49 @@ class TimelineViewTest {
             val list = onNode(hasScrollAction()).fetchSemanticsNode().boundsInRoot
             val row = observationRows().firstOrNull { it.sequence == first } ?: fail("row #$first is not in view: the list did not scroll to it (follow=${inspector.follow(taskList)}, top=${topRow()}, items=${projection().items.take(3).map { it.sequence }}..${projection().items.last().sequence})")
             assertTrue(row.top >= list.top && row.bottom <= list.bottom, "row #$first is cut: ${row.top}..${row.bottom} in ${list.top}..${list.bottom}")
+        }
+
+    @Test
+    fun `revealing the last row of a paused timeline does not resume following`() =
+        paneTest(height = 300, content = { TimelineView(session) }) { inspector ->
+            inspector.selection.selectScope(session)
+            until { shown(sessionTitle) && topRow() != null }
+            waitForIdle()
+            onNode(hasScrollAction()).performTouchInput { swipeDown() }
+            until { inspector.follow(session) is FollowState.Paused }
+            waitForIdle()
+
+            // What stepping down onto the last row does: select it, and the list scrolls to reveal it, to its end.
+            val projection = { inspector.viewModel(inspector.timelinePane(session)).modelFlow.value.projection }
+            val last = projection().items.last { it.observation != null }.sequence ?: fail("no observation")
+            inspector.selection.selectRow(last)
+            until { projection().selectedRow == last }
+            waitForIdle()
+
+            val list = onNode(hasScrollAction()).fetchSemanticsNode().boundsInRoot
+            val row = observationRows().firstOrNull { it.sequence == last } ?: fail("row #$last is not in view: the list did not scroll to it")
+            assertTrue(row.top >= list.top && row.bottom <= list.bottom, "row #$last is cut: ${row.top}..${row.bottom} in ${list.top}..${list.bottom}")
+            assertIs<FollowState.Paused>(inspector.follow(session), "the scroll the code started resumed following")
+        }
+
+    @Test
+    fun `the developer scrolling back to the end of a paused timeline resumes following`() =
+        paneTest(height = 300, content = { TimelineView(session) }) { inspector ->
+            until { shown(sessionTitle) && topRow() != null }
+            waitForIdle()
+            onNode(hasScrollAction()).performTouchInput { swipeDown() }
+            until { inspector.follow(session) is FollowState.Paused }
+            waitForIdle()
+
+            // A swipe may not reach the end of a long list in one go.
+            repeat(10) {
+                if (inspector.follow(session) !is FollowState.Following) {
+                    onNode(hasScrollAction()).performTouchInput { swipeUp() }
+                    waitForIdle()
+                }
+            }
+
+            assertEquals(FollowState.Following, inspector.follow(session))
         }
 
     @Test

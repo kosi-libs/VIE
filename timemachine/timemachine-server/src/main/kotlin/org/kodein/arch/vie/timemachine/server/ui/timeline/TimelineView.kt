@@ -507,13 +507,26 @@ private fun Rows(
     }
     // The developer moving away from the end pauses following; coming back to it resumes.
     // It collects for as long as the list is there: what it posts to is read when it posts.
+    // `isScrollInProgress` does not tell the developer from the code, which scrolls to reveal the selected
+    // row: `revealing` does, for as long as that scroll runs. A scroll the code started that ends at the end
+    // gives following back only if it was on when that scroll began, so that stepping onto the last row of a
+    // paused timeline does not resume it. The scroll's author is the one at its start, or the developer's
+    // if they take over: the reveal then ends while the list still moves.
     val currentPost by rememberUpdatedState(post)
+    val currentFollowing by rememberUpdatedState(following)
+    var revealing by remember(state) { mutableStateOf(false) }
     LaunchedEffect(state) {
         var wasMoving = false
-        snapshotFlow { state.isScrollInProgress to state.canScrollForward }.distinctUntilChanged().collect { (moving, forward) ->
+        var byCode = false
+        var followingAtStart = false
+        snapshotFlow { Triple(state.isScrollInProgress, state.canScrollForward, revealing) }.distinctUntilChanged().collect { (moving, forward, revealingNow) ->
+            if (moving && !wasMoving) {
+                byCode = revealingNow
+                followingAtStart = currentFollowing
+            } else if (moving && !revealingNow) byCode = false
             // Only a scroll that ends at the end resumes: a list that fits never scrolled, so it keeps a pause.
             if (moving && forward) currentPost(TimelineVIE.Intent.ScrolledAway)
-            else if (!moving && !forward && wasMoving) currentPost(TimelineVIE.Intent.Resume)
+            else if (!moving && !forward && wasMoving && (!byCode || followingAtStart)) currentPost(TimelineVIE.Intent.Resume)
             wasMoving = moving
         }
     }
@@ -529,10 +542,15 @@ private fun Rows(
         val layout = state.layoutInfo
         val shown = layout.visibleItemsInfo.firstOrNull { it.key == items[index].key }
         // A row out of view comes to the top; one that an edge cuts moves by what it lacks, and no more.
-        if (shown == null) state.animateScrollToItem(lazyRowIndex(index, noMatch))
-        else {
-            val distance = revealDistance(shown.offset, shown.size, layout.viewportStartOffset, layout.viewportEndOffset)
-            if (distance != 0) state.animateScrollBy(distance.toFloat())
+        revealing = true
+        try {
+            if (shown == null) state.animateScrollToItem(lazyRowIndex(index, noMatch))
+            else {
+                val distance = revealDistance(shown.offset, shown.size, layout.viewportStartOffset, layout.viewportEndOffset)
+                if (distance != 0) state.animateScrollBy(distance.toFloat())
+            }
+        } finally {
+            revealing = false
         }
     }
 
