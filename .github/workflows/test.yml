@@ -72,3 +72,13 @@ jobs:
           SWIFT_VERSION=6
           build
         shell: bash
+      # The same helpers, in an app that mixes SwiftUI with a Compose screen.
+      - name: Build the mixed iOS demo
+        run: >
+          xcodebuild
+          -project demo/demo-ios/kosi-vie-demo/kosi-vie-demo.xcodeproj
+          -scheme kosi-vie-demo
+          -sdk iphonesimulator
+          -destination 'generic/platform=iOS Simulator'
+          build
+        shell: bash
