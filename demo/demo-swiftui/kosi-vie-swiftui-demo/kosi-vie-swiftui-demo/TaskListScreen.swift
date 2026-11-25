@@ -79,10 +79,15 @@ struct TaskListContent: View {
                         .buttonStyle(.borderless)
                         .disabled(row.updating)
 
-                        Text(row.task.title)
-                            .frame(maxWidth: .infinity, alignment: .leading)
-                            .contentShape(Rectangle())
-                            .onTapGesture { goToTask(row.id) }
+                        // A button, not a tap gesture on the text: VoiceOver announces it as one.
+                        Button {
+                            goToTask(row.id)
+                        } label: {
+                            Text(row.task.title)
+                                .frame(maxWidth: .infinity, alignment: .leading)
+                                .contentShape(Rectangle())
+                        }
+                        .buttonStyle(.plain)
 
                         Button(role: .destructive) {
                             scope.post(TaskListVIEIntentDeleteTask(taskId: row.id))
