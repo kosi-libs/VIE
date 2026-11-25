@@ -341,7 +341,16 @@ internal class TimelineVM(
         val state = inspector.store.state.value
         val row = state.sessions[scope.sessionId]?.viewModels?.values?.firstNotNullOfOrNull { it.row(sequence) } ?: return
         val observation = (row.message as? TimeMachineClientMessage.Observed)?.observation ?: return
-        filter { showing(observation) { observation.asJson?.toString() } }
+        // Showing a row is going to it, which leaves the end of the list: following is paused, as a scroll
+        // away from the end pauses it. Left on, it would take the list back to the end as the filters lift.
+        update {
+            copy(
+                controls = controls.copy(
+                    filter = controls.filter.showing(observation) { observation.asJson?.toString() },
+                    follow = controls.follow.scrolledAway(projection.lastSequence),
+                ),
+            )
+        }
     }
 
     companion object {

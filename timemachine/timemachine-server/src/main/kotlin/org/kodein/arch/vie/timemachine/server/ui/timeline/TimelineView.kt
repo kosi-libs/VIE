@@ -509,7 +509,9 @@ private fun Rows(
     }
     // A newly selected row scrolls into view, whole, when the filters leave it in the list: once the list
     // is measured, for until then no row is in view, and a scroll that ends at the end would resume.
-    LaunchedEffect(projection.selectedRow) {
+    // A selected row is retained while the filters hide it, so it does not change when they stop hiding
+    // it: that is the second key, and it runs again then.
+    LaunchedEffect(projection.selectedRow, projection.selectedHidden) {
         val selected = projection.selectedRow ?: return@LaunchedEffect
         val index = items.indexOfFirst { it.sequence == selected }
         if (index < 0) return@LaunchedEffect

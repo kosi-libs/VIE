@@ -14,8 +14,10 @@ import androidx.compose.ui.test.DesktopComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasScrollAction
+import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipeDown
 import androidx.compose.ui.text.AnnotatedString
@@ -133,6 +135,45 @@ class TimelineViewTest {
                 val row = observationRows().first { it.sequence == cut.sequence }
                 assertTrue(row.top >= list.top && row.bottom <= list.bottom, "row #${cut.sequence} is cut: ${row.top}..${row.bottom} in ${list.top}..${list.bottom}")
             }
+        }
+
+    @Test
+    fun `showing a selected row that the filters hide scrolls to it`() = showsTheHiddenRow(hiddenIndex = 0)
+
+    @Test
+    fun `showing a hidden row from the middle of the list scrolls to it`() = showsTheHiddenRow(hiddenIndex = 9)
+
+    /**
+     * Filters the TaskListVM's timeline down to its `DeleteTask` rows, selects the [hiddenIndex]th of the
+     * others, which that hides, and shows it: it has to come whole into view.
+     */
+    private fun showsTheHiddenRow(hiddenIndex: Int) =
+        paneTest(height = 300, content = { TimelineView(taskList) }) { inspector ->
+            inspector.selection.selectScope(taskList)
+            until { shown(taskListTitle) && topRow() != null }
+            waitForIdle()
+            val projection = { inspector.viewModel(inspector.timelinePane(taskList)).modelFlow.value.projection }
+            val first = projection().items
+                .filter { it.observation?.typeName?.contains("DeleteTask") == false }[hiddenIndex].sequence ?: fail("no observation")
+
+            // A query that this row does not match: the timeline stays on its end, following.
+            onNode(hasSetTextAction()).performTextInput("DeleteTask")
+            until { projection().hidden > 0 }
+            waitForIdle()
+            assertEquals(FollowState.Following, inspector.follow(taskList))
+
+            inspector.selection.selectRow(first)
+            until { projection().selectedHidden }
+            waitForIdle()
+            assertTrue(observationRows().none { it.sequence == first }, "row #$first is in the list, which the filter hides")
+
+            onNode(hasClickAction() and hasText("hidden by filters", substring = true)).performClick()
+            until { !projection().selectedHidden }
+            waitForIdle()
+
+            val list = onNode(hasScrollAction()).fetchSemanticsNode().boundsInRoot
+            val row = observationRows().firstOrNull { it.sequence == first } ?: fail("row #$first is not in view: the list did not scroll to it (follow=${inspector.follow(taskList)}, top=${topRow()}, items=${projection().items.take(3).map { it.sequence }}..${projection().items.last().sequence})")
+            assertTrue(row.top >= list.top && row.bottom <= list.bottom, "row #$first is cut: ${row.top}..${row.bottom} in ${list.top}..${list.bottom}")
         }
 
     @Test

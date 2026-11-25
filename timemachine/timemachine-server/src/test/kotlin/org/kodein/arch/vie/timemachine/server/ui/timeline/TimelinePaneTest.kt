@@ -206,11 +206,13 @@ class TimelinePaneTest {
             post(TimelineVIE.Intent.ToggleKind(VIEObjectKind.Signal))
             runCurrent()
             assertTrue(model.projection.selectedHidden)
+            assertEquals(FollowState.Following, model.controls.follow)
 
             post(TimelineVIE.Intent.ShowSelectedRow)
             runCurrent()
 
             assertTrue(!model.projection.selectedHidden)
+            assertEquals(FollowState.Paused(model.projection.lastSequence), model.controls.follow, "going to a row leaves the end of the list")
             assertEquals(
                 setOf(VIEObjectKind.Model, VIEObjectKind.Intent),
                 model.controls.filter.kinds,
