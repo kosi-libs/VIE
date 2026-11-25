@@ -27,6 +27,9 @@ kotlin {
             // A SwiftUI app: no Compose in this framework, on purpose.
             api(projects.vieMvi)
             api(projects.demo.demoShared)
+
+            // Not exported: Swift reaches the probe through startTimeMachine, in DemoTimeMachine.kt.
+            implementation(projects.timemachine.vieTimemachineClient)
         }
     }
 }
