@@ -23,6 +23,46 @@ A probe started later only observes the ViewModels built after it.
 `TimeMachine.stop()` closes the connection, and leaves the middlewares installed and inert.
 
 
+[#swiftui]
+== Starting from a SwiftUI application
+
+The framework that a SwiftUI application links only exports the modules you ask it to, and the probe's is not one of them, so Swift cannot call `TimeMachine.start`.
+Give the module that builds the framework a dependency on `vie-timemachine-client`, without exporting it, and wrap the call in a Kotlin function of that module:
+
+[source,kotlin]
+.DemoTimeMachine.kt
+----
+@OptIn(ExperimentalNativeApi::class)
+fun startTimeMachine() {
+    TimeMachine.start(TimeMachineConfig(appName = "Counter", enabled = Platform.isDebugBinary)) // <1>
+}
+----
+<1> `Platform.isDebugBinary` is the flag of the binary being linked: it is `true` for Xcode's Debug configuration.
+
+Call it when the application is created, which is before its first view, and so before its first ViewModel:
+
+[source,swift]
+.iOSApp.swift
+----
+import Shared
+import SwiftUI
+
+@main
+struct iOSApp: App {
+    init() {
+        DemoTimeMachineKt.startTimeMachine() // <1>
+    }
+
+    var body: some Scene {
+        WindowGroup {
+            ContentView()
+        }
+    }
+}
+----
+<1> Swift names the class after the Kotlin file: `DemoTimeMachine.kt` gives `DemoTimeMachineKt`.
+
+
 [#host]
 == Reaching the inspector
 
