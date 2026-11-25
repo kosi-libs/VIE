@@ -134,7 +134,7 @@ private fun SessionBlock(session: SessionItem, selected: InspectorScope?, collap
             Modifier
                 .fillMaxWidth().height(InspectorDimens.sessionItem)
                 .background(if (onSession) scheme.primaryContainer else Color.Transparent, shape)
-                .action(shape = shape) { post(SessionsVIE.Intent.SelectScope(InspectorScope.Session(session.id))) }
+                .action(shape = shape, selected = onSession) { post(SessionsVIE.Intent.SelectScope(InspectorScope.Session(session.id))) }
                 .padding(start = SessionRowStart, end = 8.dp),
             horizontalArrangement = Arrangement.spacedBy(6.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -195,7 +195,7 @@ private fun ViewModelRow(vm: ViewModelItem, session: SessionItem, selected: Bool
             .fillMaxWidth().height(InspectorDimens.viewModelItem)
             .alpha(if (closed && session.connected) 0.6f else 1f)
             .background(if (selected) scheme.primaryContainer else Color.Transparent, shape)
-            .action(shape = shape, onClick = onClick)
+            .action(shape = shape, selected = selected, onClick = onClick)
             .padding(start = ViewModelRowStart, end = 10.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically,

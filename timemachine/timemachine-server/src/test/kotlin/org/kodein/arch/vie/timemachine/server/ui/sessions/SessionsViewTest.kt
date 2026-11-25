@@ -3,6 +3,11 @@
 package org.kodein.arch.vie.timemachine.server.ui.sessions
 
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.test.DesktopComposeUiTest
+import androidx.compose.ui.test.assertIsNotSelected
+import androidx.compose.ui.test.assertIsSelected
+import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.onAllNodesWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
@@ -29,6 +34,38 @@ class SessionsViewTest {
     private fun sessions(id: String): MockVIE<SessionsVIE.Model, SessionsVIE.Intent, NoSignal> {
         val data = ScenarioData.of(id)
         return MockVIE(sessionsModel(data.state(), selected = null, now = data.now))
+    }
+
+    private fun sessions(id: String, selected: InspectorScope): MockVIE<SessionsVIE.Model, SessionsVIE.Intent, NoSignal> {
+        val data = ScenarioData.of(id)
+        return MockVIE(sessionsModel(data.state(), selected = selected, now = data.now))
+    }
+
+    /** Whether every row that names [name] says it is selected, as [selected]: a ViewModel's name is in more than one session. */
+    private fun DesktopComposeUiTest.assertRowsSelected(name: String, selected: Boolean) {
+        val rows = onAllNodes(hasText(name) and hasClickAction()).fetchSemanticsNodes()
+        assertTrue(rows.isNotEmpty(), "a row of $name")
+        rows.forEach { assertEquals(selected, it.config[SemanticsProperties.Selected], "the row of $name, selected") }
+    }
+
+    @Test
+    fun `the selected ViewModel's row says it is selected to accessibility, and the other rows do not`() {
+        val vie = sessions("main", InspectorScope.ViewModel(Demo.session.id, Demo.settings))
+        contentTest(content = { vie.Rendered { SessionsContent(it) } }) {
+            onNode(hasText("SettingsVM") and hasClickAction()).assertIsSelected()
+            assertRowsSelected("TaskListVM", selected = false)
+            onNodeWithText(vie.model.sessions.first { it.id == Demo.session.id }.shortId).assertIsNotSelected()
+        }
+    }
+
+    @Test
+    fun `the selected session's row says it is selected to accessibility, and its ViewModels' rows do not`() {
+        val vie = sessions("main", InspectorScope.Session(Demo.session.id))
+        contentTest(content = { vie.Rendered { SessionsContent(it) } }) {
+            onNodeWithText(vie.model.sessions.first { it.id == Demo.session.id }.shortId).assertIsSelected()
+            onNode(hasText("SettingsVM") and hasClickAction()).assertIsNotSelected()
+            assertRowsSelected("TaskListVM", selected = false)
+        }
     }
 
     @Test

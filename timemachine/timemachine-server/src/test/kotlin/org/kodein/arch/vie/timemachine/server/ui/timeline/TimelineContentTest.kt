@@ -7,6 +7,8 @@ import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.DesktopComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.assertIsNotSelected
+import androidx.compose.ui.test.assertIsSelected
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasScrollAction
 import androidx.compose.ui.test.hasSetTextAction
@@ -78,6 +80,19 @@ class TimelineContentTest {
             .sortedBy { it.boundsInRoot.top }
             .mapNotNull { it.config.getOrNull(SemanticsProperties.Text)?.firstOrNull()?.text?.removePrefix("#")?.toLongOrNull() }
             .map(::TimeMachineSequence)
+    }
+
+    @Test
+    fun `the selected row says it is selected to accessibility, and the others do not`() {
+        val observations = timeline(taskList).projection.items.filter { it.observation != null }.mapNotNull { it.sequence }
+        val chosen = observations.last()
+        val other = observations[observations.lastIndex - 1]
+        val controls = TimelineVIE.Controls()
+        val vie = mock(TimelineVIE.Model(controls, TimelineProjector(taskList, ModelDiffs()).project(ScenarioData.of("main").state(), Selection(taskList, row = chosen), controls)))
+        contentTest(height = 300, content = { vie.Rendered { TimelineContent(taskList, it, selectedRow = { chosen }) } }) {
+            onNode(hasClickAction() and hasText("#$chosen")).assertIsSelected()
+            onNode(hasClickAction() and hasText("#$other")).assertIsNotSelected()
+        }
     }
 
     @Test

@@ -657,7 +657,7 @@ private fun ObservationRow(
                 .fillMaxWidth().height(InspectorDimens.timelineRow)
                 .background(if (selected) colors.selectedRow else if (intervened) colors.intervenedRow else Color.Transparent)
                 .then(if (selected) Modifier.border(BorderStroke(1.dp, scheme.primary)) else Modifier)
-                .action { post(TimelineVIE.Intent.SelectRow(sequence)) }
+                .action(selected = selected) { post(TimelineVIE.Intent.SelectRow(sequence)) }
                 .padding(start = RowStart, end = 10.dp),
             horizontalArrangement = Arrangement.spacedBy(8.dp),
             verticalAlignment = Alignment.CenterVertically,
