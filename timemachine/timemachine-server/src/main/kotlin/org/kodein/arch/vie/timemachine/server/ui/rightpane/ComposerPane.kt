@@ -41,7 +41,9 @@ internal interface ComposerVIE : VIE<ComposerVIE.Model, ComposerVIE.Intent, VIE.
     /**
      * What the developer sets.
      *
-     * @property chosenType The explicit choice of type, `null` to let the composer pick one.
+     * @property chosenType The explicit choice of type, `null` to let the composer pick one. Editing
+     *   the text chooses the type that was shown, so that a draft stays the draft of its type: the
+     *   selection of another row of the timeline no longer moves it.
      * @property draft The text the developer edited, `null` while the editor shows the prefill: kind
      *   and type changes, reset and a request replace it.
      * @property typeMenuOpen Whether the type dropdown is open.
@@ -233,10 +235,12 @@ internal class ComposerVM(
             is ComposerVIE.Intent.SetKind -> controls { copy(kind = intent.kind, chosenType = null, draft = null, typeMenuOpen = false) }
             is ComposerVIE.Intent.SetType -> controls { copy(chosenType = intent.type, draft = null, typeMenuOpen = false) }
             is ComposerVIE.Intent.SetTypeMenu -> controls { copy(typeMenuOpen = intent.open) }
-            is ComposerVIE.Intent.SetText -> controls { copy(draft = intent.text) }
+            is ComposerVIE.Intent.SetText -> if (intent.text != model.editorText) controls { withDraft(intent.text, shownType()) }
             ComposerVIE.Intent.Format -> {
-                val parse = parseJson(effectiveText())
-                if (parse is JsonParse.Valid) controls { copy(draft = parse.element.pretty()) }
+                // The text and the type it is the draft of, from the same target.
+                val target = currentTarget()
+                val parse = parseJson(model.controls.draft ?: target.prefill?.json.orEmpty())
+                if (parse is JsonParse.Valid) controls { withDraft(parse.element.pretty(), target.type) }
             }
             ComposerVIE.Intent.Reset -> controls { copy(draft = null) }
             ComposerVIE.Intent.Send -> send()
@@ -273,6 +277,13 @@ internal class ComposerVM(
 
     private fun effectiveText(): String = model.controls.draft ?: currentTarget().prefill?.json.orEmpty()
 
+    /**
+     * The type the editor shows: the projection's, which is the one the text was typed over. Right
+     * after a change of kind the projection is still the previous kind's: the target is read then.
+     */
+    private fun shownType(): String? =
+        model.projection.target?.takeIf { it.kind == model.controls.kind }?.type ?: currentTarget().type
+
     private suspend fun send() {
         val target = currentTarget()
         val parse = parseJson(effectiveText())
@@ -297,6 +308,10 @@ internal class ComposerVM(
         }
     }
 }
+
+/** These controls with [text] as the draft, of [type] unless a type is chosen already: the draft is that type's. */
+private fun ComposerVIE.Controls.withDraft(text: String, type: String?): ComposerVIE.Controls =
+    copy(draft = text, chosenType = chosenType ?: type)
 
 /** These controls once [request] is applied: its kind, its type, and its JSON as the draft. */
 private fun ComposerVIE.Controls.applying(request: ComposerRequest): ComposerVIE.Controls =

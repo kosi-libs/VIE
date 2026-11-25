@@ -13,6 +13,7 @@ import org.kodein.arch.vie.timemachine.server.fixtures.Demo
 import org.kodein.arch.vie.timemachine.server.fixtures.inspector
 import org.kodein.arch.vie.timemachine.server.store.InterventionStatus
 import org.kodein.arch.vie.timemachine.server.ui.core.Inspector
+import org.kodein.arch.vie.timemachine.server.ui.core.InspectorScope
 import kotlin.test.Test
 import kotlin.uuid.Uuid
 import kotlin.test.assertEquals
@@ -257,6 +258,54 @@ class ComposerPaneTest {
         post(ComposerVIE.Intent.Reset)
         runCurrent()
         assertNull(model.controls.draft)
+    }
+
+    private val taskListScope = InspectorScope.ViewModel(Demo.session.id, Demo.taskList)
+
+    @Test
+    fun `a typed draft stays the draft of the type it was typed for when another row is selected`() = composer { inspector ->
+        post(ComposerVIE.Intent.SetKind(VIEObjectKind.Intent))
+        runCurrent()
+        assertNull(model.controls.chosenType)
+        assertEquals(Demo.DeleteTask, model.projection.target?.type)
+
+        // With no draft, the type follows the selected row: it is what the draft must not do.
+        inspector.selection.selectRowIn(taskListScope, TimeMachineSequence(203))
+        runCurrent()
+        assertEquals(Demo.UpdateTaskCompletion, model.projection.target?.type)
+
+        val draft = "{\"#type\": \"${Demo.UpdateTaskCompletion}\", \"taskId\": 1, \"isCompleted\": true}"
+        post(ComposerVIE.Intent.SetText(draft))
+        runCurrent()
+        assertEquals(Demo.UpdateTaskCompletion, model.controls.chosenType, "the draft is of the type the editor showed")
+
+        inspector.selection.selectRowIn(taskListScope, TimeMachineSequence(207))
+        runCurrent()
+        assertEquals(Demo.UpdateTaskCompletion, model.projection.target?.type)
+        assertEquals(draft, model.editorText)
+
+        post(ComposerVIE.Intent.Send)
+        runCurrent()
+        assertEquals(Demo.UpdateTaskCompletion, model.projection.history.first().typeName, "the draft was sent as another type")
+    }
+
+    @Test
+    fun `formatting also keeps the type the draft is of, and a type chosen by hand is kept`() = composer { inspector ->
+        post(ComposerVIE.Intent.SetKind(VIEObjectKind.Intent))
+        inspector.selection.selectRowIn(taskListScope, TimeMachineSequence(203))
+        runCurrent()
+        post(ComposerVIE.Intent.Format)
+        runCurrent()
+        assertEquals(Demo.UpdateTaskCompletion, model.controls.chosenType)
+
+        inspector.selection.selectRowIn(taskListScope, TimeMachineSequence(207))
+        runCurrent()
+        assertEquals(Demo.UpdateTaskCompletion, model.projection.target?.type)
+
+        post(ComposerVIE.Intent.SetType(Demo.DeleteTask))
+        post(ComposerVIE.Intent.SetText("{}"))
+        runCurrent()
+        assertEquals(Demo.DeleteTask, model.controls.chosenType, "an explicit choice is not replaced")
     }
 
     @Test
