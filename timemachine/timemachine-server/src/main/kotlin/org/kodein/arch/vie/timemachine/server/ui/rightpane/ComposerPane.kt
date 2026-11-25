@@ -47,7 +47,10 @@ internal interface ComposerVIE : VIE<ComposerVIE.Model, ComposerVIE.Intent, VIE.
      * @property draft The text the developer edited, `null` while the editor shows the prefill: kind
      *   and type changes, reset and a request replace it.
      * @property typeMenuOpen Whether the type dropdown is open.
-     * @property requestId The latest intervention sent from here, whose result the card shows.
+     * @property requestId The intervention whose result the card shows: the latest sent from here, until
+     *   another is asked for.
+     * @property sending The latest intervention sent from here, whatever the card shows. Send waits for its
+     *   answer: see [isSending].
      */
     data class Controls(
         val kind: VIEObjectKind = VIEObjectKind.Model,
@@ -55,6 +58,7 @@ internal interface ComposerVIE : VIE<ComposerVIE.Model, ComposerVIE.Intent, VIE.
         val draft: String? = null,
         val typeMenuOpen: Boolean = false,
         val requestId: Uuid? = null,
+        val sending: Uuid? = null,
     )
 
     data class Model(val controls: Controls = Controls(), val projection: ComposerProjection = ComposerProjection()) : VIE.Model {
@@ -95,7 +99,8 @@ internal interface ComposerVIE : VIE<ComposerVIE.Model, ComposerVIE.Intent, VIE.
 /**
  * @property target What the composer offers; `null` before the store knows the ViewModel.
  * @property parse What the parser says of the text the editor had when this was projected.
- * @property canSend Whether Send is enabled.
+ * @property canSend Whether Send is enabled: the text parses, nothing blocks, and no intervention sent from here is awaiting its answer.
+ * @property sending Whether the latest intervention sent from here is awaiting its answer.
  * @property current The intervention sent from here last.
  * @property history The [MaxRecentInterventions] latest interventions asked of the ViewModel, newest first.
  * @property olderInterventions How many interventions it was asked before those of [history].
@@ -115,6 +120,7 @@ internal data class ComposerProjection(
     val target: ComposerTarget? = null,
     val parse: JsonParse = JsonParse.Valid(JsonObject(emptyMap())),
     val canSend: Boolean = false,
+    val sending: Boolean = false,
     val current: InterventionView? = null,
     val history: List<InterventionView> = emptyList(),
     val olderInterventions: Int = 0,
@@ -159,6 +165,7 @@ private fun composerProjection(
     val target = composerTarget(session, vm, controls.kind, controls.chosenType, selection.selectedType(vm))
     val parse = parseJson(controls.draft ?: target.prefill?.json.orEmpty())
     val interventions = vm?.interventions?.values.orEmpty().toList()
+    val sending = isSending(vm, controls.sending)
     // An intervention's number is its place among those of its ViewModel, from 1.
     fun view(index: Int): InterventionView = with(interventions[index]) {
         InterventionView(
@@ -181,12 +188,25 @@ private fun composerProjection(
         unserializable = vm?.info?.let { info -> VIEObjectKind.entries.firstOrNull { !info.type(it).isSerializable }?.let { it to info.type(it).typeName } },
         target = target,
         parse = parse,
-        canSend = target.canSend(parse),
+        canSend = target.canSend(parse) && !sending,
+        sending = sending,
         current = controls.requestId?.let { id -> interventions.indexOfFirst { it.requestId == id } }?.takeIf { it >= 0 }?.let(::view),
         history = (interventions.lastIndex downTo older).map(::view),
         olderInterventions = older,
         timeout = timeout,
     )
+}
+
+/**
+ * Whether intervention [id], the latest sent from the composer, still awaits its answer. It does while the
+ * store records it as [InterventionStatus.Pending], and while it records nothing yet: [org.kodein.arch.vie.timemachine.server.store.TimeMachineStore.intervene]
+ * only queues the request. It does not once the store no longer holds the ViewModel, since the request is
+ * then dropped and its identifier never shows in the state: waiting for it would never end.
+ */
+private fun isSending(vm: ViewModelRecord?, id: Uuid?): Boolean {
+    if (id == null || vm == null) return false
+    val intervention = vm.interventions[id] ?: return true
+    return intervention.status == InterventionStatus.Pending
 }
 
 private fun blockText(session: SessionRecord?, vm: ViewModelRecord?, block: ComposerBlock?): String? {
@@ -245,7 +265,7 @@ internal class ComposerVM(
             ComposerVIE.Intent.Reset -> controls { copy(draft = null) }
             ComposerVIE.Intent.Send -> send()
             is ComposerVIE.Intent.LoadFromHistory -> load(intent.requestId)
-            is ComposerVIE.Intent.Resend -> if (load(intent.requestId)) send()
+            is ComposerVIE.Intent.Resend -> resend(intent.requestId)
             is ComposerVIE.Intent.ShowResult -> controls { copy(requestId = intent.requestId) }
             is ComposerVIE.Intent.SelectRow -> inspector.selection.selectRow(intent.sequence)
             is ComposerVIE.Intent.ApplyRequest -> {
@@ -284,12 +304,30 @@ internal class ComposerVM(
     private fun shownType(): String? =
         model.projection.target?.takeIf { it.kind == model.controls.kind }?.type ?: currentTarget().type
 
+    /** Whether an intervention sent from here awaits its answer, read from the store now rather than from a projection. */
+    private fun sending(): Boolean = isSending(inspector.store.state.value.sessions[sessionId]?.viewModels?.get(viewModelId), model.controls.sending)
+
     private suspend fun send() {
+        if (sending()) return
         val target = currentTarget()
         val parse = parseJson(effectiveText())
         if (!target.canSend(parse)) return
         val requestId = inspector.store.intervene(sessionId, viewModelId, target.kind, target.type!!, (parse as JsonParse.Valid).element)
-        controls { copy(requestId = requestId) }
+        controls { copy(requestId = requestId, sending = requestId) }
+    }
+
+    /**
+     * Puts intervention [requestId] in the editor and sends it. Nothing changes, the draft included, when it
+     * could not be sent: one is awaiting its answer, or what blocks the composer blocks it too.
+     */
+    private suspend fun resend(requestId: Uuid) {
+        val state = inspector.store.state.value
+        val session = state.sessions[sessionId]
+        val vm = session?.viewModels?.get(viewModelId)
+        val intervention = vm?.interventions?.get(requestId) ?: return
+        if (sending()) return
+        if (!composerTarget(session, vm, intervention.kind, intervention.typeName).canSend(JsonParse.Valid(intervention.asJson))) return
+        if (load(requestId)) send()
     }
 
     companion object {

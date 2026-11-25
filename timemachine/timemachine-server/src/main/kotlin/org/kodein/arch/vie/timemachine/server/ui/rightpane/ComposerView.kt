@@ -459,7 +459,10 @@ private fun ResultCard(view: InterventionView, projection: ComposerProjection, p
                 modifier = Modifier.fillMaxWidth().background(scheme.surfaceContainerLow, RoundedCornerShape(6.dp)).padding(horizontal = 8.dp, vertical = 6.dp),
             )
         }
-        if (status == InterventionStatus.TimedOut) LinkAction("Resend", onClick = { post(ComposerVIE.Intent.Resend(view.requestId)) })
+        // Resend goes through the composer: offered only while the composer can send.
+        if (status == InterventionStatus.TimedOut && projection.blockText == null && !projection.sending) {
+            LinkAction("Resend", onClick = { post(ComposerVIE.Intent.Resend(view.requestId)) })
+        }
     }
     when (val glyph = status.glyph()) {
         null -> Callout(tone, leading = { PendingIndicator() }, modifier = Modifier.fillMaxWidth(), content = lines)

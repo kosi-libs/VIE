@@ -339,6 +339,73 @@ class ComposerPaneTest {
     }
 
     @Test
+    fun `two Sends in a row ask the store once, and Send waits for the answer`() = composer("compPending") {
+        post(ComposerVIE.Intent.Send)
+        post(ComposerVIE.Intent.Send)
+        runCurrent()
+
+        assertEquals(5, model.projection.history.size, "one intervention was added, not two")
+        assertEquals(InterventionStatus.Pending, model.projection.current?.status)
+        assertTrue(!model.projection.canSend, "Send stays disabled while the intervention is pending")
+
+        post(ComposerVIE.Intent.Send)
+        runCurrent()
+        assertEquals(5, model.projection.history.size, "a Send once the card shows is still refused")
+    }
+
+    @Test
+    fun `Send is possible again once the intervention timed out`() = composer("compTimeout") {
+        post(ComposerVIE.Intent.Send)
+        runCurrent()
+        assertTrue(!model.projection.canSend)
+
+        advanceTimeBy(6.seconds)
+        runCurrent()
+        assertEquals(InterventionStatus.TimedOut, model.projection.current?.status)
+        assertTrue(model.projection.canSend)
+
+        post(ComposerVIE.Intent.Send)
+        runCurrent()
+        assertEquals(6, model.projection.history.size)
+    }
+
+    @Test
+    fun `showing the result of an older intervention does not free Send`() = composer("compPending") {
+        post(ComposerVIE.Intent.Send)
+        runCurrent()
+        post(ComposerVIE.Intent.ShowResult(model.projection.history.last().requestId))
+        runCurrent()
+        assertTrue(!model.projection.canSend, "the one just sent is still pending")
+
+        post(ComposerVIE.Intent.Send)
+        runCurrent()
+        assertEquals(5, model.projection.history.size)
+    }
+
+    @Test
+    fun `two Resends in a row send once`() = composer("compPending") {
+        val first = model.projection.history.last()
+        post(ComposerVIE.Intent.Resend(first.requestId))
+        post(ComposerVIE.Intent.Resend(first.requestId))
+        runCurrent()
+
+        assertEquals(5, model.projection.history.size)
+    }
+
+    @Test
+    fun `Resend with nothing able to send leaves the draft alone`() = composer("disconnected") {
+        post(ComposerVIE.Intent.SetText("{\"typed\": true}"))
+        runCurrent()
+        val draft = model.controls.draft
+
+        post(ComposerVIE.Intent.Resend(model.projection.history.last().requestId))
+        runCurrent()
+
+        assertEquals(draft, model.controls.draft, "the draft is not replaced by a request that cannot go")
+        assertEquals(4, model.projection.history.size)
+    }
+
+    @Test
     fun `its first model is the target the store holds, before the pane is shown`() = composer(shown = false) {
         val target = assertNotNull(model.projection.target)
         assertEquals(VIEObjectKind.Model, target.kind)
