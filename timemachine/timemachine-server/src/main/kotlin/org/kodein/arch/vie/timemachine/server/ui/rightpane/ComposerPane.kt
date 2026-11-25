@@ -234,7 +234,9 @@ internal class ComposerVM(
      * until something newer is observed for the type, so typing, which projects again at every keystroke, and
      * the reads on the main thread (`Format`, `Send`) find the text already written out.
      */
-    private val prefillText = IdentityMemo<JsonElement, String> { it.pretty() }
+    private val prefillText = IdentityMemo<JsonElement, String>()
+
+    private val prettyPrefill: (JsonElement) -> String = { prefillText.get(it, JsonElement::pretty) }
 
     init {
         // Applied whether the pane is shown or not: a request made while it is hidden waits in the
@@ -251,7 +253,7 @@ internal class ComposerVM(
             inspector.selection.state,
             modelFlow.map { it.controls }.distinctUntilChanged(),
         ) { state, selection, controls -> Triple(state, selection.resolvedIn(state), controls) }
-        project(inspector.whileShown(key(viewModelId), inputs) { { (state, selection, controls) -> composerProjection(state, selection, controls, sessionId, viewModelId, inspector.store.interventionTimeout, prefillText::get) } }) {
+        project(inspector.whileShown(key(viewModelId), inputs) { { (state, selection, controls) -> composerProjection(state, selection, controls, sessionId, viewModelId, inspector.store.interventionTimeout, prettyPrefill) } }) {
             copy(projection = it)
         }
     }
@@ -297,7 +299,7 @@ internal class ComposerVM(
         val session = state.sessions[sessionId]
         val vm = session?.viewModels?.get(viewModelId)
         val controls = model.controls
-        return composerTarget(session, vm, controls.kind, controls.chosenType, inspector.selection.state.value.resolvedIn(state).selectedType(vm), prefillText::get)
+        return composerTarget(session, vm, controls.kind, controls.chosenType, inspector.selection.state.value.resolvedIn(state).selectedType(vm), prettyPrefill)
     }
 
     private fun effectiveText(): String = model.controls.draft ?: currentTarget().prefill?.json.orEmpty()
@@ -331,7 +333,7 @@ internal class ComposerVM(
         val vm = session?.viewModels?.get(viewModelId)
         val intervention = vm?.interventions?.get(requestId) ?: return
         if (sending()) return
-        if (!composerTarget(session, vm, intervention.kind, intervention.typeName, prettyJson = prefillText::get).canSend(JsonParse.Valid(intervention.asJson))) return
+        if (!composerTarget(session, vm, intervention.kind, intervention.typeName, prettyJson = prettyPrefill).canSend(JsonParse.Valid(intervention.asJson))) return
         if (load(requestId)) send()
     }
 

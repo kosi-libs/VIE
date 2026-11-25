@@ -3,12 +3,14 @@ package org.kodein.arch.vie.timemachine.server.ui.rightpane
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
+import kotlinx.serialization.json.JsonElement
 import org.kodein.arch.vie.VIE
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineClientMessage
 import org.kodein.arch.vie.timemachine.protocol.VIEObjectKind
 import org.kodein.arch.vie.timemachine.protocol.VIEObservation
 import org.kodein.arch.vie.timemachine.server.store.Row
 import org.kodein.arch.vie.timemachine.server.store.TimeMachineState
+import org.kodein.arch.vie.timemachine.server.ui.common.IdentityMemo
 import org.kodein.arch.vie.timemachine.server.ui.common.JsonPath
 import org.kodein.arch.vie.timemachine.server.ui.common.JsonViewControls
 import org.kodein.arch.vie.timemachine.server.ui.common.ModelDiff
@@ -70,7 +72,13 @@ internal data class DetailProjection(
  * The selected row of [selection] in [state], with what Detail says of it: its diff from [diffs]; its JSON as text
  * when [raw]. Nothing when none is selected or the store no longer retains it.
  */
-internal fun detailProjection(state: TimeMachineState, selection: Selection, raw: Boolean, diffs: ModelDiffs): DetailProjection {
+internal fun detailProjection(
+    state: TimeMachineState,
+    selection: Selection,
+    raw: Boolean,
+    diffs: ModelDiffs,
+    prettyJson: (JsonElement) -> String = { it.pretty() },
+): DetailProjection {
     diffs.retain(state)
     val sequence = selection.row
     val session = selection.scope?.let { state.sessions[it.sessionId] }
@@ -84,7 +92,7 @@ internal fun detailProjection(state: TimeMachineState, selection: Selection, raw
         interventionNumber = observation?.interventionId?.let { vm.interventionNumber(it) },
         interventionKind = observation?.interventionId?.let { vm.interventions[it]?.kind },
         canIntervene = observation != null && canIntervene(session, vm, observation),
-        rawText = if (raw) observation?.asJson?.pretty() else null,
+        rawText = if (raw) observation?.asJson?.let(prettyJson) else null,
     )
 }
 
@@ -100,7 +108,14 @@ internal class DetailVM(
             inspector.selection.state,
             modelFlow.map { it.controls.jsonView.raw }.distinctUntilChanged(),
         ) { state, selection, raw -> Triple(state, selection.resolvedIn(state), raw) }
-        project(inspector.whileShown(Key, inputs) { { (state, selection, raw) -> detailProjection(state, selection, raw, inspector.modelDiffs) } }) { copy(projection = it) }
+        project(
+            inspector.whileShown(Key, inputs) {
+                // The text of the selected row's JSON, kept while the pane is shown: the store publishes for every
+                // ViewModel, and the row's JSON is the same instance in each state that does not touch the row.
+                val text = IdentityMemo<JsonElement, String>();
+                { (state, selection, raw) -> detailProjection(state, selection, raw, inspector.modelDiffs) { text.get(it, JsonElement::pretty) } }
+            },
+        ) { copy(projection = it) }
     }
 
     override suspend fun process(intent: DetailVIE.Intent) {

@@ -7,8 +7,10 @@ import kotlinx.serialization.json.JsonElement
 import org.kodein.arch.vie.VIE
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineSequence
 import org.kodein.arch.vie.timemachine.server.store.TimeMachineState
+import org.kodein.arch.vie.timemachine.server.ui.common.IdentityMemo
 import org.kodein.arch.vie.timemachine.server.ui.common.JsonPath
 import org.kodein.arch.vie.timemachine.server.ui.common.JsonViewControls
+import org.kodein.arch.vie.timemachine.server.ui.common.ModelDiff
 import org.kodein.arch.vie.timemachine.server.ui.common.ModelDiffs
 import org.kodein.arch.vie.timemachine.server.ui.common.nearestNodePath
 import org.kodein.arch.vie.timemachine.server.ui.common.pretty
@@ -71,6 +73,8 @@ private fun currentModelProjection(
     viewModelId: Uuid,
     raw: Boolean,
     diffs: ModelDiffs,
+    prettyJson: (JsonElement) -> String = { it.pretty() },
+    changedPaths: (JsonElement, ModelDiff) -> Set<JsonPath> = ::changedNodes,
 ): CurrentModelProjection {
     diffs.retain(state)
     val session = state.sessions[sessionId]
@@ -85,13 +89,16 @@ private fun currentModelProjection(
         at = observation.at,
         asString = observation.asString,
         json = json,
-        rawText = if (raw) json?.pretty() else null,
-        changedPaths = json?.let { root -> diff?.ops?.mapTo(LinkedHashSet()) { root.nearestNodePath(it.path) } }.orEmpty(),
+        rawText = if (raw) json?.let(prettyJson) else null,
+        changedPaths = if (json != null && diff != null) changedPaths(json, diff) else emptySet(),
         changedFrom = diff?.previous,
         canReplace = canIntervene(session, vm, observation),
         truncated = observation.truncated,
     )
 }
+
+/** The nodes of [root] that [diff] touches: where a removed field was, its nearest ancestor. */
+private fun changedNodes(root: JsonElement, diff: ModelDiff): Set<JsonPath> = diff.ops.mapTo(LinkedHashSet()) { root.nearestNodePath(it.path) }
 
 internal class CurrentModelVM(
     private val inspector: Inspector,
@@ -104,7 +111,19 @@ internal class CurrentModelVM(
     init {
         val inputs = combine(inspector.store.state, modelFlow.map { it.controls.jsonView.raw }.distinctUntilChanged()) { state, raw -> state to raw }
         project(
-            inspector.whileShown(key(viewModelId), inputs) { { (state, raw) -> currentModelProjection(state, sessionId, viewModelId, raw, inspector.modelDiffs) } },
+            inspector.whileShown(key(viewModelId), inputs) {
+                // What the store's other events leave alone is kept while the pane is shown: the Model's text, and the
+                // nodes its diff changes, which are the same instances for as long as no newer Model is observed.
+                val text = IdentityMemo<JsonElement, String>()
+                val paths = IdentityMemo<ModelDiff, Set<JsonPath>>();
+                { (state, raw) ->
+                    currentModelProjection(
+                        state, sessionId, viewModelId, raw, inspector.modelDiffs,
+                        prettyJson = { text.get(it, JsonElement::pretty) },
+                        changedPaths = { root, diff -> paths.get(diff) { changedNodes(root, it) } },
+                    )
+                }
+            },
         ) { copy(projection = it) }
     }
 

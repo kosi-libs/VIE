@@ -10,6 +10,7 @@ import org.kodein.arch.vie.test.runVMTest
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineSequence
 import org.kodein.arch.vie.timemachine.protocol.VIEObjectKind
 import org.kodein.arch.vie.timemachine.server.fixtures.Demo
+import org.kodein.arch.vie.timemachine.server.store.TimeMachineEvent
 import org.kodein.arch.vie.timemachine.server.fixtures.ScenarioData
 import org.kodein.arch.vie.timemachine.server.fixtures.inspector
 import org.kodein.arch.vie.timemachine.server.fixtures.state
@@ -23,6 +24,7 @@ import org.kodein.arch.vie.timemachine.server.ui.timeline.TimelineProjector
 import org.kodein.arch.vie.timemachine.server.ui.timeline.TimelineVIE
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertSame
@@ -80,6 +82,23 @@ class DetailPaneTest {
         post(DetailVIE.Intent.ToggleNode(listOf("tasks")))
         runCurrent()
         assertEquals(setOf(emptyList()), model.controls.jsonView.expanded)
+    }
+
+    @Test
+    fun `a store event that leaves the row alone does not write its text out again`() = detail { inspector ->
+        inspector.selection.selectScope(taskListScope)
+        inspector.selection.selectRow(TimeMachineSequence(208))
+        post(DetailVIE.Intent.SetRaw(true))
+        runCurrent()
+        val text = model.projection.rawText
+        assertNotNull(text)
+        assertTrue(model.projection.canIntervene)
+
+        inspector.store.post(TimeMachineEvent.Disconnected(Demo.connection, Demo.at(29_000)))
+        runCurrent()
+
+        assertFalse(model.projection.canIntervene, "the pane projected the new state")
+        assertSame(text, model.projection.rawText, "the row's text is the one already written")
     }
 
     @Test

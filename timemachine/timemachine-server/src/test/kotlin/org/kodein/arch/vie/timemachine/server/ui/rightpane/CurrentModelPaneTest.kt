@@ -13,6 +13,9 @@ import org.kodein.arch.vie.timemachine.server.ui.core.Inspector
 import org.kodein.arch.vie.timemachine.server.ui.core.RightTab
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertNotNull
+import kotlin.test.assertSame
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
@@ -42,6 +45,24 @@ class CurrentModelPaneTest {
         // #238 (the third intervention) had two tasks; #270 has the milk task only.
         assertTrue(model.projection.changedPaths.isNotEmpty())
         assertNull(model.projection.rawText)
+    }
+
+    @Test
+    fun `a store event that leaves the Model alone computes neither its text nor its changed nodes again`() = current { inspector ->
+        post(CurrentModelVIE.Intent.SetRaw(true))
+        runCurrent()
+        val text = model.projection.rawText
+        val paths = model.projection.changedPaths
+        assertNotNull(text)
+        assertTrue(paths.isNotEmpty())
+        assertTrue(model.projection.canReplace)
+
+        inspector.store.post(TimeMachineEvent.Disconnected(Demo.connection, Demo.at(29_000)))
+        runCurrent()
+
+        assertFalse(model.projection.canReplace, "the pane projected the new state")
+        assertSame(text, model.projection.rawText, "the text is the one already written")
+        assertSame(paths, model.projection.changedPaths, "the changed nodes are the ones already found")
     }
 
     @Test
