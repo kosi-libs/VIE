@@ -19,6 +19,7 @@ import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performKeyInput
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.pressKey
+import androidx.compose.ui.test.withKeyDown
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -104,6 +105,61 @@ class TimelineContentTest {
                 ),
                 vie.pendingIntents(),
                 "Enter went to the row that has the focus",
+            )
+        }
+    }
+
+    @Test
+    fun `a key pressed with a modifier is a shortcut of something else, and is not taken`() {
+        val vie = mock(timeline(taskList))
+        val selected = vie.model.projection.items.last { it.observation != null }.sequence
+        contentTest(height = 300, content = { vie.Rendered { TimelineContent(taskList, it, selectedRow = { selected }) } }) {
+            onNode(hasClickAction() and hasText("#${wholeRows().first()}")).performClick()
+            waitForIdle()
+            vie.pendingIntents()
+
+            onRoot().performKeyInput {
+                withKeyDown(Key.CtrlLeft) { pressKey(Key.F) }
+                withKeyDown(Key.MetaLeft) { pressKey(Key.E) }
+                withKeyDown(Key.AltLeft) { pressKey(Key.Enter) }
+                withKeyDown(Key.ShiftLeft) { pressKey(Key.DirectionDown) }
+            }
+            // What the row that has the focus does with Alt+Enter is its own: it selects itself.
+            assertEquals(
+                emptyList<TimelineVIE.Intent>(),
+                vie.pendingIntents().filterNot { it is TimelineVIE.Intent.SelectRow },
+                "a key with a modifier was taken",
+            )
+
+            // The same keys with none are the timeline's.
+            onRoot().performKeyInput { pressKey(Key.F); pressKey(Key.E); pressKey(Key.Enter); pressKey(Key.DirectionDown) }
+            assertEquals(
+                listOf(
+                    TimelineVIE.Intent.ScrolledAway,
+                    TimelineVIE.Intent.ComposeFrom(selected!!),
+                    TimelineVIE.Intent.ToggleExpanded(selected),
+                    TimelineVIE.Intent.Step(1),
+                ),
+                vie.pendingIntents(),
+            )
+        }
+    }
+
+    @Test
+    fun `with no selected row, Enter is left to the control that has the focus`() {
+        val vie = mock(timeline(taskList))
+        contentTest(height = 300, content = { vie.Rendered { TimelineContent(taskList, it, selectedRow = { null }) } }) {
+            val clicked = wholeRows().first()
+            onNode(hasClickAction() and hasText("#$clicked")).performClick()
+            waitForIdle()
+            vie.pendingIntents()
+
+            onRoot().performKeyInput { pressKey(Key.Enter) }
+
+            assertEquals(
+                listOf<TimelineVIE.Intent>(TimelineVIE.Intent.SelectRow(clicked)),
+                vie.pendingIntents(),
+                "Enter did not reach the row that has the focus",
             )
         }
     }

@@ -46,6 +46,10 @@ import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.graphics.SolidColor
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
+import androidx.compose.ui.input.key.isAltPressed
+import androidx.compose.ui.input.key.isCtrlPressed
+import androidx.compose.ui.input.key.isMetaPressed
+import androidx.compose.ui.input.key.isShiftPressed
 import androidx.compose.ui.input.key.key
 import androidx.compose.ui.input.key.onPreviewKeyEvent
 import androidx.compose.ui.input.key.type
@@ -149,6 +153,8 @@ internal fun TimelineView(scope: InspectorScope, modifier: Modifier = Modifier, 
  * intervenes on it, F toggles following; [selectedRow] says which that is when one is pressed.
  * They are the pane's wherever the focus is within it, except in the search field: a control that has
  * the focus is activated with the space bar.
+ * A key pressed with Ctrl, ⌘, Alt or Shift is not the pane's. Nor are ⏎ and E when no row is selected:
+ * ⏎ then goes to the control that has the focus. With a row selected, ⏎ is still the pane's.
  */
 @Composable
 internal fun VIEViewScope<TimelineVIE.Intent, NoSignal>.TimelineContent(
@@ -166,17 +172,21 @@ internal fun VIEViewScope<TimelineVIE.Intent, NoSignal>.TimelineContent(
             .focusable()
             // Before what has the focus sees them: a row, a chip or any other clickable takes the focus when
             // it is clicked with the mouse, and would then keep Enter for itself. The search field types them.
+            // A key pressed with a modifier is a shortcut of something else, and a key that does nothing, Enter
+            // or E with no selected row, is left to whatever has the focus.
             .onPreviewKeyEvent { event ->
                 if (searching || event.type != KeyEventType.KeyDown) return@onPreviewKeyEvent false
+                if (event.isCtrlPressed || event.isMetaPressed || event.isAltPressed || event.isShiftPressed) return@onPreviewKeyEvent false
                 val selected = selectedRow()
-                when (event.key) {
-                    Key.DirectionDown -> post(TimelineVIE.Intent.Step(1))
-                    Key.DirectionUp -> post(TimelineVIE.Intent.Step(-1))
-                    Key.Enter -> selected?.let { post(TimelineVIE.Intent.ToggleExpanded(it)) }
-                    Key.E -> selected?.let { post(TimelineVIE.Intent.ComposeFrom(it)) }
-                    Key.F -> post(if (controls.follow is FollowState.Following) TimelineVIE.Intent.ScrolledAway else TimelineVIE.Intent.Resume)
-                    else -> return@onPreviewKeyEvent false
-                }
+                val intent = when (event.key) {
+                    Key.DirectionDown -> TimelineVIE.Intent.Step(1)
+                    Key.DirectionUp -> TimelineVIE.Intent.Step(-1)
+                    Key.Enter -> selected?.let { TimelineVIE.Intent.ToggleExpanded(it) }
+                    Key.E -> selected?.let { TimelineVIE.Intent.ComposeFrom(it) }
+                    Key.F -> if (controls.follow is FollowState.Following) TimelineVIE.Intent.ScrolledAway else TimelineVIE.Intent.Resume
+                    else -> null
+                } ?: return@onPreviewKeyEvent false
+                post(intent)
                 true
             },
     ) {
