@@ -28,6 +28,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
@@ -37,6 +38,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
@@ -167,8 +170,25 @@ internal fun VIEViewScope<TimelineVIE.Intent, NoSignal>.TimelineContent(
     val projection = model.projection
     val controls = model.controls
     var searching by remember { mutableStateOf(false) }
+    // The keys are the column's, so they need the focus to be within it. A row that has it and leaves the list
+    // (the filters hide it, the store evicts it) takes it with it, and nothing gives it back: the keys would do
+    // nothing until the next click. The column asks for it back when what it lost is explained by that.
+    // A list keeps composed the row that has the focus when it only scrolls out of view, so that is not a case.
+    val columnFocus = remember { FocusRequester() }
+    val focus = remember { ColumnFocus() }
+    var lost by remember { mutableIntStateOf(0) }
+    val currentItems by rememberUpdatedState(projection.items)
+    LaunchedEffect(lost) {
+        val row = focus.row
+        if (lost > 0 && row != null && currentItems.none { it.key == row }) runCatching { columnFocus.requestFocus() }
+    }
     Column(
         modifier
+            .onFocusChanged { state ->
+                if (focus.within && !state.hasFocus) lost++
+                focus.within = state.hasFocus
+            }
+            .focusRequester(columnFocus)
             .focusable()
             // Before what has the focus sees them: a row, a chip or any other clickable takes the focus when
             // it is clicked with the mouse, and would then keep Enter for itself. The search field types them.
@@ -195,9 +215,15 @@ internal fun VIEViewScope<TimelineVIE.Intent, NoSignal>.TimelineContent(
         FilterBar(projection, controls, onSearchFocus = { searching = it }) { post(it) }
         ColumnHeads(merged = scope is InspectorScope.Session)
         Box(Modifier.weight(1f).fillMaxWidth()) {
-            Rows(scope, projection, controls) { post(it) }
+            Rows(scope, projection, controls, onRowFocused = { focus.row = it }) { post(it) }
         }
     }
+}
+
+/** What the timeline's column knows of its focus: whether it is within it, and the row that had it last. Read from effects only. */
+private class ColumnFocus {
+    var within = false
+    var row: String? = null
 }
 
 // ---- Header ----------------------------------------------------------------------------------
@@ -484,6 +510,7 @@ private fun Rows(
     scope: InspectorScope,
     projection: TimelineProjection,
     controls: TimelineVIE.Controls,
+    onRowFocused: (key: String) -> Unit,
     post: (TimelineVIE.Intent) -> Unit,
 ) {
     val items = projection.items
@@ -561,11 +588,14 @@ private fun Rows(
                 val sequence = item.sequence
                 when {
                     item.observation != null && sequence != null ->
-                        ObservationRow(
-                            item, merged = merged,
-                            selected = sequence == projection.selectedRow, expanded = sequence in controls.expanded,
-                            query = controls.filter.query, post = post,
-                        )
+                        // The row, its chevron and its chip: whatever of it has the focus.
+                        Box(Modifier.onFocusChanged { if (it.hasFocus) onRowFocused(item.key) }) {
+                            ObservationRow(
+                                item, merged = merged,
+                                selected = sequence == projection.selectedRow, expanded = sequence in controls.expanded,
+                                query = controls.filter.query, post = post,
+                            )
+                        }
                     else -> MarkerRow(item)
                 }
             }

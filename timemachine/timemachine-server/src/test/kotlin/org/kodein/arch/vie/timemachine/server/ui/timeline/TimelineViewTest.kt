@@ -8,6 +8,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.DesktopComposeUiTest
@@ -16,7 +17,10 @@ import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasScrollAction
 import androidx.compose.ui.test.hasSetTextAction
 import androidx.compose.ui.test.hasText
+import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performKeyInput
+import androidx.compose.ui.test.pressKey
 import androidx.compose.ui.test.performTextInput
 import androidx.compose.ui.test.performTouchInput
 import androidx.compose.ui.test.swipeDown
@@ -218,6 +222,67 @@ class TimelineViewTest {
             }
 
             assertEquals(FollowState.Following, inspector.follow(session))
+        }
+
+    /** A click on the row of [sequence], which is in view: the mouse gives it the focus. */
+    private fun DesktopComposeUiTest.clickRow(sequence: TimeMachineSequence) {
+        onNode(hasClickAction() and hasText("#$sequence")).performClick()
+    }
+
+    private fun DesktopComposeUiTest.press(key: Key) {
+        onRoot().performKeyInput { pressKey(key) }
+        waitForIdle()
+    }
+
+    @Test
+    fun `the arrow keys keep working after the row that was clicked scrolled out of view`() =
+        paneTest(height = 300, content = { TimelineView(session) }) { inspector ->
+            inspector.selection.selectScope(session)
+            until { shown(sessionTitle) && topRow() != null }
+            waitForIdle()
+            val projection = { inspector.viewModel(inspector.timelinePane(session)).modelFlow.value.projection }
+            val rows = projection().items.filter { it.observation != null }.mapNotNull { it.sequence }
+            val clicked = rows.last()
+            clickRow(clicked)
+            until { projection().selectedRow == clicked }
+
+            // Each step reveals the row it selects, so the clicked one leaves the list's viewport.
+            val steps = minOf(rows.lastIndex, 15)
+            repeat(steps) { press(Key.DirectionUp) }
+
+            // A list keeps composed the row that has the focus, wherever it is: it is its place that tells.
+            val list = onNode(hasScrollAction()).fetchSemanticsNode().boundsInRoot
+            assertTrue(
+                observationRows().none { it.sequence == clicked && it.bottom > list.top && it.top < list.bottom },
+                "row #$clicked, which was clicked, is still in view",
+            )
+            assertEquals(rows[rows.lastIndex - steps], projection().selectedRow, "the keys stopped acting after the clicked row left the viewport")
+        }
+
+    @Test
+    fun `the arrow keys keep working after the row that was clicked leaves the list`() =
+        paneTest(height = 300, content = { TimelineView(taskList) }) { inspector ->
+            inspector.selection.selectScope(taskList)
+            until { shown(taskListTitle) && topRow() != null }
+            waitForIdle()
+            val timeline = inspector.viewModel(inspector.timelinePane(taskList))
+            val projection = { timeline.modelFlow.value.projection }
+            // A row in view that the filter below hides.
+            val hiddenSoon = projection().items
+                .filter { it.observation?.typeName?.contains("DeleteTask") == false }
+                .mapNotNull { it.sequence }
+                .first { sequence -> observationRows().any { it.sequence == sequence } }
+            clickRow(hiddenSoon)
+            until { projection().selectedRow == hiddenSoon }
+
+            // Set by the code, not typed: the search field would take the focus.
+            timeline.post(TimelineVIE.Intent.SetQuery("DeleteTask"))
+            until { projection().selectedHidden }
+            waitForIdle()
+            val first = projection().items.first { it.observation != null }.sequence
+            press(Key.DirectionDown)
+
+            assertEquals(first, projection().selectedRow, "the keys stopped acting after the clicked row (#$hiddenSoon) left the list")
         }
 
     @Test
