@@ -210,6 +210,9 @@ them before writing the manual form.
 
 ## The view
 
+`VIEView` and `SignalEffect` come from the `vie-compose` artifact (`org.kodein.arch.vie.compose`),
+not from the core. A SwiftUI view follows the same split with other tools: see `swiftui.md`.
+
 A thin `@Composable` that only calls `VIEView`, plus a second `@Composable` that takes the model
 and plain callbacks — no `VIEViewModel` in sight. There are two equally valid shapes for that
 second composable; pick whichever fits.

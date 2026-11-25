@@ -1,6 +1,6 @@
 {
   "name": "vie",
-  "description": "Conventions, review checklist and screen scaffolding for the VIE Kotlin Multiplatform MVI library.",
+  "description": "Conventions, review checklist and screen scaffolding for the VIE Kotlin Multiplatform MVI library, in Compose and in SwiftUI.",
   "author": { "name": "Kodein Koders" },
   "homepage": "https://github.com/kosi-libs/VIE",
   "license": "MIT"

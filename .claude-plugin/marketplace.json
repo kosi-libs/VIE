@@ -8,7 +8,7 @@
     {
       "name": "vie",
       "source": "./",
-      "description": "Conventions, review checklist and screen scaffolding for the VIE Kotlin Multiplatform MVI library."
+      "description": "Conventions, review checklist and screen scaffolding for the VIE Kotlin Multiplatform MVI library, in Compose and in SwiftUI."
     }
   ]
 }
