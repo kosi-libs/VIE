@@ -65,4 +65,37 @@ internal class VIEViewModelSignalTest : VIETest() {
 
         assertEquals(1, first.size + second.size)
     }
+
+    @Test
+    fun anEventEmittedWithNoCollectorIsLost() = runTest {
+        val vm = SignalVM()
+        advanceUntilIdle()
+        launch { vm.send(OneOff.Saved) }
+        advanceUntilIdle()
+
+        val events = mutableListOf<OneOff>()
+        val collector = launch { vm.signalFlow.collect { events += it } }
+        advanceUntilIdle()
+        collector.cancel()
+
+        assertEquals<List<OneOff>>(emptyList(), events)
+    }
+
+    @Test
+    fun anEventReachesEveryCollector() = runTest {
+        val vm = SignalVM()
+        val first = mutableListOf<OneOff>()
+        val second = mutableListOf<OneOff>()
+        val collectors = listOf(
+            launch { vm.signalFlow.collect { first += it } },
+            launch { vm.signalFlow.collect { second += it } },
+        )
+        advanceUntilIdle()
+        launch { vm.send(OneOff.Saved) }
+        advanceUntilIdle()
+        collectors.forEach { it.cancel() }
+
+        assertEquals<List<OneOff>>(listOf(OneOff.Saved), first)
+        assertEquals<List<OneOff>>(listOf(OneOff.Saved), second)
+    }
 }

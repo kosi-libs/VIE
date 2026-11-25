@@ -134,6 +134,9 @@ public abstract class VIEViewModel<Model : VIE.Model, Intent : VIE.Intent, Signa
                 }
             }
         }
+        // `merge` takes Effects out of the channel ahead of time, into a buffer of its own: a collector that is
+        // cancelled while it handles an Effect loses it, and the Effects already queued behind it. A burst of
+        // Effects is a design flaw of the screen that emits it, so this is a documented limit, not handled.
         @Suppress("UNCHECKED_CAST")
         signalFlow = merge(
             effectChannel.receiveAsFlow() as Flow<Signal>,
