@@ -32,6 +32,7 @@ include(
     ":demo:demo-desktop",
     ":demo:demo-ios",
     ":demo:demo-shared",
+    ":demo:demo-swiftui",
 
     ":timemachine:timemachine-server",
     ":timemachine:vie-timemachine-client",
