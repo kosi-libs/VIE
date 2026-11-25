@@ -93,6 +93,8 @@ fun canIntervene(session: SessionRecord?, vm: ViewModelRecord?, observation: VIE
  *
  * @param chosenType The developer's explicit choice, ignored when the kind does not offer it.
  * @param selected The selected timeline entry, if any: its type is chosen when it is of this [kind].
+ * @param prettyJson How the latest JSON of the type becomes the prefill's text. A caller that asks again and
+ *   again for the same ViewModel gives a memo, so that a large document is not written out at each call.
  */
 fun composerTarget(
     session: SessionRecord?,
@@ -100,6 +102,7 @@ fun composerTarget(
     kind: VIEObjectKind,
     chosenType: String? = null,
     selected: Pair<VIEObjectKind, String>? = null,
+    prettyJson: (JsonElement) -> String = { it.pretty() },
 ): ComposerTarget {
     val block = composerBlock(session, vm)
     val info = vm?.info
@@ -113,7 +116,7 @@ fun composerTarget(
     val latest = type?.let { vm.latestJson[TypeKey(kind, it)] }
     val prefill = type?.let {
         when {
-            latest != null -> ComposerPrefill(latest.value.pretty(), PrefillSource.Observed(latest.sequence))
+            latest != null -> ComposerPrefill(prettyJson(latest.value), PrefillSource.Observed(latest.sequence))
             typeInfo.sealedSubTypes != null -> ComposerPrefill("{\"#type\": ${JsonPrimitive(it)}}", PrefillSource.SealedTemplate)
             else -> ComposerPrefill("{}", PrefillSource.EmptyObject)
         }

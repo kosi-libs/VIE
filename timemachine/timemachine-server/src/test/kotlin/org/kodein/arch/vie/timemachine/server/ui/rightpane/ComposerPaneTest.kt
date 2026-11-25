@@ -19,6 +19,7 @@ import kotlin.uuid.Uuid
 import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.test.assertNotNull
+import kotlin.test.assertSame
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlin.time.Duration.Companion.hours
@@ -56,6 +57,22 @@ class ComposerPaneTest {
         assertTrue(model.projection.canSend)
         assertEquals(4, model.projection.history.size)
         assertEquals(4, model.projection.history.first().number, "newest first")
+    }
+
+    @Test
+    fun `typing does not serialize the prefill again`() = composer {
+        post(ComposerVIE.Intent.SetText("{\"a\": "))
+        runCurrent()
+        val firstParse = assertIs<JsonParse.Invalid>(model.projection.parse, "the pane projected, for the first keystroke")
+        val first = model.projection.target?.prefill?.json
+        assertNotNull(first, "the latest Model of the ViewModel is its prefill")
+
+        post(ComposerVIE.Intent.SetText("{\"a\": 1, \"b\": "))
+        runCurrent()
+
+        val secondParse = assertIs<JsonParse.Invalid>(model.projection.parse)
+        assertTrue(secondParse.column > firstParse.column, "the pane projected again, for the second keystroke")
+        assertSame(first, model.projection.target?.prefill?.json, "the prefill text is the one already built, not written out again")
     }
 
     @Test
