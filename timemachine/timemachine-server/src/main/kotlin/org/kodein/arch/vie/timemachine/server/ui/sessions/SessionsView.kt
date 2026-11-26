@@ -107,7 +107,9 @@ internal fun VIEViewScope<SessionsVIE.Intent, NoSignal>.SessionsContent(model: S
                 verticalArrangement = Arrangement.spacedBy(6.dp),
             ) {
                 items(model.sessions, key = { it.id.toString() }) { session ->
-                    SessionBlock(session, model.selected, collapsed = session.id in model.controls.collapsed) { intent ->
+                    // What a block reads of the selection is whether it is in its session: a block outside it gets `null`, so
+                    // that moving the selection between two other sessions composes neither.
+                    SessionBlock(session, model.selected?.takeIf { it.sessionId == session.id }, collapsed = session.id in model.controls.collapsed) { intent ->
                         post(intent)
                         if (intent is SessionsVIE.Intent.SelectScope) onScopePicked()
                     }
