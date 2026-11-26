@@ -18,6 +18,7 @@ import androidx.compose.ui.graphics.PixelMap
 import androidx.compose.ui.graphics.toPixelMap
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.onNodeWithTag
@@ -99,10 +100,24 @@ class InspectorButtonTest {
             }
         }) {
             onNodeWithText("Filled").assertIsNotEnabled().performClick()
+            onNodeWithText("Tonal").assertIsNotEnabled().performClick()
             assertEquals(0, clicks)
             // In the end margin, inside the pill, where nothing is written.
             val fills = listOf("filled", "tonal").map { tag -> onNodeWithTag(tag).captureToImage().toPixelMap().let { it[it.width - 3, it.height / 2] } }
             assertEquals(listOf(LightInspectorScheme.surfaceContainerHighest, LightInspectorScheme.surfaceContainerHighest), fills)
+        }
+    }
+
+    @Test
+    fun `an enabled button, of every variant, calls its onClick`() {
+        val clicked = mutableListOf<ButtonVariant>()
+        contentTest(content = {
+            Column {
+                for (variant in ButtonVariant.entries) InspectorButton(variant.name, onClick = { clicked += variant }, variant = variant)
+            }
+        }) {
+            for (variant in ButtonVariant.entries) onNodeWithText(variant.name).assertIsEnabled().performClick()
+            assertEquals(ButtonVariant.entries.toList(), clicked)
         }
     }
 

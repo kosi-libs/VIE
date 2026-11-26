@@ -3,6 +3,7 @@
 package org.kodein.arch.vie.timemachine.server.ui.designsystem
 
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.assertIsEnabled
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -19,6 +20,15 @@ class LinkActionTest {
         contentTest(content = { LinkAction("Show", onClick = {}) }) {
             assertEquals(22, onNodeWithText("Show").fetchSemanticsNode().size.height)
         }
+
+    @Test
+    fun `an enabled link calls its onClick`() {
+        var clicks = 0
+        contentTest(content = { LinkAction("Show", onClick = { clicks++ }) }) {
+            onNodeWithText("Show").assertIsEnabled().performClick()
+            assertEquals(1, clicks)
+        }
+    }
 
     @Test
     fun `a disabled link says so, and takes no click`() {
