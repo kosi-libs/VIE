@@ -2,12 +2,17 @@
 
 package org.kodein.arch.vie.timemachine.server.ui.designsystem
 
+import androidx.compose.foundation.layout.Column
 import androidx.compose.material3.Text
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.toPixelMap
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.assert
 import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onNodeWithText
@@ -71,6 +76,24 @@ class CalloutTest {
         // A tone that names none keeps the panes' text colour for its title, and tells itself from an outcome's.
         val neutral = tones(dark = false).getValue(CalloutTone.Neutral)
         assertNotEquals(neutral.accent, neutral.title)
+    }
+
+    @Test
+    fun `what a callout or a banner says is announced when it appears, an error at once and the rest when the reader is free`() {
+        contentTest(content = {
+            Column {
+                for (tone in CalloutTone.entries) Callout(tone, Glyph.Info) { Text("note $tone") }
+                Banner(CalloutTone.Error, Glyph.Info) { Text("banner error") }
+                Banner(CalloutTone.Neutral, Glyph.Info) { Text("banner neutral") }
+            }
+        }) {
+            fun live(mode: LiveRegionMode) = SemanticsMatcher.expectValue(SemanticsProperties.LiveRegion, mode)
+            for (tone in CalloutTone.entries) {
+                onNodeWithText("note $tone").assert(live(if (tone == CalloutTone.Error) LiveRegionMode.Assertive else LiveRegionMode.Polite))
+            }
+            onNodeWithText("banner error").assert(live(LiveRegionMode.Assertive))
+            onNodeWithText("banner neutral").assert(live(LiveRegionMode.Polite))
+        }
     }
 
     @Test

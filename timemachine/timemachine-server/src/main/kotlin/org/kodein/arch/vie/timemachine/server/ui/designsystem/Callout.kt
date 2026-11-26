@@ -16,6 +16,9 @@ import androidx.compose.runtime.ReadOnlyComposable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.semantics
 import org.kodein.arch.vie.timemachine.server.ui.theme.Glyph
 import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorDimens
 import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorTheme
@@ -66,6 +69,12 @@ internal enum class CalloutTone {
             Intervened -> InspectorTheme.colors.intervened
         }
 
+    /**
+     * How accessibility announces what the callout says when it appears or changes: at once for an error, which
+     * the developer has to act on, and when the reader is free for the rest.
+     */
+    val liveRegion: LiveRegionMode get() = if (this == Error) LiveRegionMode.Assertive else LiveRegionMode.Polite
+
     /** The colour of a line that names an outcome: the accent, but for the tones that name none. */
     val title: Color
         @Composable @ReadOnlyComposable get() = when (this) {
@@ -103,7 +112,7 @@ internal fun Callout(
         modifier
             .background(tone.container, MaterialTheme.shapes.medium)
             .padding(horizontal = InspectorDimens.calloutHorizontalPadding, vertical = InspectorDimens.calloutVerticalPadding),
-        leading, action, content,
+        tone.liveRegion, leading, action, content,
     )
 }
 
@@ -125,7 +134,7 @@ internal fun Banner(
                 .fillMaxWidth()
                 .background(tone.container)
                 .padding(horizontal = InspectorDimens.paneHorizontalPadding, vertical = InspectorDimens.calloutVerticalPadding),
-            leading = { CalloutGlyph(glyph, tone) }, action = action, content = content,
+            live = tone.liveRegion, leading = { CalloutGlyph(glyph, tone) }, action = action, content = content,
         )
         HorizontalRule()
     }
@@ -136,10 +145,14 @@ internal fun Banner(
  * the middle of its height. The lines are at least as high as the glyph and centred in that height, so
  * that a single line stands level with it; when the action is the tallest, glyph and line stand level
  * with the action.
+ *
+ * The lines are one node to accessibility, a live region of mode [live]: what they say is announced when it
+ * appears. The action is outside it, so that it stays a node of its own.
  */
 @Composable
 private fun CalloutRow(
     modifier: Modifier,
+    live: LiveRegionMode,
     leading: @Composable () -> Unit,
     action: (@Composable () -> Unit)?,
     content: @Composable ColumnScope.() -> Unit,
@@ -148,7 +161,7 @@ private fun CalloutRow(
         Row(Modifier.weight(1f), horizontalArrangement = Arrangement.spacedBy(InspectorDimens.calloutGap), verticalAlignment = Alignment.Top) {
             Box(Modifier.size(InspectorDimens.calloutGlyph), contentAlignment = Alignment.Center) { leading() }
             Column(
-                Modifier.weight(1f).heightIn(min = InspectorDimens.calloutGlyph),
+                Modifier.weight(1f).heightIn(min = InspectorDimens.calloutGlyph).semantics(mergeDescendants = true) { liveRegion = live },
                 verticalArrangement = Arrangement.spacedBy(InspectorDimens.calloutLineGap, Alignment.CenterVertically),
                 content = content,
             )
