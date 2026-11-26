@@ -46,6 +46,7 @@ import org.kodein.arch.vie.timemachine.server.ui.designsystem.IconAction
 import org.kodein.arch.vie.timemachine.server.ui.designsystem.InspectorButton
 import org.kodein.arch.vie.timemachine.server.ui.designsystem.PaneHeader
 import org.kodein.arch.vie.timemachine.server.ui.theme.Glyph
+import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorAlpha
 import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorDimens
 import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorTheme
 
@@ -129,7 +130,7 @@ private fun SessionBlock(session: SessionItem, selected: InspectorScope?, collap
     val shape = MaterialTheme.shapes.medium
     val onSession = selected == InspectorScope.Session(session.id)
     Column(
-        Modifier.fillMaxWidth().alpha(if (session.connected) 1f else 0.62f).padding(bottom = 6.dp),
+        Modifier.fillMaxWidth().alpha(if (session.connected) 1f else InspectorAlpha.disconnectedSession).padding(bottom = 6.dp),
         verticalArrangement = Arrangement.spacedBy(1.dp),
     ) {
         Row(
@@ -195,7 +196,7 @@ private fun ViewModelRow(vm: ViewModelItem, session: SessionItem, selected: Bool
     Row(
         Modifier
             .fillMaxWidth().height(InspectorDimens.viewModelItem)
-            .alpha(if (closed && session.connected) 0.6f else 1f)
+            .alpha(if (closed && session.connected) InspectorAlpha.closedViewModel else 1f)
             .background(if (selected) scheme.primaryContainer else Color.Transparent, shape)
             .action(shape = shape, selected = selected, onClick = onClick)
             .padding(start = ViewModelRowStart, end = 10.dp),
@@ -251,7 +252,7 @@ private fun Sparkline(counts: List<Int>, dead: Boolean) {
                 val placeable = measurable.measure(Constraints.fixed(width, SparklineHeight.roundToPx()))
                 layout(placeable.width, placeable.height) { placeable.place(0, 0) }
             }
-            .alpha(if (dead) 0.5f else 0.9f),
+            .alpha(if (dead) InspectorAlpha.deadSparkline else InspectorAlpha.liveSparkline),
     ) {
         val bar = SparklineBar.roundToPx()
         val step = bar + SparklineGap.roundToPx()

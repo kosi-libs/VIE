@@ -87,6 +87,7 @@ import org.kodein.arch.vie.timemachine.server.ui.designsystem.SectionLabel
 import org.kodein.arch.vie.timemachine.server.ui.designsystem.SegmentedControl
 import org.kodein.arch.vie.timemachine.server.ui.designsystem.SerialName
 import org.kodein.arch.vie.timemachine.server.ui.theme.Glyph
+import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorAlpha
 import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorColors
 import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorDimens
 import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorTheme
@@ -128,7 +129,7 @@ internal fun VIEViewScope<ComposerVIE.Intent, NoSignal>.ComposerContent(model: C
             }
             if (target != null) {
                 Column(
-                    Modifier.alpha(if (blocked) 0.45f else 1f),
+                    Modifier.alpha(if (blocked) InspectorAlpha.blockedComposer else 1f),
                     verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {

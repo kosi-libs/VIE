@@ -25,6 +25,7 @@ import androidx.compose.ui.unit.dp
 import org.kodein.arch.vie.timemachine.server.ui.common.action
 import org.kodein.arch.vie.timemachine.server.ui.designsystem.VerticalRule
 import org.kodein.arch.vie.timemachine.server.ui.theme.Glyph
+import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorAlpha
 import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorPillShape
 import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorTheme
 import org.kodein.arch.vie.timemachine.server.ui.theme.Symbol
@@ -68,7 +69,7 @@ private fun RailTile(item: RailItem, onClick: () -> Unit) {
     val shape = RoundedCornerShape(10.dp)
     Box(
         Modifier.size(width = 40.dp, height = 36.dp)
-            .alpha(if (item.dimmed) 0.55f else 1f)
+            .alpha(if (item.dimmed) InspectorAlpha.unavailable else 1f)
             .background(if (item.selected) scheme.primaryContainer else scheme.surfaceContainerHigh, shape)
             .action(shape = shape, description = item.description, selected = item.selected, onClick = onClick),
         contentAlignment = Alignment.Center,

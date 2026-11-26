@@ -35,10 +35,8 @@ import androidx.compose.ui.semantics.paneTitle
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorAlpha
 
-
-/** How much of what is under a modal sheet shows through its scrim. */
-private const val ScrimAlpha = 0.32f
 
 /**
  * [content], and over it a sheet coming in from the left edge while [open]: a scrim that [onDismiss]
@@ -80,7 +78,7 @@ internal fun ModalSheet(
         AnimatedVisibility(open, enter = fadeIn(), exit = fadeOut()) {
             Box(
                 Modifier.fillMaxSize()
-                    .background(MaterialTheme.colorScheme.scrim.copy(alpha = ScrimAlpha))
+                    .background(MaterialTheme.colorScheme.scrim.copy(alpha = InspectorAlpha.scrim))
                     .pointerInput(onDismiss) { detectTapGestures { onDismiss() } }
                     .semantics {
                         contentDescription = "Close $title"

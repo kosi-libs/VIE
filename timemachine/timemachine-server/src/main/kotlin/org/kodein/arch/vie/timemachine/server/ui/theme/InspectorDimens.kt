@@ -7,7 +7,17 @@ import androidx.compose.runtime.Immutable
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 
-/** Spacing and sizes from the design's token table (§07) and component inventory (§06). */
+/**
+ * Spacing and sizes from the design's token table (§07) and component inventory (§06).
+ *
+ * What is here: the heights of the rows, bars and controls (§06), the thickness of rules and outlines, the widths of the
+ * panes, and the margins and gaps of the composites that several views lay out the same way (a pane header, an empty
+ * state, a callout, a pane's edges). What is not here: the inside of a small control, which is what makes a size of
+ * that control, so it changes with the size and with no other token: a button's, a chip's or a segment's margin, gap
+ * and glyph are in the control's size enum (`ButtonSize`, `ChipSize`, `SegmentedControlSize`) or beside it (`TabRowPadding`).
+ * The opacities are in [InspectorAlpha]. The text is from [InspectorTheme.text], but for the roles of Material's own
+ * scale that the theme maps from the same table (`titleSmall`, `labelMedium`): both read the one table.
+ */
 @Immutable
 object InspectorDimens {
     val timelineRow: Dp = 28.dp

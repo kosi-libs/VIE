@@ -17,6 +17,7 @@ import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import org.kodein.arch.vie.timemachine.server.ui.common.action
 import org.kodein.arch.vie.timemachine.server.ui.theme.Glyph
+import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorAlpha
 import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorDimens
 import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorTheme
 import org.kodein.arch.vie.timemachine.server.ui.theme.Symbol
@@ -58,7 +59,7 @@ internal fun ToggleChip(
     ) {
         leading?.let { Symbol(it, size = ToggleGlyph, tint = accent) }
         Text(label, style = InspectorTheme.text.label, color = text, maxLines = 1)
-        count?.let { Text(it.toString(), style = InspectorTheme.text.monoMeta, color = text, modifier = Modifier.alpha(CountAlpha)) }
+        count?.let { Text(it.toString(), style = InspectorTheme.text.monoMeta, color = text, modifier = Modifier.alpha(InspectorAlpha.chipCount)) }
     }
 }
 
@@ -67,5 +68,3 @@ private val ToggleEnd = 9.dp
 private val ToggleGap = 4.dp
 private val ToggleGlyph = 15.dp
 
-/** How the count stands back from the label (the opacities' tokens are not decided yet). */
-private const val CountAlpha = 0.8f

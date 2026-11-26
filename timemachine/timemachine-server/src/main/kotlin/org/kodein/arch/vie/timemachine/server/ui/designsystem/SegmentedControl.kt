@@ -24,6 +24,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import org.kodein.arch.vie.timemachine.server.ui.common.action
 import org.kodein.arch.vie.timemachine.server.ui.theme.Glyph
+import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorAlpha
 import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorDimens
 import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorPillShape
 import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorTextStyles
@@ -90,7 +91,7 @@ internal fun <T> SegmentedControl(
                     .weight(1f)
                     .fillMaxHeight()
                     .background(if (on) scheme.primaryContainer else Color.Transparent)
-                    .then(if (available) Modifier else Modifier.alpha(UnavailableAlpha))
+                    .then(if (available) Modifier else Modifier.alpha(InspectorAlpha.unavailable))
                     .action(enabled = enabled && available, role = Role.RadioButton, selected = on) { onSelect(option) }
                     .padding(horizontal = size.padding),
                 horizontalArrangement = Arrangement.spacedBy(SegmentGlyphGap, Alignment.CenterHorizontally),
@@ -106,7 +107,5 @@ internal fun <T> SegmentedControl(
     }
 }
 
-/** How an option that cannot be chosen is dimmed (the opacities' tokens are not decided yet). */
-private const val UnavailableAlpha = 0.55f
 private val SegmentGlyph = 15.dp
 private val SegmentGlyphGap = 4.dp
