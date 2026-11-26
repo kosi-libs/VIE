@@ -7,7 +7,6 @@ import kotlinx.coroutines.test.TestResult
 import org.kodein.arch.vie.VIE
 import org.kodein.arch.vie.test.VMTestScope
 import org.kodein.arch.vie.test.runVMTest
-import org.kodein.arch.vie.timemachine.protocol.TimeMachineSequence
 import org.kodein.arch.vie.timemachine.protocol.VIEObjectKind
 import org.kodein.arch.vie.timemachine.server.fixtures.Demo
 import org.kodein.arch.vie.timemachine.server.fixtures.ScenarioData
@@ -86,6 +85,7 @@ class SessionsPaneTest {
         inspector.store.post(TimeMachineEvent.ClearSession(Demo.session.id))
         runCurrent()
         assertEquals(null, model.selected)
+        assertEquals(taskListScope, inspector.selection.state.value.scope)
     }
 
     // Folding: the developer's, kept in the pane's controls.
@@ -225,7 +225,6 @@ class SessionsPaneTest {
         post(SessionsVIE.Intent.SelectScope(demoSession))
         runCurrent()
         assertEquals(demoSession, model.selected)
-        assertEquals(TimeMachineSequence(0), TimeMachineSequence.First)
         assertEquals(null, inspector.selection.state.value.row)
     }
 
