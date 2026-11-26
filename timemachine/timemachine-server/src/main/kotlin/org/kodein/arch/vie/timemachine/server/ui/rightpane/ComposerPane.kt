@@ -1,5 +1,6 @@
 package org.kodein.arch.vie.timemachine.server.ui.rightpane
 
+import androidx.compose.runtime.Immutable
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -7,7 +8,6 @@ import kotlinx.coroutines.flow.filterNotNull
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.JsonElement
-import kotlinx.serialization.json.JsonObject
 import org.kodein.arch.vie.VIE
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineClientMessage
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineSequence
@@ -96,7 +96,8 @@ internal interface ComposerVIE : VIE<ComposerVIE.Model, ComposerVIE.Intent, VIE.
 
 /**
  * @property target What the composer offers; `null` before the store knows the ViewModel.
- * @property parse What the parser says of the text the editor had when this was projected.
+ * @property invalid What the parser rejects in the text the editor had when this was projected, `null` when it parses. The parsed
+ *   tree is not kept: the projection is compared at every keystroke, and a large document would be compared in full each time.
  * @property canSend Whether Send is enabled: the text parses, nothing blocks, and no intervention sent from here is awaiting its answer.
  * @property sending Whether the latest intervention sent from here is awaiting its answer.
  * @property current The intervention sent from here last.
@@ -116,7 +117,7 @@ internal data class ComposerProjection(
     val blockText: String? = null,
     val unserializable: Pair<VIEObjectKind, String>? = null,
     val target: ComposerTarget? = null,
-    val parse: JsonParse = JsonParse.Valid(JsonObject(emptyMap())),
+    val invalid: JsonParse.Invalid? = null,
     val canSend: Boolean = false,
     val sending: Boolean = false,
     val current: InterventionView? = null,
@@ -134,7 +135,11 @@ internal const val MaxRecentInterventions = 20
  * @property number Its number within its ViewModel, from 1.
  * @property rowRetained For a success, whether the intervened row is still retained: once it is
  *   gone, the link says so.
+ *
+ * Immutable, though its status is a type of the store, which the compiler cannot tell is one: the projection
+ * builds a view again at every keystroke, and the result card must not run again for a view equal to the last.
  */
+@Immutable
 internal data class InterventionView(
     val number: Int,
     val requestId: Uuid,
@@ -186,7 +191,7 @@ private fun composerProjection(
         blockText = blockText(session, vm, target.block),
         unserializable = vm?.info?.let { info -> VIEObjectKind.entries.firstOrNull { !info.type(it).isSerializable }?.let { it to info.type(it).typeName } },
         target = target,
-        parse = parse,
+        invalid = parse as? JsonParse.Invalid,
         canSend = target.canSend(parse) && !sending,
         sending = sending,
         current = controls.requestId?.let { id -> interventions.indexOfFirst { it.requestId == id } }?.takeIf { it >= 0 }?.let(::view),

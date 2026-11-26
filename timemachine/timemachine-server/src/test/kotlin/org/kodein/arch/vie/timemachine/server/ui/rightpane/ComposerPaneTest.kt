@@ -63,14 +63,14 @@ class ComposerPaneTest {
     fun `typing does not serialize the prefill again`() = composer {
         post(ComposerVIE.Intent.SetText("{\"a\": "))
         runCurrent()
-        val firstParse = assertIs<JsonParse.Invalid>(model.projection.parse, "the pane projected, for the first keystroke")
+        val firstParse = assertNotNull(model.projection.invalid, "the pane projected, for the first keystroke")
         val first = model.projection.target?.prefill?.json
         assertNotNull(first, "the latest Model of the ViewModel is its prefill")
 
         post(ComposerVIE.Intent.SetText("{\"a\": 1, \"b\": "))
         runCurrent()
 
-        val secondParse = assertIs<JsonParse.Invalid>(model.projection.parse)
+        val secondParse = assertNotNull(model.projection.invalid)
         assertTrue(secondParse.column > firstParse.column, "the pane projected again, for the second keystroke")
         assertSame(first, model.projection.target?.prefill?.json, "the prefill text is the one already built, not written out again")
     }
@@ -166,7 +166,7 @@ class ComposerPaneTest {
     fun `Send is disabled until the JSON parses, and sends nothing meanwhile`() = composer {
         post(ComposerVIE.Intent.SetText("{\"title\": "))
         runCurrent()
-        assertIs<JsonParse.Invalid>(model.projection.parse)
+        assertNotNull(model.projection.invalid)
         assertTrue(!model.projection.canSend)
 
         post(ComposerVIE.Intent.Send)

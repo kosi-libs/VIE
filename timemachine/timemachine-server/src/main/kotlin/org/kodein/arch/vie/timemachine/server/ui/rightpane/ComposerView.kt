@@ -59,6 +59,7 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.constrainWidth
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlin.time.Duration
 import kotlin.uuid.Uuid
 import org.kodein.arch.vie.VIE.NoSignal
 import org.kodein.arch.vie.VIEViewScope
@@ -144,7 +145,7 @@ internal fun VIEViewScope<ComposerVIE.Intent, NoSignal>.ComposerContent(model: C
                     JsonSection(model, editorHeight, blocked) { post(it) }
                     SendRow(target.kind, projection.canSend && !blocked) { post(ComposerVIE.Intent.Send) }
                 }
-                projection.current?.let { ResultCard(it, projection, ::post) }
+                projection.current?.let { ResultCard(it, projection.sessionName, projection.timeout, canResend = projection.blockText == null && !projection.sending, ::post) }
                 RecentInterventions(projection.history, projection.olderInterventions, ::post)
             }
         }
@@ -227,7 +228,7 @@ private fun JsonSection(model: ComposerVIE.Model, editorHeight: Dp, blocked: Boo
     val scheme = MaterialTheme.colorScheme
     val projection = model.projection
     val target = projection.target ?: return
-    val invalid = projection.parse as? JsonParse.Invalid
+    val invalid = projection.invalid
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
             Text("JSON", style = InspectorTheme.text.action, color = scheme.onSurface)
@@ -389,13 +390,12 @@ private fun TimeMachineInterventionResult.Reason.plain(): String = when (this) {
 }
 
 @Composable
-private fun ResultCard(view: InterventionView, projection: ComposerProjection, post: (ComposerVIE.Intent) -> Unit) {
+private fun ResultCard(view: InterventionView, app: String, timeout: Duration, canResend: Boolean, post: (ComposerVIE.Intent) -> Unit) {
     val scheme = MaterialTheme.colorScheme
-    val app = projection.sessionName
     val type = splitSerialName(view.typeName).last
     val status = view.status
     val tone = status.tone()
-    val timeout = formatDelay(projection.timeout)
+    val timeoutText = formatDelay(timeout)
     val title: String
     val body: String
     var reasons: List<String> = emptyList()
@@ -404,7 +404,7 @@ private fun ResultCard(view: InterventionView, projection: ComposerProjection, p
     when (status) {
         InterventionStatus.Pending -> {
             title = "Sent — waiting for $app…"
-            body = "${view.kind.style().verb} · $type · sent ${formatTime(view.requestedAt)} · times out after $timeout"
+            body = "${view.kind.style().verb} · $type · sent ${formatTime(view.requestedAt)} · times out after $timeoutText"
         }
         is InterventionStatus.Succeeded -> {
             title = "Success · observed as #${status.sequence}"
@@ -412,7 +412,7 @@ private fun ResultCard(view: InterventionView, projection: ComposerProjection, p
         }
         InterventionStatus.AcceptedNotObserved -> {
             title = "Accepted, not observed"
-            body = "$app accepted it, but no intervened row arrived within $timeout. Possible reasons:"
+            body = "$app accepted it, but no intervened row arrived within $timeoutText. Possible reasons:"
             reasons = listOfNotNull(
                 if (view.kind == VIEObjectKind.Model) "The app’s next update superseded it, or it equalled the current model." else null,
                 "It is still waiting behind the ViewModel’s own work.",
@@ -434,7 +434,7 @@ private fun ResultCard(view: InterventionView, projection: ComposerProjection, p
             message = status.failure.message ?: view.typeName.takeIf { status.failure.reason == TimeMachineInterventionResult.Reason.UnknownType }
         }
         InterventionStatus.TimedOut -> {
-            title = "Timed out · nothing after $timeout"
+            title = "Timed out · nothing after $timeoutText"
             body = "Neither an answer nor the row arrived. The outcome is unknown — $app may still apply it."
             foot = "A late answer turns this into failure or accepted; a late row, into success."
         }
@@ -467,7 +467,7 @@ private fun ResultCard(view: InterventionView, projection: ComposerProjection, p
             )
         }
         // Resend goes through the composer: offered only while the composer can send.
-        if (status == InterventionStatus.TimedOut && projection.blockText == null && !projection.sending) {
+        if (status == InterventionStatus.TimedOut && canResend) {
             LinkAction("Resend", onClick = { post(ComposerVIE.Intent.Resend(view.requestId)) })
         }
     }
