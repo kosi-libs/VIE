@@ -44,10 +44,6 @@ kotlin {
             implementation(libs.kotlin.test)
         }
     }
-
-    compilerOptions {
-        optIn.addAll("kotlin.uuid.ExperimentalUuidApi", "kotlin.time.ExperimentalTime")
-    }
 }
 
 // TimeMachine is still in development: these modules keep the published-module naming and

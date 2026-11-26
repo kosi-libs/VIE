@@ -16,12 +16,17 @@ import kotlinx.serialization.json.JsonElement
  * @property typeName The object's concrete type, named as [VIETypeInfo.typeName] and
  *   [VIETypeInfo.sealedSubTypes] name types: its serial name when it has one. This is the name
  *   [TimeMachineServerMessage.Intervene.typeName] expects back.
- * @property asString The `toString()` representation of the object.
- * @property asJson The JSON representation of the object, present only if its type is `@Serializable`.
+ * @property asString The `toString()` representation of the object. Ends with a marker saying how
+ *   many characters were left out when it is [truncated] because the string itself was too long.
+ * @property asJson The JSON representation of the object, present only if its type is
+ *   `@Serializable`, and left out when the observation is [truncated] because it was too big.
  * @property interventionId The [TimeMachineServerMessage.Intervene.requestId] of the intervention
  *   that placed the object, or `null` when the application produced it itself.
  * @property delivery For a [VIEObjectKind.Signal], the delivery kind its type picked; `null` for a
  *   Model or an Intent, or for a Signal that picked neither (the ViewModel cannot emit it).
+ * @property truncated Whether the client sent less of the object than it had: it cut [asString],
+ *   or left [asJson] out, because the observation overran the client's limit. A `null` [asJson] on
+ *   a `@Serializable` type, with this set, means the object was too big, not that it cannot be encoded.
  */
 @Serializable
 public data class VIEObservation(
@@ -33,4 +38,5 @@ public data class VIEObservation(
     val asJson: JsonElement? = null,
     val interventionId: Uuid? = null,
     val delivery: VIESignalDelivery? = null,
+    val truncated: Boolean = false,
 )

@@ -1,0 +1,109 @@
+package org.kodein.arch.vie.timemachine.client
+
+import kotlin.reflect.KType
+import kotlin.uuid.Uuid
+import kotlinx.coroutines.CoroutineExceptionHandler
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
+import kotlinx.coroutines.launch
+import org.kodein.arch.vie.VIE
+import org.kodein.arch.vie.timemachine.client.connection.InspectorConnection
+import org.kodein.arch.vie.timemachine.client.type.VIEObjectTypes
+import org.kodein.arch.vie.timemachine.client.timeline.TimeMachineOutbox
+import org.kodein.arch.vie.timemachine.client.timeline.TimeMachineSink
+import org.kodein.arch.vie.timemachine.client.viewmodel.TimeMachineMiddleware
+import org.kodein.arch.vie.timemachine.protocol.TimeMachineSession
+
+
+/**
+ * One run of the probe, from [start] to [stop]: the session of this application process, its sink
+ * and outbound queue, what it introspected of the types it observes, and its [InspectorConnection], which it
+ * runs for as long as it runs itself.
+ *
+ * Never throws into the host app: every failure is printed and swallowed, an `Error` on a thread of
+ * the application included (see [ProbeLog] for the three guards that see to it). An `Error` in the
+ * connection loop — running out of memory while encoding a model, an engine class that fails to
+ * link — is not retried: the outbound queue may have been left half-way through a message, and the
+ * same `Error` may well come back on every attempt. It retires the probe instead: `onRetired` is
+ * told, so that nothing keeps providing its middlewares, and the probe is [stop]ped.
+ *
+ * @property log Where the probe, its middlewares and its connection say what they have to say.
+ * @param onRetired Called with this probe when an `Error` retires it, before it is stopped. Must not throw.
+ * @param newConnection Builds the connection that reads this probe's session, sink and outbound queue.
+ * It runs on the probe's own coroutine, once [start]ed, and not on the thread that starts the probe:
+ * building one loads the HTTP client and its engine, which takes long enough to be felt at the
+ * start-up of an application. An `Error` it throws retires the probe, like one of the connection loop.
+ */
+internal class TimeMachineProbe(
+    private val config: TimeMachineConfig,
+    val log: ProbeLog = ProbeLog(config.logger),
+    private val onRetired: (TimeMachineProbe) -> Unit = {},
+    private val newConnection: (TimeMachineSession, TimeMachineSink, TimeMachineOutbox) -> InspectorConnection =
+        { session, sink, outbox -> InspectorConnection(config, session, sink, outbox, log) },
+) {
+
+    private val session = TimeMachineSession(id = Uuid.random(), name = config.appName)
+
+    private val outbox = TimeMachineOutbox(config.bufferSize, maxObservationLength = config.maxObservationLength)
+
+    private val sink = TimeMachineSink(log, config.maxObservationLength, outbox::offer)
+
+    private val types = VIEObjectTypes(log)
+
+    // The handler is the backstop behind "never throws into the host app": without it, a failure the
+    // connection loop does not catch would reach the thread's uncaught-exception handler, which on
+    // Android kills the app.
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Default + CoroutineExceptionHandler { _, e -> retire(e) })
+
+    fun <Model : VIE.Model, Intent : VIE.Intent, Signal : VIE.Signal> middleware(
+        model: KType,
+        intent: KType,
+        signal: KType,
+    ): TimeMachineMiddleware<Model, Intent, Signal> =
+        TimeMachineMiddleware(types[model], types[intent], types[signal], sink)
+
+    fun start() {
+        printBanner()
+        // Built here, off the caller's thread, and closed with the coroutine: cancelling the scope is
+        // what closes it, and a probe stopped before this runs never builds one.
+        scope.launch { newConnection(session, sink, outbox).use { it.run() } }
+    }
+
+    fun stop() {
+        scope.cancel()
+        sink.close()
+        outbox.close()
+    }
+
+    /** Stops this probe for good after [failure] ended its connection loop, rather than leave it
+     *  started, buffering for a connection that will never come back. */
+    // Nothing may leave: this is the scope's exception handler, past which lies the thread's
+    // uncaught-exception handler. onRetired is told first, so that it is told even if stopping fails.
+    private fun retire(failure: Throwable) = runCatching {
+        log.notice("TimeMachine: the connection to the inspector stopped for good, and the probe with it: $failure")
+        onRetired(this)
+        stop()
+    }
+
+    private fun printBanner() {
+        val lines = listOf(
+            "TimeMachine probe started for \"${config.appName}\"",
+            "Inspector: ${config.inspectorAddress}",
+            "Keeps up to ${config.bufferSize} messages the inspector has not taken yet.",
+            "Sends at most ${config.maxObservationLength} characters of one observation.",
+            "",
+            "This probe streams every Model, Intent and Signal of this app",
+            "in cleartext, and lets the inspector drive its ViewModels.",
+            "Never enable it in a release build.",
+        )
+        val width = lines.maxOf { it.length }
+        val border = "─".repeat(width + 2)
+        log.notice(buildString {
+            appendLine("┌$border┐")
+            lines.forEach { appendLine("│ ${it.padEnd(width)} │") }
+            append("└$border┘")
+        })
+    }
+}

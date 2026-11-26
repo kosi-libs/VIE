@@ -46,7 +46,7 @@ public sealed interface TimeMachineClientMessage {
 
     /**
      * Describes a ViewModel: the answer to [TimeMachineServerMessage.RequestViewModelInfo], or sent
-     * unsolicited for every live ViewModel after the client reconnects, since the server may have
+     * unsolicited for every live ViewModel each time the client connects, since the server may have
      * restarted and lost them.
      *
      * Carries no timeline position: it neither starts the ViewModel nor places a row. A server that
@@ -96,7 +96,7 @@ public sealed interface TimeMachineClientMessage {
     @SerialName("intervention-result")
     public data class InterventionResult(
         val requestId: Uuid,
-        val result: VIEInterventionResult,
+        val result: TimeMachineInterventionResult,
     ) : TimeMachineClientMessage
 
     /**

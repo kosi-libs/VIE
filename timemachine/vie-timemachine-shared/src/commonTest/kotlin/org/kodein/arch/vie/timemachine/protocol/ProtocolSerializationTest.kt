@@ -94,6 +94,27 @@ class ProtocolSerializationTest {
     )
 
     @Test
+    fun observedRoundTripsWhenTruncated() = assertRoundTrip<TimeMachineClientMessage>(
+        TimeMachineClientMessage.Observed(
+            VIEObservation(
+                viewModelId = vmId,
+                at = now,
+                kind = VIEObjectKind.Model,
+                typeName = "org.example.TaskListVIE.Model",
+                asString = "Model(tasks=[… (4096 more characters)",
+                truncated = true,
+            ),
+            sequence = TimeMachineSequence(3),
+        )
+    )
+
+    @Test
+    fun anObservationIsNotTruncatedUnlessItSaysSo() {
+        val json = """{"viewModelId":"00000000-0000-0000-0000-000000000001","at":"2024-08-30T07:20:00Z","kind":"Model","typeName":"T","asString":"T"}"""
+        assertEquals(false, TimeMachineJson.decodeFromString(VIEObservation.serializer(), json).truncated)
+    }
+
+    @Test
     fun observedRoundTripsAsAnEffectSignal() = assertRoundTrip<TimeMachineClientMessage>(
         TimeMachineClientMessage.Observed(
             VIEObservation(
@@ -141,20 +162,28 @@ class ProtocolSerializationTest {
 
     @Test
     fun interventionResultRoundTripsOnSuccess() = assertRoundTrip<TimeMachineClientMessage>(
-        TimeMachineClientMessage.InterventionResult(requestId, VIEInterventionResult.Success)
+        TimeMachineClientMessage.InterventionResult(requestId, TimeMachineInterventionResult.Success)
     )
 
     @Test
     fun interventionResultRoundTripsOnFailure() = assertRoundTrip<TimeMachineClientMessage>(
         TimeMachineClientMessage.InterventionResult(
             requestId,
-            VIEInterventionResult.Failure(VIEInterventionResult.Reason.BadJson, "unexpected token"),
+            TimeMachineInterventionResult.Failure(TimeMachineInterventionResult.Reason.BadJson, "unexpected token"),
+        )
+    )
+
+    @Test
+    fun interventionResultRoundTripsOnAProbeFailure() = assertRoundTrip<TimeMachineClientMessage>(
+        TimeMachineClientMessage.InterventionResult(
+            requestId,
+            TimeMachineInterventionResult.Failure(TimeMachineInterventionResult.Reason.ProbeFailure, "The probe failed to handle the request"),
         )
     )
 
     @Test
     fun interventionResultRoundTripsOnFailureWithoutAMessage() = assertRoundTrip<TimeMachineClientMessage>(
-        TimeMachineClientMessage.InterventionResult(requestId, VIEInterventionResult.Failure(VIEInterventionResult.Reason.UnknownType)),
+        TimeMachineClientMessage.InterventionResult(requestId, TimeMachineInterventionResult.Failure(TimeMachineInterventionResult.Reason.UnknownType)),
     )
 
     @Test
@@ -162,7 +191,7 @@ class ProtocolSerializationTest {
         assertEquals(
             Json.parseToJsonElement("""{"#type":"failure","reason":"BadJson","message":null}"""),
             Json.parseToJsonElement(
-                TimeMachineJson.encodeToString<VIEInterventionResult>(VIEInterventionResult.Failure(VIEInterventionResult.Reason.BadJson))
+                TimeMachineJson.encodeToString<TimeMachineInterventionResult>(TimeMachineInterventionResult.Failure(TimeMachineInterventionResult.Reason.BadJson))
             ),
         )
         assertEquals(

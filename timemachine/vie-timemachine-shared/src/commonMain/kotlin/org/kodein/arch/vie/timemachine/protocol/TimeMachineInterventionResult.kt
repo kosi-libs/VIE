@@ -13,7 +13,7 @@ import kotlinx.serialization.Serializable
  * request's [TimeMachineServerMessage.Intervene.requestId].
  */
 @Serializable
-public sealed interface VIEInterventionResult {
+public sealed interface TimeMachineInterventionResult {
 
     /**
      * The request was valid, and the object's injection into the ViewModel was scheduled.
@@ -22,7 +22,7 @@ public sealed interface VIEInterventionResult {
      */
     @Serializable
     @SerialName("success")
-    public data object Success : VIEInterventionResult
+    public data object Success : TimeMachineInterventionResult
 
     /** The request was refused: nothing was placed into the ViewModel. */
     @Serializable
@@ -30,7 +30,7 @@ public sealed interface VIEInterventionResult {
     public data class Failure(
         val reason: Reason,
         val message: String? = null,
-    ) : VIEInterventionResult
+    ) : TimeMachineInterventionResult
 
     @Serializable
     public enum class Reason {
@@ -48,5 +48,12 @@ public sealed interface VIEInterventionResult {
 
         /** The given JSON representation could not be decoded. */
         BadJson,
+
+        /**
+         * The probe failed while handling the request, whatever the request was: a defect of the probe,
+         * not a refusal. Whether the object reached the ViewModel is unknown; the failure itself is
+         * printed in the application's output.
+         */
+        ProbeFailure,
     }
 }
