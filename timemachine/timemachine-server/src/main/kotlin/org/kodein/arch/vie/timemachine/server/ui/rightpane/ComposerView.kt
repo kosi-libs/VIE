@@ -99,23 +99,23 @@ private val EditorHeight = 200.dp
  * intervention sent from here and the recent ones.
  */
 @Composable
-internal fun ComposerView(sessionId: Uuid, viewModelId: Uuid) {
+internal fun ComposerView(sessionId: Uuid, viewModelId: Uuid, modifier: Modifier = Modifier) {
     val inspector = LocalInspector.current
     val pane = remember(inspector, sessionId, viewModelId) { inspector.composerPane(sessionId, viewModelId) }
     InspectorPane(pane) { model ->
-        ComposerContent(model)
+        ComposerContent(model, modifier)
     }
 }
 
-/** The Intervene tab, as [model] has it, its editor [editorHeight] high. */
+/** The Intervene tab, as [model] has it, its editor [editorHeight] high; it fills [modifier]'s room. */
 @Composable
-internal fun VIEViewScope<ComposerVIE.Intent, NoSignal>.ComposerContent(model: ComposerVIE.Model, editorHeight: Dp = EditorHeight) {
+internal fun VIEViewScope<ComposerVIE.Intent, NoSignal>.ComposerContent(model: ComposerVIE.Model, modifier: Modifier = Modifier, editorHeight: Dp = EditorHeight) {
     val scheme = MaterialTheme.colorScheme
     val projection = model.projection
     val target = projection.target
     val blocked = projection.blockText != null
     val scroll = rememberScrollState()
-    ScrollbarBox(rememberScrollbarAdapter(scroll), Modifier.fillMaxSize()) {
+    ScrollbarBox(rememberScrollbarAdapter(scroll), modifier.fillMaxSize()) {
         Column(
             Modifier.fillMaxSize().verticalScroll(scroll).padding(start = InspectorDimens.paneHorizontalPadding, end = InspectorDimens.paneHorizontalPadding, top = 12.dp, bottom = 16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),

@@ -57,10 +57,10 @@ private const val HighlightFadeMillis = 400
 
 /** The pinned current model of ViewModel [viewModelId]: [CurrentModelContent] over what the store holds. */
 @Composable
-internal fun CurrentModelView(sessionId: Uuid, viewModelId: Uuid) {
+internal fun CurrentModelView(sessionId: Uuid, viewModelId: Uuid, modifier: Modifier = Modifier) {
     val inspector = LocalInspector.current
     val pane = remember(inspector, sessionId, viewModelId) { inspector.currentModelPane(sessionId, viewModelId) }
-    InspectorPane(pane) { model -> CurrentModelContent(model) }
+    InspectorPane(pane) { model -> CurrentModelContent(model, modifier) }
 }
 
 /**
@@ -69,11 +69,11 @@ internal fun CurrentModelView(sessionId: Uuid, viewModelId: Uuid) {
  * with the button that folds the right pane away.
  */
 @Composable
-internal fun VIEViewScope<CurrentModelVIE.Intent, NoSignal>.CurrentModelContent(model: CurrentModelVIE.Model) {
+internal fun VIEViewScope<CurrentModelVIE.Intent, NoSignal>.CurrentModelContent(model: CurrentModelVIE.Model, modifier: Modifier = Modifier) {
     val scheme = MaterialTheme.colorScheme
     val projection = model.projection
     val compact = LocalCompact.current
-    Column(Modifier.fillMaxWidth().height(if (compact) CompactPinnedHeight else PinnedHeight)) {
+    Column(modifier.fillMaxWidth().height(if (compact) CompactPinnedHeight else PinnedHeight)) {
         // One highlight for as long as the pane is shown: a new Model restarts its fade rather than making a
         // new one, so that the tree's lines keep the same State and those that did not change can skip.
         val fade = remember { Animatable(1f) }

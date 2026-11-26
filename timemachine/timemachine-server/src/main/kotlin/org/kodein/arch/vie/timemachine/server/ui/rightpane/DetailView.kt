@@ -55,28 +55,30 @@ import org.kodein.arch.vie.timemachine.server.ui.theme.Symbol
 
 /** The Detail tab: [DetailPaneContent] over what the store holds and the window has selected. */
 @Composable
-internal fun DetailView() {
+internal fun DetailView(modifier: Modifier = Modifier) {
     val inspector = LocalInspector.current
     val pane = remember(inspector) { inspector.detailPane() }
-    InspectorPane(pane) { model -> DetailPaneContent(model) }
+    InspectorPane(pane) { model -> DetailPaneContent(model, modifier) }
 }
 
 /** The Detail tab, as [model] has it: the selected entry, or what to do to select one. */
 @Composable
-internal fun VIEViewScope<DetailVIE.Intent, NoSignal>.DetailPaneContent(model: DetailVIE.Model) {
+internal fun VIEViewScope<DetailVIE.Intent, NoSignal>.DetailPaneContent(model: DetailVIE.Model, modifier: Modifier = Modifier) {
     val row = model.projection.row
     val observation = model.projection.observation
-    if (row == null || observation == null) NoEntrySelected()
-    else DetailContent(model, observation, row.sequence) { post(it) }
+    if (row == null || observation == null) NoEntrySelected(modifier)
+    else DetailContent(model, observation, row.sequence, modifier) { post(it) }
 }
 
 @Composable
-private fun NoEntrySelected() {
-    EmptyState("No entry selected", Modifier.fillMaxSize(), description = "Click a row, or use ↑ ↓ to step through the timeline.")
+private fun NoEntrySelected(modifier: Modifier) {
+    EmptyState("No entry selected", modifier.fillMaxSize(), description = "Click a row, or use ↑ ↓ to step through the timeline.")
 }
 
 @Composable
-private fun DetailContent(model: DetailVIE.Model, observation: VIEObservation, sequence: TimeMachineSequence, post: (DetailVIE.Intent) -> Unit) {
+private fun DetailContent(
+    model: DetailVIE.Model, observation: VIEObservation, sequence: TimeMachineSequence, modifier: Modifier, post: (DetailVIE.Intent) -> Unit,
+) {
     val scheme = MaterialTheme.colorScheme
     val projection = model.projection
     val kind = observation.kind
@@ -89,7 +91,7 @@ private fun DetailContent(model: DetailVIE.Model, observation: VIEObservation, s
         controls = model.controls.jsonView,
         onRawChange = { post(DetailVIE.Intent.SetRaw(it)) },
         onToggle = { post(DetailVIE.Intent.ToggleNode(it)) },
-        modifier = Modifier.fillMaxSize(),
+        modifier = modifier.fillMaxSize(),
         variant = JsonViewerVariant.Framed,
         contentPadding = PaddingValues(start = InspectorDimens.paneHorizontalPadding, end = InspectorDimens.paneHorizontalPadding, top = 12.dp, bottom = 16.dp),
     ) { rawSwitch ->
