@@ -8,6 +8,7 @@ import androidx.compose.foundation.interaction.HoverInteraction
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.interaction.PressInteraction
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -21,6 +22,7 @@ import androidx.compose.ui.graphics.toPixelMap
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.DesktopComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onRoot
@@ -30,8 +32,10 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNotEquals
 import org.kodein.arch.vie.timemachine.server.fixtures.VisibleLevels
 import org.kodein.arch.vie.timemachine.server.fixtures.assertDarkened
+import org.kodein.arch.vie.timemachine.server.fixtures.assertActivatedByEnterAndSpace
 import org.kodein.arch.vie.timemachine.server.fixtures.assertLightened
 import org.kodein.arch.vie.timemachine.server.fixtures.contentTest
+import org.kodein.arch.vie.timemachine.server.fixtures.tabTo
 import org.kodein.arch.vie.timemachine.server.ui.core.InspectorViewState
 import org.kodein.arch.vie.timemachine.server.ui.designsystem.LatchedInteractionSource
 import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorPillShape
@@ -199,5 +203,36 @@ class ActionTest {
         assertNotEquals(rest[width / 2, height / 2], shown[width / 2, height / 2], "the inside is not tinted")
         assertEquals(rest[1, 1], shown[1, 1], "the top left corner is tinted")
         assertEquals(rest[width - 2, 1], shown[width - 2, 1], "the top right corner is tinted")
+    }
+
+    @Test
+    fun `Tab moves the focus from one action to the next, and Enter and Space click the one that has it`() {
+        val clicks = IntArray(2)
+        contentTest(content = {
+            Column {
+                for (index in clicks.indices) Box(Modifier.testTag("action$index").size(width.dp, height.dp).action { clicks[index]++ })
+            }
+        }) {
+            tabTo(onNodeWithTag("action0")).assertIsFocused()
+            tabTo(onNodeWithTag("action1")).assertIsFocused()
+            assertActivatedByEnterAndSpace { clicks[1] }
+            assertEquals(0, clicks[0], "a key clicked the action that has not the focus")
+        }
+    }
+
+    @Test
+    fun `a disabled action is skipped by Tab, and takes no key`() {
+        var clicks = 0
+        var disabledClicks = 0
+        contentTest(content = {
+            Column {
+                Box(Modifier.testTag("off").size(width.dp, height.dp).action(enabled = false) { disabledClicks++ })
+                Box(Modifier.testTag("on").size(width.dp, height.dp).action { clicks++ })
+            }
+        }) {
+            tabTo(onNodeWithTag("on")).assertIsFocused()
+            assertActivatedByEnterAndSpace { clicks }
+            assertEquals(0, disabledClicks)
+        }
     }
 }

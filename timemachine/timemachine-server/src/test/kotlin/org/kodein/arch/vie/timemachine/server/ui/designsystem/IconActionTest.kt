@@ -5,13 +5,16 @@ package org.kodein.arch.vie.timemachine.server.ui.designsystem
 import androidx.compose.foundation.layout.Row
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertHasClickAction
+import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import org.kodein.arch.vie.timemachine.server.fixtures.assertActivatedByEnterAndSpace
 import org.kodein.arch.vie.timemachine.server.fixtures.contentTest
+import org.kodein.arch.vie.timemachine.server.fixtures.tabTo
 import org.kodein.arch.vie.timemachine.server.ui.theme.Glyph
 
 
@@ -37,6 +40,15 @@ class IconActionTest {
         contentTest(content = { IconAction(Glyph.Close, "Clear the search", onClick = { clicks++ }) }) {
             onNodeWithContentDescription("Clear the search").assertHasClickAction().performClick()
             assertEquals(1, clicks)
+        }
+    }
+
+    @Test
+    fun `Tab reaches a glyph button, and Enter and Space click it`() {
+        var clicks = 0
+        contentTest(content = { IconAction(Glyph.Close, "Clear the search", onClick = { clicks++ }) }) {
+            tabTo(onNodeWithContentDescription("Clear the search")).assertIsFocused()
+            assertActivatedByEnterAndSpace { clicks }
         }
     }
 }

@@ -36,6 +36,7 @@ import org.kodein.arch.vie.timemachine.protocol.VIEObjectKind
 import org.kodein.arch.vie.timemachine.server.InspectorWindow
 import org.kodein.arch.vie.timemachine.server.fixtures.Demo
 import org.kodein.arch.vie.timemachine.server.fixtures.described
+import org.kodein.arch.vie.timemachine.server.fixtures.press
 import org.kodein.arch.vie.timemachine.server.fixtures.shown
 import org.kodein.arch.vie.timemachine.server.fixtures.until
 import org.kodein.arch.vie.timemachine.server.fixtures.windowTest
@@ -92,7 +93,7 @@ class CompactLayoutTest {
         onNodeWithText("SettingsVM").performClick()
         until { inspector.selection.state.value.scope == settings }
         assertFalse(viewState.drawerOpen)
-        until { !shown("Clear disconnected") }
+        until("the sessions drawer leaves the composition") { !shown("Clear disconnected") }
     }
 
     @Test
@@ -112,9 +113,9 @@ class CompactLayoutTest {
         onNodeWithContentDescription(RailMenuDescription).performClick()
         until { shown("Clear disconnected") }
 
-        onRoot().performKeyInput { pressKey(Key.Escape) }
-        until { !viewState.drawerOpen }
-        until { !shown("Clear disconnected") }
+        press(Key.Escape)
+        assertFalse(viewState.drawerOpen, "Escape did not close the drawer")
+        until("the sessions drawer leaves the composition") { !shown("Clear disconnected") }
     }
 
     @Test
@@ -126,12 +127,12 @@ class CompactLayoutTest {
         onNodeWithContentDescription(RailMenuDescription).performClick()
         until { shown("Clear disconnected") }
         onRoot().performKeyInput { pressKey(Key.Escape) }
-        until { !shown("Clear disconnected") }
+        until("the sessions drawer leaves the composition") { !shown("Clear disconnected") }
         assertEquals(null, inspector.selection.state.value.row)
 
         // The sheet had the keyboard; the centre pane was given it back.
         onRoot().performKeyInput { pressKey(Key.DirectionDown) }
-        until { inspector.selection.state.value.row != null }
+        until("↓ selects a row of the timeline the drawer gave the keyboard back to") { inspector.selection.state.value.row != null }
     }
 
     @Test
@@ -168,8 +169,8 @@ class CompactLayoutTest {
         }
         assertTrue(seen.size > 2, "Tab did not move through the sheet: $seen")
 
-        onRoot().performKeyInput { pressKey(Key.Escape) }
-        until { !viewState.drawerOpen }
+        press(Key.Escape)
+        assertFalse(viewState.drawerOpen, "Escape did not close the drawer, after Tab moved the focus in it")
     }
 
     @Test
@@ -187,7 +188,8 @@ class CompactLayoutTest {
         )
 
         onNodeWithContentDescription("Close Sessions").performClick()
-        until { !viewState.drawerOpen }
+        waitForIdle()
+        assertFalse(viewState.drawerOpen, "activating the scrim did not close the drawer")
     }
 
     /** Waits for the timeline of [scope] to have rows to step through, then presses ↓ on whatever has the keyboard. */
@@ -228,7 +230,8 @@ class CompactLayoutTest {
 
         // The sheet is 260 dp wide, from the left edge: a click to its right is on the scrim.
         onRoot().performTouchInput { click(Offset(700f, 400f)) }
-        until { !viewState.drawerOpen }
+        waitForIdle()
+        assertFalse(viewState.drawerOpen, "a click on the scrim did not close the drawer")
     }
 
     @Test
@@ -303,8 +306,8 @@ class CompactLayoutTest {
         until { viewState.rightCollapsed && described(ShowRightPaneDescription) }
 
         inspector.selection.composeFrom(Demo.taskList, VIEObjectKind.Intent, Demo.DeleteTask, "{}")
-        until { !viewState.rightCollapsed }
-        until { described(HideRightPaneDescription) }
+        until("Edit and intervene unfolds the right pane") { !viewState.rightCollapsed }
+        until("the unfolded right pane offers to hide itself") { described(HideRightPaneDescription) }
     }
 
     @Test

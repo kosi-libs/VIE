@@ -107,9 +107,10 @@ internal fun windowTest(
 /**
  * Advances the scene's clock, a frame at a time, until [condition]: each frame runs what the store, the
  * probe and the panes' projections have queued, and composes what they changed. The timeout only stops a
- * condition that never comes.
+ * condition that never comes: [what], when given, says in its failure what was waited for.
  */
-internal fun DesktopComposeUiTest.until(condition: () -> Boolean) = waitUntil(timeoutMillis = 10_000, condition = condition)
+internal fun DesktopComposeUiTest.until(what: String? = null, condition: () -> Boolean) =
+    waitUntil(conditionDescription = what, timeoutMillis = 10_000, condition = condition)
 
 /** Whether a node with exactly [text] is composed. */
 internal fun DesktopComposeUiTest.shown(text: String): Boolean = onAllNodesWithText(text).fetchSemanticsNodes().isNotEmpty()

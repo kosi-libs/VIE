@@ -2,14 +2,18 @@
 
 package org.kodein.arch.vie.timemachine.server.ui.designsystem
 
+import androidx.compose.foundation.layout.Column
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import org.kodein.arch.vie.timemachine.server.fixtures.assertActivatedByEnterAndSpace
 import org.kodein.arch.vie.timemachine.server.fixtures.contentTest
+import org.kodein.arch.vie.timemachine.server.fixtures.tabTo
 
 
 /** What a text link is: at least as high as a link's least height whatever its line, and, disabled, a link that takes no click. Sizes are in px: the harness's density is 1. */
@@ -36,6 +40,29 @@ class LinkActionTest {
         contentTest(content = { LinkAction("Reset", onClick = { clicks++ }, enabled = false) }) {
             onNodeWithText("Reset").assertIsNotEnabled().performClick()
             assertEquals(0, clicks)
+        }
+    }
+
+    @Test
+    fun `Tab reaches a link, and Enter and Space click it`() {
+        var clicks = 0
+        contentTest(content = { LinkAction("Show", onClick = { clicks++ }) }) {
+            tabTo(onNodeWithText("Show")).assertIsFocused()
+            assertActivatedByEnterAndSpace { clicks }
+        }
+    }
+
+    @Test
+    fun `Tab skips a disabled link`() {
+        var clicks = 0
+        contentTest(content = {
+            Column {
+                LinkAction("Reset", onClick = {}, enabled = false)
+                LinkAction("Show", onClick = { clicks++ })
+            }
+        }) {
+            tabTo(onNodeWithText("Show")).assertIsFocused()
+            assertActivatedByEnterAndSpace { clicks }
         }
     }
 }

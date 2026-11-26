@@ -5,12 +5,14 @@ package org.kodein.arch.vie.timemachine.server.ui.sessions
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.lerp
 import androidx.compose.ui.graphics.toPixelMap
+import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.semantics.SemanticsProperties
 import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.DesktopComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.SemanticsMatcher
 import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsNotSelected
 import androidx.compose.ui.test.assertIsSelected
@@ -32,9 +34,11 @@ import org.kodein.arch.vie.timemachine.server.fixtures.Demo
 import org.kodein.arch.vie.timemachine.server.fixtures.Rendered
 import org.kodein.arch.vie.timemachine.server.fixtures.ScenarioData
 import org.kodein.arch.vie.timemachine.server.fixtures.contentTest
+import org.kodein.arch.vie.timemachine.server.fixtures.press
 import org.kodein.arch.vie.timemachine.server.fixtures.levelsAbove
 import org.kodein.arch.vie.timemachine.server.fixtures.shown
 import org.kodein.arch.vie.timemachine.server.fixtures.state
+import org.kodein.arch.vie.timemachine.server.fixtures.tabTo
 import org.kodein.arch.vie.timemachine.server.ui.core.InspectorScope
 import org.kodein.arch.vie.timemachine.server.ui.theme.LightInspectorScheme
 import kotlin.math.abs
@@ -247,5 +251,46 @@ class SessionsViewTest {
         val closed = rowBackground(InspectorScope.ViewModel(Demo.session.id, Demo.editTaskClosed), textStartingWith("closed "))
         val dimmed = lerp(surface, selection, 0.6f)
         assertEquals(emptyList(), levelsAbove(dimmed, closed).filter { abs(it) > 2 }, "a closed row is at six tenths: $closed, not $dimmed")
+    }
+
+    // The keyboard: the controls are reached with Tab, and done with Enter.
+
+    @Test
+    fun `Tab reaches Clear disconnected, a session's chevron and its clear action, and Enter does what a click does`() {
+        val vie = sessions("main")
+        val live = vie.model.sessions.indexOfFirst { it.id == Demo.session.id }
+        contentTest(content = { vie.Rendered { SessionsContent(it) } }) {
+            tabTo(onNodeWithText("Clear disconnected")).assertIsFocused()
+            press(Key.Enter)
+            assertEquals(listOf<SessionsVIE.Intent>(SessionsVIE.Intent.ClearDisconnected), vie.pendingIntents())
+
+            tabTo(onAllNodesWithContentDescription(CollapseSessionDescription)[live]).assertIsFocused()
+            press(Key.Enter)
+            assertEquals(listOf<SessionsVIE.Intent>(SessionsVIE.Intent.ToggleSession(Demo.session.id)), vie.pendingIntents(), "Enter on the chevron")
+
+            tabTo(onNodeWithText("Clear 1 closed ViewModel")).assertIsFocused()
+            press(Key.Enter)
+            assertEquals(listOf<SessionsVIE.Intent>(SessionsVIE.Intent.ClearSession(Demo.session.id)), vie.pendingIntents())
+        }
+    }
+
+    @Test
+    fun `Tab reaches a session's row and a ViewModel's row, and Enter or Space selects it and picks its scope`() {
+        val vie = sessions("main")
+        var picked = 0
+        contentTest(content = { vie.Rendered { SessionsContent(it, onScopePicked = { picked++ }) } }) {
+            val settings = onNode(hasText("SettingsVM") and hasClickAction())
+            tabTo(settings).assertIsFocused()
+            press(Key.Enter)
+            assertEquals(
+                listOf<SessionsVIE.Intent>(SessionsVIE.Intent.SelectScope(InspectorScope.ViewModel(Demo.session.id, Demo.settings))),
+                vie.pendingIntents(),
+            )
+            assertEquals(1, picked)
+
+            press(Key.Spacebar)
+            assertEquals(2, picked, "Space does what Enter does")
+            assertEquals(1, vie.pendingIntents().size)
+        }
     }
 }

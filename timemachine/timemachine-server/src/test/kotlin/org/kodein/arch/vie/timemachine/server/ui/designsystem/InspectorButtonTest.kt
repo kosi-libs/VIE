@@ -19,6 +19,7 @@ import androidx.compose.ui.graphics.toPixelMap
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.onNodeWithTag
@@ -30,9 +31,11 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNotEquals
 import org.kodein.arch.vie.timemachine.server.fixtures.DarkenedLevels
 import org.kodein.arch.vie.timemachine.server.fixtures.VisibleLevels
+import org.kodein.arch.vie.timemachine.server.fixtures.assertActivatedByEnterAndSpace
 import org.kodein.arch.vie.timemachine.server.fixtures.assertDarkened
 import org.kodein.arch.vie.timemachine.server.fixtures.assertLightened
 import org.kodein.arch.vie.timemachine.server.fixtures.contentTest
+import org.kodein.arch.vie.timemachine.server.fixtures.tabTo
 import org.kodein.arch.vie.timemachine.server.ui.core.InspectorViewState
 import org.kodein.arch.vie.timemachine.server.ui.theme.LightInspectorScheme
 
@@ -154,5 +157,23 @@ class InspectorButtonTest {
     fun `in the dark theme, a pressed filled button still darkens its primary fill`() {
         val (rest, pressed) = restAndPressed(ButtonVariant.Filled, dark = true)
         assertDarkened(rest.endMargin(), pressed.endMargin(), DarkenedLevels)
+    }
+
+    @Test
+    fun `Tab reaches a button of every variant past a disabled one, and Enter and Space click it`() {
+        for (variant in ButtonVariant.entries) {
+            var clicks = 0
+            var disabledClicks = 0
+            contentTest(content = {
+                Column {
+                    InspectorButton("Off", onClick = { disabledClicks++ }, variant = variant, enabled = false)
+                    InspectorButton("On", onClick = { clicks++ }, variant = variant)
+                }
+            }) {
+                tabTo(onNodeWithText("On")).assertIsFocused()
+                assertActivatedByEnterAndSpace { clicks }
+                assertEquals(0, disabledClicks, "a key clicked the disabled $variant button")
+            }
+        }
     }
 }
