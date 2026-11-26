@@ -164,6 +164,8 @@ The full documentation is on https://kosi-libs.org/vie[kosi-libs.org].
 For a complete application built with VIE, see the task-list demos: link:demo/demo-compose[`demo/demo-compose`] in Compose, link:demo/demo-swiftui[`demo/demo-swiftui`] in SwiftUI, and link:demo/demo-ios[`demo/demo-ios`], which mixes both on iOS.
 They share the contracts and the ViewModels of link:demo/demo-shared[`demo/demo-shared`].
 
+To watch and drive the ViewModels of a running application from a desktop inspector, see https://kosi-libs.org/vie/{version}/timemachine/index.html[TimeMachine].
+
 
 == AI agent skill
 
