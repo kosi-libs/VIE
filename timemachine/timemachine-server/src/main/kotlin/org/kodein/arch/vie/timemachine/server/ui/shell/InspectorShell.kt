@@ -13,6 +13,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.movableContentOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
@@ -22,7 +23,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.focus.FocusRequester
 import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.layout.layout
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.constrainWidth
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.drop
@@ -109,7 +112,9 @@ private fun InspectorLayout(
         val centrePane = remember { movableContentOf<Modifier> { currentCentre(it) } }
         val rightPane = remember { movableContentOf<Modifier> { currentRight(it) } }
         Column(Modifier.fillMaxSize()) {
-            notices.rejections.forEach { rejection -> RejectionBanner(rejection) { onIntent(NoticesVIE.Intent.DismissRejection(rejection.sessionId)) } }
+            notices.rejections.forEach { rejection ->
+                key(rejection.sessionId) { RejectionBanner(rejection) { onIntent(NoticesVIE.Intent.DismissRejection(rejection.sessionId)) } }
+            }
             Column(Modifier.weight(1f).fillMaxSize()) {
                 when (val screen = notices.screen) {
                     NoticesVIE.Screen.Empty -> empty()
@@ -136,15 +141,22 @@ private fun PanesLayout(
     rightPane: @Composable (Modifier) -> Unit,
 ) {
     val viewState = LocalInspectorViewState.current
-    val sessions = viewState.shownSessionsWidth(total)
-    val right = viewState.shownRightWidth(total)
+    // The widths are read when the panes are measured, not here: a drag changes them at every frame, and this
+    // composition, and those of the panes' roots, would run at each.
     Row(Modifier.fillMaxSize()) {
-        sessionsPane(SessionsPresentation.Pane, Modifier.width(sessions).fillMaxHeight())
+        sessionsPane(SessionsPresentation.Pane, Modifier.widthAtMeasure { viewState.shownSessionsWidth(total) }.fillMaxHeight())
         Splitter(onDrag = { viewState.dragSessions(it, total) })
         centrePane(Modifier.weight(1f).fillMaxHeight())
         Splitter(onDrag = { viewState.dragRight(it, total) })
-        rightPane(Modifier.width(right).fillMaxHeight())
+        rightPane(Modifier.widthAtMeasure { viewState.shownRightWidth(total) }.fillMaxHeight())
     }
+}
+
+/** A width read when the node is measured: a change of what [width] reads lays the node out again, and composes nothing. */
+private fun Modifier.widthAtMeasure(width: () -> Dp): Modifier = layout { measurable, constraints ->
+    val px = constraints.constrainWidth(width().roundToPx())
+    val placeable = measurable.measure(constraints.copy(minWidth = px, maxWidth = px))
+    layout(placeable.width, placeable.height) { placeable.place(0, 0) }
 }
 
 // What each pane is given of [total], and what a drag does to it. A drag is several movements, and those that
@@ -218,9 +230,8 @@ private fun CompactPanes(
             if (viewState.rightCollapsed) {
                 CollapsedRightPane { viewState.rightCollapsed = false }
             } else {
-                val right = viewState.shownCompactRightWidth(total)
                 Splitter(onDrag = { viewState.dragCompactRight(it, total) })
-                rightPane(Modifier.width(right).fillMaxHeight())
+                rightPane(Modifier.widthAtMeasure { viewState.shownCompactRightWidth(total) }.fillMaxHeight())
             }
         }
     }

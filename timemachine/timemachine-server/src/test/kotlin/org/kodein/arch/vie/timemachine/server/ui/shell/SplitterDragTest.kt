@@ -14,6 +14,7 @@ import androidx.compose.ui.unit.dp
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
+import org.kodein.arch.vie.timemachine.server.fixtures.countingRecompositions
 import org.kodein.arch.vie.timemachine.server.fixtures.described
 import org.kodein.arch.vie.timemachine.server.fixtures.shown
 import org.kodein.arch.vie.timemachine.server.fixtures.until
@@ -95,6 +96,34 @@ class SplitterDragTest {
         assertEquals(once, viewState.compactRightWidth, "four movements of 10 gave another width than one of 40")
     }
 
+    // ---- What a drag recomposes ----------------------------------------------------------------------
+
+    @Test
+    fun `dragging a splitter lays the panes out again and composes none of the layout`() = countingRecompositions(PanesLayout, CompactPanes) { recompositions ->
+        windowTest(width = 1440.dp) { _, viewState, _ ->
+            until { shown("Clear disconnected") }
+            waitForIdle()
+            val start = viewState.sessionsWidth
+            recompositions.reset()
+
+            drag(start, 10f, 10f, 10f, 10f)
+
+            assertTrue(viewState.sessionsWidth > start, "the splitter did not move")
+            assertEquals(0, recompositions[PanesLayout], "the width is read in composition: each movement composes the three panes' roots")
+        }
+        windowTest(width = 1000.dp) { _, viewState, _ ->
+            until { described(RailMenuDescription) }
+            waitForIdle()
+            val start = viewState.compactRightWidth
+            recompositions.reset()
+
+            drag(1000.dp - start - InspectorDimens.dividerHitArea, -10f, -10f, -10f, -10f)
+
+            assertTrue(viewState.compactRightWidth > start, "the splitter did not move")
+            assertEquals(0, recompositions[CompactPanes], "the width is read in composition: each movement composes the panes' roots")
+        }
+    }
+
     // ---- What a movement starts from ---------------------------------------------------------------
 
     private val total = 1440.dp
@@ -137,5 +166,11 @@ class SplitterDragTest {
 
         viewState.dragSessions(1000.dp, total)
         assertEquals(total - viewState.shownRightWidth(total) - 300.dp, viewState.sessionsWidth, "the centre pane keeps its 300 dp")
+    }
+
+    private companion object {
+        /** As the compiler names them for the tracer. */
+        const val PanesLayout = "org.kodein.arch.vie.timemachine.server.ui.shell.PanesLayout"
+        const val CompactPanes = "org.kodein.arch.vie.timemachine.server.ui.shell.CompactPanes"
     }
 }

@@ -24,6 +24,9 @@ import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorTheme
 import java.awt.Cursor
 
 
+/** The cursor over a splitter: an AWT cursor wraps a native one, so it is made once. */
+private val ResizeCursor = PointerIcon(Cursor(Cursor.E_RESIZE_CURSOR))
+
 /** A vertical divider the developer drags: [onDrag] gets the horizontal movement, positive to the right. */
 @Composable
 internal fun Splitter(onDrag: (Dp) -> Unit, modifier: Modifier = Modifier) {
@@ -32,7 +35,7 @@ internal fun Splitter(onDrag: (Dp) -> Unit, modifier: Modifier = Modifier) {
     Box(
         modifier
             .width(InspectorDimens.dividerHitArea).fillMaxHeight()
-            .pointerHoverIcon(PointerIcon(Cursor(Cursor.E_RESIZE_CURSOR)))
+            .pointerHoverIcon(ResizeCursor)
             .draggable(rememberDraggableState { with(density) { latest.value(it.toDp()) } }, Orientation.Horizontal),
         contentAlignment = Alignment.Center,
     ) {

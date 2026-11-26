@@ -896,6 +896,9 @@ private fun GapRow(count: Int, sequence: TimeMachineSequence, label: String?) {
     }
 }
 
+/** The dashes of a Possibly incomplete row's rules: a native object, built once rather than at each composition. */
+private val PossiblyIncompleteDash = PathEffect.dashPathEffect(floatArrayOf(6f, 4f))
+
 /**
  * The session's sequences [range] never arrived. In a ViewModel's timeline some may be that ViewModel's;
  * in a session's, where the row is [shared] by the ViewModels alive then, they may be any of theirs.
@@ -903,12 +906,11 @@ private fun GapRow(count: Int, sequence: TimeMachineSequence, label: String?) {
 @Composable
 private fun PossiblyIncompleteRow(range: ClosedRange<TimeMachineSequence>, shared: Boolean) {
     val colors = InspectorTheme.colors
-    val dash = PathEffect.dashPathEffect(floatArrayOf(6f, 4f))
     Row(
         Modifier.fillMaxWidth().height(InspectorDimens.softMarker)
             .drawBehind {
-                drawLine(colors.possiblyIncomplete, Offset(0f, 0f), Offset(size.width, 0f), strokeWidth = 1.dp.toPx(), pathEffect = dash)
-                drawLine(colors.possiblyIncomplete, Offset(0f, size.height), Offset(size.width, size.height), strokeWidth = 1.dp.toPx(), pathEffect = dash)
+                drawLine(colors.possiblyIncomplete, Offset(0f, 0f), Offset(size.width, 0f), strokeWidth = 1.dp.toPx(), pathEffect = PossiblyIncompleteDash)
+                drawLine(colors.possiblyIncomplete, Offset(0f, size.height), Offset(size.width, size.height), strokeWidth = 1.dp.toPx(), pathEffect = PossiblyIncompleteDash)
             }
             .padding(start = 28.dp, end = 12.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically,
