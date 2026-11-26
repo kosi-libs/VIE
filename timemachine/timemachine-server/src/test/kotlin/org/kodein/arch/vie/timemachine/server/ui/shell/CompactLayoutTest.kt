@@ -28,9 +28,7 @@ import kotlin.test.assertSame
 import kotlin.test.assertTrue
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.runBlocking
 import org.kodein.arch.vie.timemachine.protocol.TimeMachineSequence
 import org.kodein.arch.vie.timemachine.protocol.VIEObjectKind
 import org.kodein.arch.vie.timemachine.server.InspectorWindow
@@ -238,7 +236,7 @@ class CompactLayoutTest {
     fun `the rail and the drawer are one SessionsVM, and the pane stays shown while the rail is`() = window { inspector, viewState, _ ->
         until { described(RailMenuDescription) }
         val vm = inspector.viewModel(inspector.sessionsPane())
-        assertTrue(runBlocking { inspector.visibility.shown("sessions").first() })
+        assertTrue(inspector.visibility.isShown("sessions"))
 
         onNodeWithContentDescription(RailMenuDescription).performClick()
         until { shown("Clear disconnected") }
@@ -247,7 +245,7 @@ class CompactLayoutTest {
 
         viewState.drawerOpen = false
         until { !shown("Clear disconnected") }
-        assertTrue(runBlocking { inspector.visibility.shown("sessions").first() }, "the rail is still there")
+        assertTrue(inspector.visibility.isShown("sessions"), "the rail is still there")
     }
 
     @Test
@@ -257,7 +255,7 @@ class CompactLayoutTest {
             inspector.selection.selectScope(taskList)
             inspector.selection.selectRow(TimeMachineSequence(208))
             val key = inspector.timelinePane(taskList).key
-            until { runBlocking { inspector.visibility.shown(key).first() } }
+            until { inspector.visibility.isShown(key) }
 
             // From here, the timeline's pane must never be hidden: that is what a recomposed pane would do.
             val seen = Collections.synchronizedList(mutableListOf<Boolean>())

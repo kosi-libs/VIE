@@ -4,6 +4,8 @@ package org.kodein.arch.vie.timemachine.server.ui.core
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runCurrent
@@ -23,10 +25,12 @@ class PaneVisibilityTest {
         visibility.hide("a")
         runCurrent()
         assertEquals(listOf(false, true), shown)
+        assertTrue(visibility.isShown("a"))
 
         visibility.hide("a")
         runCurrent()
         assertEquals(listOf(false, true, false), shown)
+        assertFalse(visibility.isShown("a"))
         job.cancel()
     }
 }

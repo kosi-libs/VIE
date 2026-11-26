@@ -11,8 +11,6 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
-import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.runBlocking
 import org.kodein.arch.vie.timemachine.server.fixtures.inspectorTest
 import org.kodein.arch.vie.timemachine.server.fixtures.until
 import org.kodein.arch.vie.timemachine.server.ui.sessions.SessionsVIE
@@ -32,7 +30,7 @@ class InspectorPaneTest {
             var seenSessions: SessionsVIE.Model? = null
             var seenStatus: StatusBarVIE.Model? = null
             var composed by mutableStateOf(true)
-            fun shown(key: String): Boolean = runBlocking { inspector.visibility.shown(key).first() }
+            fun shown(key: String): Boolean = inspector.visibility.isShown(key)
 
             setContent {
                 if (composed) CompositionLocalProvider(LocalInspector provides inspector) {

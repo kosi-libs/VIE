@@ -127,7 +127,12 @@ internal class PaneVisibility {
         counts.update { val left = (it[key] ?: 0) - 1; if (left > 0) it + (key to left) else it - key }
     }
 
-    fun shown(key: String): Flow<Boolean> = counts.map { (it[key] ?: 0) > 0 }.distinctUntilChanged()
+    fun shown(key: String): Flow<Boolean> = counts.map { it.shows(key) }.distinctUntilChanged()
+
+    /** Whether [key] is shown now: what [shown] holds, read at once. */
+    fun isShown(key: String): Boolean = counts.value.shows(key)
+
+    private fun Map<String, Int>.shows(key: String): Boolean = (this[key] ?: 0) > 0
 }
 
 /**
