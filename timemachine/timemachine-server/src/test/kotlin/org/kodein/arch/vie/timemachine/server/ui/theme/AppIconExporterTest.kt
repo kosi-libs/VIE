@@ -14,8 +14,6 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 
 class AppIconExporterTest {
-    private val pngs = AppIconSizes.associateWith(::renderAppIcon)
-
     private fun decodedSize(png: ByteArray) = ImageIO.read(png.inputStream()).let { it.width to it.height }
 
     @Test
@@ -86,5 +84,10 @@ class AppIconExporterTest {
             mapOf("ic07" to (128 to 128), "ic08" to (256 to 256), "ic09" to (512 to 512), "ic10" to (1024 to 1024)),
             seen,
         )
+    }
+
+    private companion object {
+        /** The icon at every size, rendered once for the class: a test method gets an instance of its own. */
+        val pngs by lazy { AppIconSizes.associateWith(::renderAppIcon) }
     }
 }
