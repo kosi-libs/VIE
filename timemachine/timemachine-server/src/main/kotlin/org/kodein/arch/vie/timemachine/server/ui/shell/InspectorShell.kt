@@ -1,0 +1,316 @@
+package org.kodein.arch.vie.timemachine.server.ui.shell
+
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentHeight
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
+import androidx.compose.runtime.movableContentOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
+import androidx.compose.runtime.snapshotFlow
+import androidx.compose.runtime.withFrameNanos
+import androidx.compose.ui.Alignment
+import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.FocusRequester
+import androidx.compose.ui.focus.focusRequester
+import androidx.compose.ui.layout.layout
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.constrainWidth
+import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.drop
+import kotlinx.coroutines.flow.filter
+import kotlinx.coroutines.flow.map
+import org.kodein.arch.vie.timemachine.server.ui.common.CompactBelow
+import org.kodein.arch.vie.timemachine.server.ui.common.LocalCompact
+import org.kodein.arch.vie.timemachine.server.ui.common.ProvideCompact
+import org.kodein.arch.vie.timemachine.server.ui.core.InspectorPane
+import org.kodein.arch.vie.timemachine.server.ui.core.InspectorScope
+import org.kodein.arch.vie.timemachine.server.ui.core.LocalInspector
+import org.kodein.arch.vie.timemachine.server.ui.core.InspectorViewState
+import org.kodein.arch.vie.timemachine.server.ui.core.LocalInspectorViewState
+import org.kodein.arch.vie.timemachine.server.ui.core.releaseDroppedScopes
+import org.kodein.arch.vie.timemachine.server.ui.designsystem.EmptyState
+import org.kodein.arch.vie.timemachine.server.ui.designsystem.IconAction
+import org.kodein.arch.vie.timemachine.server.ui.designsystem.VerticalRule
+import org.kodein.arch.vie.timemachine.server.ui.rightpane.RightPane
+import org.kodein.arch.vie.timemachine.server.ui.sessions.SessionsPresentation
+import org.kodein.arch.vie.timemachine.server.ui.sessions.SessionsVIE
+import org.kodein.arch.vie.timemachine.server.ui.sessions.SessionsView
+import org.kodein.arch.vie.timemachine.server.ui.sessions.sessionsPane
+import org.kodein.arch.vie.timemachine.server.ui.theme.Glyph
+import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorDimens
+import org.kodein.arch.vie.timemachine.server.ui.timeline.TimelineView
+
+
+/**
+ * The window's content over what the store holds: the layout, filled with the panes that read it. The
+ * rejection banners can be dismissed, and the cannot-listen screen retried.
+ */
+@Composable
+internal fun InspectorShell() {
+    val inspector = LocalInspector.current
+    val viewState = LocalInspectorViewState.current
+    // Edit & intervene opens the Composer: a right pane folded away in the compact layout unfolds to show it.
+    LaunchedEffect(inspector, viewState) {
+        inspector.selection.state.map { it.composerRequest != null }.distinctUntilChanged().filter { it }.collect { viewState.rightCollapsed = false }
+    }
+    // The panes of a scope are created here, in composition: they are released from here as well.
+    LaunchedEffect(inspector) { inspector.releaseDroppedScopes() }
+    val pane = remember(inspector) { inspector.noticesPane() }
+    InspectorPane(pane) { notices ->
+        InspectorLayout(
+            notices = notices,
+            onIntent = { post(it) },
+            empty = { EmptyScreen() },
+            statusBar = { StatusBar() },
+            sessions = { presentation, modifier -> SessionsView(modifier, presentation) },
+            centre = { CentrePane(notices, it) },
+            right = { RightPane(it) },
+        )
+    }
+}
+
+/**
+ * The window's layout: the rejection banners, then the sessions, the centre and the right pane (or the
+ * empty or cannot-listen screen when there is nothing to browse), then the status bar. Each part comes
+ * in as a slot, so that what fills them can be the store's panes, or anything else.
+ *
+ * Under [CompactBelow] of width the sessions are a rail and a drawer, and the right pane can be folded
+ * away; [LocalCompact] says so to whatever the slots draw. The centre and the right pane are placed by
+ * either layout as one composition, so that dragging the window's edge across the breakpoint keeps a
+ * paused timeline's scroll position and an editor's focus.
+ */
+@Composable
+private fun InspectorLayout(
+    notices: NoticesVIE.Model,
+    onIntent: (NoticesVIE.Intent) -> Unit,
+    empty: @Composable () -> Unit,
+    statusBar: @Composable () -> Unit,
+    sessions: @Composable (SessionsPresentation, Modifier) -> Unit,
+    centre: @Composable (Modifier) -> Unit,
+    right: @Composable (Modifier) -> Unit,
+    modifier: Modifier = Modifier,
+) {
+    val viewState = LocalInspectorViewState.current
+    ProvideCompact(modifier.fillMaxSize().background(MaterialTheme.colorScheme.surface)) { compact ->
+        val total = maxWidth
+        // Leaving the compact layout closes its drawer, so that coming back does not find it open.
+        LaunchedEffect(compact) { if (!compact) viewState.drawerOpen = false }
+        val currentCentre by rememberUpdatedState(centre)
+        val currentRight by rememberUpdatedState(right)
+        val centrePane = remember { movableContentOf<Modifier> { currentCentre(it) } }
+        val rightPane = remember { movableContentOf<Modifier> { currentRight(it) } }
+        Column(Modifier.fillMaxSize()) {
+            notices.rejections.forEach { rejection ->
+                key(rejection.sessionId) { RejectionBanner(rejection) { onIntent(NoticesVIE.Intent.DismissRejection(rejection.sessionId)) } }
+            }
+            Column(Modifier.weight(1f).fillMaxSize()) {
+                when (val screen = notices.screen) {
+                    NoticesVIE.Screen.Empty -> empty()
+                    is NoticesVIE.Screen.CannotListen -> CannotListenScreen(screen.reason, screen.message) { onIntent(NoticesVIE.Intent.Retry) }
+                    NoticesVIE.Screen.None ->
+                        if (compact) CompactPanes(total, sessions, centrePane, rightPane)
+                        else PanesLayout(total, sessions, centrePane, rightPane)
+                }
+            }
+            statusBar()
+        }
+    }
+}
+
+/** What the centre pane keeps for itself, so the sessions and the right pane can be dragged. */
+private val MinCentre = 300.dp
+
+/** The three panes side by side, the dividers between them dragged within what each may take. */
+@Composable
+private fun PanesLayout(
+    total: Dp,
+    sessionsPane: @Composable (SessionsPresentation, Modifier) -> Unit,
+    centrePane: @Composable (Modifier) -> Unit,
+    rightPane: @Composable (Modifier) -> Unit,
+) {
+    val viewState = LocalInspectorViewState.current
+    // The widths are read when the panes are measured, not here: a drag changes them at every frame, and this
+    // composition, and those of the panes' roots, would run at each.
+    Row(Modifier.fillMaxSize()) {
+        sessionsPane(SessionsPresentation.Pane, Modifier.widthAtMeasure { viewState.shownSessionsWidth(total) }.fillMaxHeight())
+        Splitter(ResizeSessionsPaneDescription, onDrag = { viewState.dragSessions(it, total) })
+        centrePane(Modifier.weight(1f).fillMaxHeight())
+        Splitter(ResizeRightPaneDescription, onDrag = { viewState.dragRight(it, total) })
+        rightPane(Modifier.widthAtMeasure { viewState.shownRightWidth(total) }.fillMaxHeight())
+    }
+}
+
+/** A width read when the node is measured: a change of what [width] reads lays the node out again, and composes nothing. */
+private fun Modifier.widthAtMeasure(width: () -> Dp): Modifier = layout { measurable, constraints ->
+    val px = constraints.constrainWidth(width().roundToPx())
+    val placeable = measurable.measure(constraints.copy(minWidth = px, maxWidth = px))
+    layout(placeable.width, placeable.height) { placeable.place(0, 0) }
+}
+
+// What each pane is given of [total], and what a drag does to it. A drag is several movements, and those that
+// arrive between two frames all reach a splitter's callback before it is composed again: it must not hold a
+// width from the last composition, which the first movement already made stale. The width a movement starts from
+// is the one now shown, read here from the view state, never the raw width, which a narrow window may have
+// clamped: dragging from that one would move nothing until it came back within the range.
+
+internal fun InspectorViewState.shownSessionsWidth(total: Dp): Dp =
+    sessionsWidth.coerceIn(InspectorDimens.minSessionsPane, widest(total - rightWidth - MinCentre, InspectorDimens.minSessionsPane))
+
+internal fun InspectorViewState.shownRightWidth(total: Dp): Dp =
+    rightWidth.coerceIn(InspectorDimens.minRightPane, widest(total - shownSessionsWidth(total) - MinCentre, InspectorDimens.minRightPane))
+
+/** Moves the sessions pane's splitter by [delta], to the right if positive. */
+internal fun InspectorViewState.dragSessions(delta: Dp, total: Dp) {
+    val right = shownRightWidth(total)
+    sessionsWidth = (shownSessionsWidth(total) + delta).coerceIn(InspectorDimens.minSessionsPane, widest(total - right - MinCentre, InspectorDimens.minSessionsPane))
+}
+
+/** Moves the right pane's splitter by [delta], to the right if positive: the pane gets narrower. */
+internal fun InspectorViewState.dragRight(delta: Dp, total: Dp) {
+    val sessions = shownSessionsWidth(total)
+    rightWidth = (shownRightWidth(total) - delta).coerceIn(InspectorDimens.minRightPane, widest(total - sessions - MinCentre, InspectorDimens.minRightPane))
+}
+
+/** What the compact layout's right pane may take of [total]: what the rail and the centre pane leave. */
+private fun compactRoom(total: Dp): Dp = widest(total - InspectorDimens.navigationRail - MinCentre, InspectorDimens.minRightPane)
+
+internal fun InspectorViewState.shownCompactRightWidth(total: Dp): Dp = compactRightWidth.coerceIn(InspectorDimens.minRightPane, compactRoom(total))
+
+/** Moves the compact right pane's splitter by [delta], to the right if positive: the pane gets narrower. */
+internal fun InspectorViewState.dragCompactRight(delta: Dp, total: Dp) {
+    compactRightWidth = (shownCompactRightWidth(total) - delta).coerceIn(InspectorDimens.minRightPane, compactRoom(total))
+}
+
+/**
+ * The compact layout's panes: the sessions as a rail, the centre pane, and the right pane, which has a
+ * width of its own and can be folded away. The sessions' drawer comes in over all of it.
+ */
+@Composable
+private fun CompactPanes(
+    total: Dp,
+    sessionsPane: @Composable (SessionsPresentation, Modifier) -> Unit,
+    centrePane: @Composable (Modifier) -> Unit,
+    rightPane: @Composable (Modifier) -> Unit,
+) {
+    val viewState = LocalInspectorViewState.current
+    val rail = InspectorDimens.navigationRail
+    // The sheet takes the keyboard while it is open, so the centre pane, whose keys step through the rows,
+    // is given it back when the sheet closes. There is nothing to give it to when no timeline is shown.
+    val centreFocus = remember { FocusRequester() }
+    LaunchedEffect(viewState, centreFocus) {
+        // The first value is where the sheet stands, not a change: after it, each `false` is a sheet that closed.
+        // The sheet keeps the focus out of what is behind it until it is composed again with `open` off: a frame.
+        snapshotFlow { viewState.drawerOpen }.drop(1).filter { !it }.collect {
+            withFrameNanos { }
+            runCatching { centreFocus.requestFocus() }
+        }
+    }
+    ModalSheet(
+        open = viewState.drawerOpen,
+        onDismiss = { viewState.drawerOpen = false },
+        title = "Sessions",
+        sheetWidth = viewState.sessionsWidth.coerceAtLeast(InspectorDimens.minSessionsPane),
+        sheet = { sessionsPane(SessionsPresentation.Drawer, Modifier.fillMaxSize()) },
+    ) {
+        Row(Modifier.fillMaxSize()) {
+            sessionsPane(SessionsPresentation.Rail, Modifier.width(rail).fillMaxHeight())
+            centrePane(Modifier.weight(1f).fillMaxHeight().focusRequester(centreFocus))
+            if (viewState.rightCollapsed) {
+                CollapsedRightPane { viewState.rightCollapsed = false }
+            } else {
+                Splitter(ResizeRightPaneDescription, onDrag = { viewState.dragCompactRight(it, total) })
+                rightPane(Modifier.widthAtMeasure { viewState.shownCompactRightWidth(total) }.fillMaxHeight())
+            }
+        }
+    }
+}
+
+private val CollapsedWidth = 36.dp
+
+/** What the button that unfolds the right pane says it is; [HideRightPaneDescription] is the one that folds it away. */
+internal const val ShowRightPaneDescription = "Show the right pane"
+
+/** What a folded right pane leaves: a strip, on the pane's surface, with the way to unfold it level with the pane's header. */
+@Composable
+private fun CollapsedRightPane(onOpen: () -> Unit) {
+    val scheme = MaterialTheme.colorScheme
+    Row(Modifier.width(CollapsedWidth).fillMaxHeight().background(scheme.surfaceContainerLow)) {
+        VerticalRule()
+        Box(Modifier.weight(1f).height(InspectorDimens.paneHeader), contentAlignment = Alignment.Center) {
+            IconAction(Glyph.RightPanelOpen, ShowRightPaneDescription, onClick = onOpen, size = 18.dp)
+        }
+    }
+}
+
+/** [max], but never under [min]: a narrow window overflows rather than inverting the range. */
+private fun widest(max: Dp, min: Dp): Dp = if (max < min) min else max
+
+/**
+ * The centre pane over what the [notices] project of the store and the selection: the timeline of the
+ * selected scope, which takes the keyboard when its scope is selected.
+ */
+@Composable
+private fun CentrePane(notices: NoticesVIE.Model, modifier: Modifier) {
+    val scope = notices.scope
+    // The timeline's keys go to what has the focus within it, and a scope is picked with a click on the
+    // sessions, which keeps the focus there. There is nothing to give it to when no timeline is shown.
+    val focus = remember { FocusRequester() }
+    LaunchedEffect(scope) {
+        if (scope != null) runCatching { focus.requestFocus() }
+    }
+    CentreLayout(
+        scope = scope,
+        modifier = modifier.focusRequester(focus),
+        noViewModel = { NoViewModel(it) },
+        timeline = { scope, slot -> TimelineView(scope, slot) { notices.disconnected?.let { DisconnectedBanner(it) } } },
+    )
+}
+
+/** The centre pane's layout: the timeline of [scope], or what says there is none to show. */
+@Composable
+private fun CentreLayout(
+    scope: InspectorScope?,
+    modifier: Modifier,
+    noViewModel: @Composable (Modifier) -> Unit,
+    timeline: @Composable (InspectorScope, Modifier) -> Unit,
+) {
+    Column(modifier.background(MaterialTheme.colorScheme.surfaceContainerLow)) {
+        if (scope == null) noViewModel(Modifier.weight(1f).fillMaxSize())
+        else timeline(scope, Modifier.weight(1f).fillMaxSize())
+    }
+}
+
+@Composable
+private fun NoViewModel(modifier: Modifier) {
+    val inspector = LocalInspector.current
+    val pane = remember(inspector) { inspector.sessionsPane() }
+    InspectorPane(pane) { model -> NoViewModelContent(model, modifier) }
+}
+
+/** No ViewModel is selected: what to do, and how many the connected session has, in the middle of the pane. */
+@Composable
+internal fun NoViewModelContent(model: SessionsVIE.Model, modifier: Modifier) {
+    val session = model.sessions.firstOrNull { it.connected } ?: model.sessions.firstOrNull()
+    EmptyState(
+        "Select a ViewModel to see its timeline",
+        // The pane is the caller's; the state stands in its middle.
+        modifier.wrapContentHeight(),
+        glyph = Glyph.ViewTimeline,
+        description = session?.let {
+            val count = it.viewModels.size
+            "${it.name} has $count ViewModel${if (count == 1) "" else "s"} · pick one on the left"
+        },
+    )
+}

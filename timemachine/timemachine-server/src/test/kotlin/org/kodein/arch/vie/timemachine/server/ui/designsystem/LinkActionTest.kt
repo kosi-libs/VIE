@@ -1,0 +1,68 @@
+@file:OptIn(ExperimentalTestApi::class)
+
+package org.kodein.arch.vie.timemachine.server.ui.designsystem
+
+import androidx.compose.foundation.layout.Column
+import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertIsFocused
+import androidx.compose.ui.test.assertIsNotEnabled
+import androidx.compose.ui.test.onNodeWithText
+import androidx.compose.ui.test.performClick
+import kotlin.test.Test
+import kotlin.test.assertEquals
+import org.kodein.arch.vie.timemachine.server.fixtures.assertActivatedByEnterAndSpace
+import org.kodein.arch.vie.timemachine.server.fixtures.contentTest
+import org.kodein.arch.vie.timemachine.server.fixtures.tabTo
+
+
+/** What a text link is: at least as high as a link's least height whatever its line, and, disabled, a link that takes no click. Sizes are in px: the harness's density is 1. */
+class LinkActionTest {
+
+    @Test
+    fun `a link is at least as high as a link's least height, whatever its line`() =
+        contentTest(content = { LinkAction("Show", onClick = {}) }) {
+            assertEquals(22, onNodeWithText("Show").fetchSemanticsNode().size.height)
+        }
+
+    @Test
+    fun `an enabled link calls its onClick`() {
+        var clicks = 0
+        contentTest(content = { LinkAction("Show", onClick = { clicks++ }) }) {
+            onNodeWithText("Show").assertIsEnabled().performClick()
+            assertEquals(1, clicks)
+        }
+    }
+
+    @Test
+    fun `a disabled link says so, and takes no click`() {
+        var clicks = 0
+        contentTest(content = { LinkAction("Reset", onClick = { clicks++ }, enabled = false) }) {
+            onNodeWithText("Reset").assertIsNotEnabled().performClick()
+            assertEquals(0, clicks)
+        }
+    }
+
+    @Test
+    fun `Tab reaches a link, and Enter and Space click it`() {
+        var clicks = 0
+        contentTest(content = { LinkAction("Show", onClick = { clicks++ }) }) {
+            tabTo(onNodeWithText("Show")).assertIsFocused()
+            assertActivatedByEnterAndSpace { clicks }
+        }
+    }
+
+    @Test
+    fun `Tab skips a disabled link`() {
+        var clicks = 0
+        contentTest(content = {
+            Column {
+                LinkAction("Reset", onClick = {}, enabled = false)
+                LinkAction("Show", onClick = { clicks++ })
+            }
+        }) {
+            tabTo(onNodeWithText("Show")).assertIsFocused()
+            assertActivatedByEnterAndSpace { clicks }
+        }
+    }
+}
