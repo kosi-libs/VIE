@@ -145,9 +145,9 @@ private fun PanesLayout(
     // composition, and those of the panes' roots, would run at each.
     Row(Modifier.fillMaxSize()) {
         sessionsPane(SessionsPresentation.Pane, Modifier.widthAtMeasure { viewState.shownSessionsWidth(total) }.fillMaxHeight())
-        Splitter(onDrag = { viewState.dragSessions(it, total) })
+        Splitter(ResizeSessionsPaneDescription, onDrag = { viewState.dragSessions(it, total) })
         centrePane(Modifier.weight(1f).fillMaxHeight())
-        Splitter(onDrag = { viewState.dragRight(it, total) })
+        Splitter(ResizeRightPaneDescription, onDrag = { viewState.dragRight(it, total) })
         rightPane(Modifier.widthAtMeasure { viewState.shownRightWidth(total) }.fillMaxHeight())
     }
 }
@@ -230,7 +230,7 @@ private fun CompactPanes(
             if (viewState.rightCollapsed) {
                 CollapsedRightPane { viewState.rightCollapsed = false }
             } else {
-                Splitter(onDrag = { viewState.dragCompactRight(it, total) })
+                Splitter(ResizeRightPaneDescription, onDrag = { viewState.dragCompactRight(it, total) })
                 rightPane(Modifier.widthAtMeasure { viewState.shownCompactRightWidth(total) }.fillMaxHeight())
             }
         }

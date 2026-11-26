@@ -3,10 +3,12 @@
 package org.kodein.arch.vie.timemachine.server.ui.shell
 
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.test.DesktopComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.moveBy
 import androidx.compose.ui.test.moveTo
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performMouseInput
 import androidx.compose.ui.unit.Dp
@@ -16,7 +18,9 @@ import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 import org.kodein.arch.vie.timemachine.server.fixtures.countingRecompositions
 import org.kodein.arch.vie.timemachine.server.fixtures.described
+import org.kodein.arch.vie.timemachine.server.fixtures.press
 import org.kodein.arch.vie.timemachine.server.fixtures.shown
+import org.kodein.arch.vie.timemachine.server.fixtures.tabTo
 import org.kodein.arch.vie.timemachine.server.fixtures.until
 import org.kodein.arch.vie.timemachine.server.fixtures.windowTest
 import org.kodein.arch.vie.timemachine.server.ui.core.InspectorViewState
@@ -94,6 +98,28 @@ class SplitterDragTest {
         drag(splitterX, -10f, -10f, -10f, -10f)
 
         assertEquals(once, viewState.compactRightWidth, "four movements of 10 gave another width than one of 40")
+    }
+
+    // ---- The keyboard ----------------------------------------------------------------------------------
+
+    @Test
+    fun `Tab reaches each splitter of the window, and the arrow keys move it`() = windowTest(width = 1440.dp) { _, viewState, _ ->
+        until { shown("Clear disconnected") }
+        waitForIdle()
+
+        val sessions = tabTo(onNodeWithContentDescription("Resize the sessions pane"))
+        val sessionsStart = viewState.sessionsWidth
+        press(Key.DirectionRight)
+        assertEquals(sessionsStart + 16.dp, viewState.sessionsWidth, "Right moves the splitter to the right: the sessions pane grows")
+        press(Key.DirectionLeft)
+        press(Key.DirectionLeft)
+        assertEquals(sessionsStart - 16.dp, viewState.sessionsWidth)
+        sessions.assertExists()
+
+        tabTo(onNodeWithContentDescription("Resize the right pane"))
+        val rightStart = viewState.rightWidth
+        press(Key.DirectionLeft)
+        assertEquals(rightStart + 16.dp, viewState.rightWidth, "Left moves the splitter to the left: the right pane grows")
     }
 
     // ---- What a drag recomposes ----------------------------------------------------------------------
