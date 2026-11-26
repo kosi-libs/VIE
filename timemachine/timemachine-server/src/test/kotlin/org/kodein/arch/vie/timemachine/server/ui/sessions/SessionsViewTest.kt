@@ -2,14 +2,23 @@
 
 package org.kodein.arch.vie.timemachine.server.ui.sessions
 
-import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.lerp
+import androidx.compose.ui.graphics.toPixelMap
 import androidx.compose.ui.semantics.SemanticsProperties
+import androidx.compose.ui.semantics.getOrNull
 import androidx.compose.ui.test.DesktopComposeUiTest
+import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.SemanticsMatcher
+import androidx.compose.ui.test.assertIsEnabled
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.assertIsNotSelected
 import androidx.compose.ui.test.assertIsSelected
+import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.hasClickAction
 import androidx.compose.ui.test.hasText
 import androidx.compose.ui.test.onAllNodesWithContentDescription
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import kotlin.test.Test
@@ -23,9 +32,13 @@ import org.kodein.arch.vie.timemachine.server.fixtures.Demo
 import org.kodein.arch.vie.timemachine.server.fixtures.Rendered
 import org.kodein.arch.vie.timemachine.server.fixtures.ScenarioData
 import org.kodein.arch.vie.timemachine.server.fixtures.contentTest
+import org.kodein.arch.vie.timemachine.server.fixtures.levelsAbove
 import org.kodein.arch.vie.timemachine.server.fixtures.shown
 import org.kodein.arch.vie.timemachine.server.fixtures.state
 import org.kodein.arch.vie.timemachine.server.ui.core.InspectorScope
+import org.kodein.arch.vie.timemachine.server.ui.theme.LightInspectorScheme
+import kotlin.math.abs
+import kotlin.uuid.Uuid
 
 
 /** The sessions pane's content on a model: what its rows print. */
@@ -116,5 +129,123 @@ class SessionsViewTest {
         contentTest(content = { vie.Rendered { SessionsContent(it) } }) {
             assertTrue(shown("Unknown · asking Demo for its type…"))
         }
+    }
+
+    // What the pane's buttons post, and what its rows say.
+
+    /** [model] as the pane shows it, with the session [id] given the changes of [change]. */
+    private fun SessionsVIE.Model.withSession(id: Uuid, change: (SessionItem) -> SessionItem) =
+        copy(sessions = sessions.map { if (it.id == id) change(it) else it })
+
+    @Test
+    fun `Clear disconnected posts ClearDisconnected, and is greyed when no session is disconnected`() {
+        val vie = sessions("main")
+        contentTest(content = { vie.Rendered { SessionsContent(it) } }) {
+            onNodeWithText("Clear disconnected").assertIsEnabled().performClick()
+            assertEquals(listOf<SessionsVIE.Intent>(SessionsVIE.Intent.ClearDisconnected), vie.pendingIntents())
+
+            vie.modelFlow.value = vie.model.copy(disconnectedSessions = 0)
+            waitForIdle()
+            onNodeWithText("Clear disconnected").assertIsNotEnabled().performClick()
+            assertEquals(emptyList<SessionsVIE.Intent>(), vie.pendingIntents(), "a greyed button was clicked")
+        }
+    }
+
+    @Test
+    fun `a session's clear action posts ClearSession for that session, and not for the other`() {
+        val vie = sessions("main")
+        contentTest(content = { vie.Rendered { SessionsContent(it) } }) {
+            onNodeWithText("Clear 1 closed ViewModel").assertIsEnabled().performClick()
+            assertEquals(listOf<SessionsVIE.Intent>(SessionsVIE.Intent.ClearSession(Demo.session.id)), vie.pendingIntents())
+
+            onNodeWithText("Clear session").assertIsEnabled().performClick()
+            assertEquals(listOf<SessionsVIE.Intent>(SessionsVIE.Intent.ClearSession(Demo.oldSession.id)), vie.pendingIntents())
+        }
+    }
+
+    @Test
+    fun `a session's clear action says what the session says, and takes no click when it clears nothing`() {
+        val vie = sessions("main")
+        vie.modelFlow.value = vie.model.withSession(Demo.session.id) { it.copy(clearLabel = "Clear 3 closed ViewModels") }
+        contentTest(content = { vie.Rendered { SessionsContent(it) } }) {
+            assertTrue(shown("Clear 3 closed ViewModels"))
+            assertFalse(shown("Clear 1 closed ViewModel"))
+
+            vie.modelFlow.value = vie.model.withSession(Demo.session.id) { it.copy(clearLabel = "Clear closed ViewModels", clearEnabled = false) }
+            waitForIdle()
+            onNodeWithText("Clear closed ViewModels").assertIsNotEnabled().performClick()
+            assertEquals(emptyList<SessionsVIE.Intent>(), vie.pendingIntents(), "a greyed button was clicked")
+            // The other session's is its own.
+            onNodeWithText("Clear session").assertIsEnabled()
+        }
+    }
+
+    @Test
+    fun `a click on a ViewModel's row picks its scope and says so, and the chevron does not`() {
+        val vie = sessions("main")
+        var picked = 0
+        val live = vie.model.sessions.indexOfFirst { it.id == Demo.session.id }
+        contentTest(content = { vie.Rendered { SessionsContent(it, onScopePicked = { picked++ }) } }) {
+            onNode(hasText("SettingsVM") and hasClickAction()).performClick()
+            assertEquals(
+                listOf<SessionsVIE.Intent>(SessionsVIE.Intent.SelectScope(InspectorScope.ViewModel(Demo.session.id, Demo.settings))),
+                vie.pendingIntents(),
+            )
+            assertEquals(1, picked)
+
+            onAllNodesWithContentDescription(CollapseSessionDescription)[live].performClick()
+            assertEquals(listOf<SessionsVIE.Intent>(SessionsVIE.Intent.ToggleSession(Demo.session.id)), vie.pendingIntents())
+            assertEquals(1, picked, "a fold picked a scope")
+
+            onNodeWithText(vie.model.sessions[live].shortId).performClick()
+            assertEquals(listOf<SessionsVIE.Intent>(SessionsVIE.Intent.SelectScope(InspectorScope.Session(Demo.session.id))), vie.pendingIntents())
+            assertEquals(2, picked)
+        }
+    }
+
+    @Test
+    fun `only the selected session says it selects all its ViewModels`() {
+        fun DesktopComposeUiTest.mentions() = onAllNodesWithText("all ViewModels").fetchSemanticsNodes().size
+
+        for ((selected, mentions) in listOf(
+            null to 0,
+            InspectorScope.ViewModel(Demo.session.id, Demo.settings) to 0,
+            InspectorScope.Session(Demo.session.id) to 1,
+            InspectorScope.Session(Demo.oldSession.id) to 1,
+        )) {
+            val vie = if (selected == null) sessions("main") else sessions("main", selected)
+            contentTest(content = { vie.Rendered { SessionsContent(it) } }) {
+                assertEquals(mentions, mentions(), "\"all ViewModels\" with $selected selected")
+            }
+        }
+    }
+
+    /** A node whose text starts with [prefix]: a ViewModel's row, for the status it prints under its name. */
+    private fun textStartingWith(prefix: String) = SemanticsMatcher("has a text starting with \"$prefix\"") { node ->
+        node.config.getOrNull(SemanticsProperties.Text)?.any { it.text.startsWith(prefix) } == true
+    }
+
+    @Test
+    fun `a closed ViewModel's row is dimmed to six tenths of its colours, and a live one is not`() {
+        /** The pixel of the selected row's end margin, where it is only its background, over the pane's surface. */
+        fun rowBackground(selected: InspectorScope, row: SemanticsMatcher): Color {
+            var pixel = Color.Unspecified
+            val vie = sessions("main", selected)
+            contentTest(content = { vie.Rendered { SessionsContent(it) } }) {
+                val image = onNode(hasClickAction() and row).captureToImage().toPixelMap()
+                pixel = image[image.width - 3, image.height / 2]
+            }
+            return pixel
+        }
+
+        val surface = LightInspectorScheme.surfaceContainerLow
+        val selection = LightInspectorScheme.primaryContainer
+
+        val live = rowBackground(InspectorScope.ViewModel(Demo.session.id, Demo.settings), hasText("SettingsVM"))
+        assertEquals(emptyList(), levelsAbove(selection, live).filter { abs(it) > 1 }, "a live row is not dimmed: $live, not $selection")
+
+        val closed = rowBackground(InspectorScope.ViewModel(Demo.session.id, Demo.editTaskClosed), textStartingWith("closed "))
+        val dimmed = lerp(surface, selection, 0.6f)
+        assertEquals(emptyList(), levelsAbove(dimmed, closed).filter { abs(it) > 2 }, "a closed row is at six tenths: $closed, not $dimmed")
     }
 }
