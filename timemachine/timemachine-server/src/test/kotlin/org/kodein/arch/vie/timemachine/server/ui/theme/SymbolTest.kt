@@ -24,12 +24,10 @@ class SymbolTest {
         val scene = ImageComposeScene(120, 48, Density(1f)) {
             InspectorTheme(dark = true) { Symbol(glyph, size = 48.dp, tint = Color.White) }
         }
-        // Compose resources load asynchronously: render until the font is in.
+        // On desktop, Compose resources load a font while the composition reads it (`runBlocking`), so the
+        // first render already draws with the bundled font: there is nothing to wait for.
         val bitmap = Bitmap()
-        repeat(20) {
-            scene.render().let { image -> bitmap.allocN32Pixels(120, 48); image.readPixels(bitmap) }
-            Thread.sleep(100)
-        }
+        scene.render().let { image -> bitmap.allocN32Pixels(120, 48); image.readPixels(bitmap) }
         scene.close()
         val xs = (0 until 120).filter { x -> (0 until 48).any { y -> bitmap.getColor(x, y) ushr 24 != 0 } }
         return if (xs.isEmpty()) 0 else xs.last() - xs.first() + 1
