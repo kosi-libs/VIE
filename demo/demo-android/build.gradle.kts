@@ -30,6 +30,7 @@ kotlin {
 
 dependencies {
     implementation(projects.demo.demoCompose)
+    implementation(projects.timemachine.vieTimemachineClient)
 
     implementation(libs.androidx.activity.compose)
 

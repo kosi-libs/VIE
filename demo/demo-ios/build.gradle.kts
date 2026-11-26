@@ -31,6 +31,8 @@ kotlin {
             api(projects.demo.demoShared)
             api(projects.vieMvi)
 
+            implementation(projects.timemachine.vieTimemachineClient)
+
             // The task editor, a Compose screen that SwiftUI presents.
             implementation(projects.demo.demoCompose)
 

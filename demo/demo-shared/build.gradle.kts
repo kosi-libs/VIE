@@ -41,6 +41,8 @@ kotlin {
             // app shares it without embedding Compose.
             api(projects.vieMvi)
 
+            implementation(projects.timemachine.vieTimemachineClient)
+
             // TaskRepository exposes a Flow.
             api(libs.kotlinx.coroutines)
 
