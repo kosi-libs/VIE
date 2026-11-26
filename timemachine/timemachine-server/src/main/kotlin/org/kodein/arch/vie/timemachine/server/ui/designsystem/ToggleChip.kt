@@ -50,7 +50,7 @@ internal fun ToggleChip(
             .height(InspectorDimens.toggleChip)
             .then(
                 if (selected) Modifier.background(tone.containerColor(), shape)
-                else Modifier.border(InspectorDimens.outline, InspectorTheme.colors.strongOutline, shape),
+                else Modifier.border(InspectorDimens.outline, MaterialTheme.colorScheme.outline, shape),
             )
             .action(shape = shape, role = Role.Checkbox, checked = selected, interactionSource = interactionSource, onClick = onClick)
             .padding(start = if (leading != null) ToggleStartWithGlyph else ToggleEnd, end = ToggleEnd),

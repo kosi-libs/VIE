@@ -66,7 +66,7 @@ internal fun <T> SegmentedControl(
     size: SegmentedControlSize = SegmentedControlSize.Regular,
 ) {
     val scheme = MaterialTheme.colorScheme
-    val outline = InspectorTheme.colors.strongOutline
+    val outline = scheme.outline
     val style = size.text(InspectorTheme.text)
     Row(
         modifier

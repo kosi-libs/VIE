@@ -42,7 +42,8 @@ fun InspectorTheme(dark: Boolean, content: @Composable () -> Unit) {
             CompositionLocalProvider(
                 LocalScrollbarStyle provides scrollbars,
                 // The content colour, which Material draws its ripple in: what shows the pointer over an action (at 8 %),
-                // pressing it or the focus on it (at 10 %). The Material components that draw a container (a Surface, a
+                // pressing it or the focus on it (at 10 %). The keyboard's focus is shown by more than that tint, a ring (see
+                // `Modifier.focusRing`): the tint is a few levels of 255 over some fills, such as a selected segment's. The Material components that draw a container (a Surface, a
                 // tab, a chip...) provide it, and none is above the panes, so the ripple falls back on Material's default
                 // black. Black darkens the panes' light surface by 20 levels of 255 under the pointer, but their dark one
                 // by 2 to 3 only: the dark theme provides its onSurface, which lightens that surface by 16 levels under

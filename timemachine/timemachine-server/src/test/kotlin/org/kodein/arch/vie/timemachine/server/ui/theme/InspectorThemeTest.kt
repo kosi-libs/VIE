@@ -1,12 +1,15 @@
 package org.kodein.arch.vie.timemachine.server.ui.theme
 
+import androidx.compose.material3.ColorScheme
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import kotlin.test.Test
+import kotlin.math.pow
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 class InspectorThemeTest {
     @Test
@@ -93,5 +96,49 @@ class InspectorThemeTest {
         val strong = inspectorTextStyles(fonts, typography).labelStrong
         assertEquals(FontWeight.SemiBold, strong.fontWeight)
         assertEquals(typography.labelMedium, strong.copy(fontWeight = typography.labelMedium.fontWeight), "a strong label changes labelMedium's weight, and nothing else")
+    }
+
+    // ---- Contrast (WCAG 2.2) -------------------------------------------------------------------------------
+
+    private fun channel(value: Float): Double = if (value <= 0.04045f) value / 12.92 else ((value + 0.055) / 1.055).pow(2.4)
+
+    private fun luminance(color: Color): Double = 0.2126 * channel(color.red) + 0.7152 * channel(color.green) + 0.0722 * channel(color.blue)
+
+    private fun contrast(a: Color, b: Color): Double {
+        val (light, dark) = listOf(luminance(a), luminance(b)).sorted().reversed()
+        return (light + 0.05) / (dark + 0.05)
+    }
+
+    /** The surfaces the panes, bars, fields and cards are drawn on, which text and the outline of a control lie over. */
+    private fun ColorScheme.surfaces() = mapOf(
+        "surface" to surface, "surfaceContainerLow" to surfaceContainerLow, "surfaceContainer" to surfaceContainer,
+        "surfaceContainerHigh" to surfaceContainerHigh, "surfaceContainerHighest" to surfaceContainerHighest,
+    )
+
+    @Test
+    fun `the outline reads as text, and as the boundary of a control, on every surface, in both themes`() {
+        for ((theme, scheme) in mapOf("light" to LightInspectorScheme, "dark" to DarkInspectorScheme)) {
+            for ((name, surface) in scheme.surfaces()) {
+                val ratio = contrast(scheme.outline, surface)
+                // 4.5:1 for small text (WCAG 1.4.3), which the outline is: section labels, counts, descriptions. It also
+                // clears the 3:1 a control's boundary needs to be told from what it lies on (WCAG 1.4.11).
+                assertTrue(ratio >= 4.5, "the outline on $name in the $theme theme is $ratio:1")
+            }
+        }
+    }
+
+    @Test
+    fun `the focus ring tells itself from the surfaces and from a primary fill, by one line or the other`() {
+        for ((theme, pair) in mapOf("light" to (LightInspectorScheme to LightInspectorColors), "dark" to (DarkInspectorScheme to DarkInspectorColors))) {
+            val (scheme, colors) = pair
+            // The two lines against each other: either shows where the other stops.
+            assertTrue(contrast(colors.focusRing, colors.focusRingInner) >= 3.0, "the ring's lines in the $theme theme")
+            for ((name, surface) in scheme.surfaces()) {
+                assertTrue(contrast(colors.focusRing, surface) >= 3.0, "the ring's outer line on $name in the $theme theme")
+            }
+            // Over a primary button, the outer line is against what is outside the button and the inner one against its fill.
+            assertTrue(contrast(colors.focusRingInner, scheme.primary) >= 3.0, "the ring's inner line on the primary fill in the $theme theme")
+            assertTrue(contrast(colors.focusRingInner, scheme.primaryContainer) >= 3.0 || contrast(colors.focusRing, scheme.primaryContainer) >= 3.0, "the ring on a selected segment in the $theme theme")
+        }
     }
 }

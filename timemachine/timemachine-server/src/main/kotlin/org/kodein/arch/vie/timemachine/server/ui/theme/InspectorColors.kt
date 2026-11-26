@@ -44,8 +44,19 @@ data class InspectorColors(
 
     val selectedRow: Color,
     val rowLine: Color,
-    /** The outline of a hovered grip or a focused field, stronger than `outlineVariant`. */
+    /**
+     * The outline of a hovered grip or a focused field, stronger than `outlineVariant`. It is a decoration, a grip, a rule,
+     * a track: it is 1.5:1 to 1.8:1 over the panes' surfaces, so it is not what tells a control from what it lies on. A
+     * control's boundary is the scheme's `outline`, which is 3:1 or more.
+     */
     val strongOutline: Color,
+
+    /**
+     * The ring a control the keyboard reached is drawn with, in two lines, [focusRing] on the edge and [focusRingInner]
+     * inside it, so that one of them tells itself from whatever it lies on, the panes' surface or a control's fill.
+     */
+    val focusRing: Color,
+    val focusRingInner: Color,
 
     val jsonKey: Color,
     val jsonString: Color,
@@ -67,6 +78,7 @@ internal val DarkInspectorColors = InspectorColors(
     error = hex(0xFF6F66), errorContainer = hex(0x3A1715),
     timeout = hex(0xD9C08A), timeoutContainer = hex(0x2F2A1C),
     selectedRow = hex(0x17332F), rowLine = hex(0x191C21), strongOutline = hex(0x3A4049),
+    focusRing = hex(0xE2E5EA), focusRingInner = hex(0x0E1013),
     jsonKey = hex(0xD5DAE1), jsonString = hex(0x8FD6C6), jsonNumber = hex(0xE9B98F), jsonLiteral = hex(0xB9A8F0),
 )
 
@@ -82,11 +94,17 @@ internal val LightInspectorColors = InspectorColors(
     error = hex(0xB3261E), errorContainer = hex(0xF9DEDC),
     timeout = hex(0x6B5823), timeoutContainer = hex(0xF2EBD7),
     selectedRow = hex(0xDCF1EC), rowLine = hex(0xEEF0F3), strongOutline = hex(0xBEC4CC),
+    focusRing = hex(0x1A1D22), focusRingInner = hex(0xE9ECF0),
     jsonKey = hex(0x1A1D22), jsonString = hex(0x0B6E5F), jsonNumber = hex(0x9A4B12), jsonLiteral = hex(0x6B3FB5),
 )
 
 // `onError` and `onErrorContainer` are not in the token table: the dark ones are the Gap stripe and
 // the error itself, the light ones the usual white and the error itself.
+//
+// `outline` is not the table's either: it is the table's colour moved by the least that makes it 4.5:1 on every surface
+// the panes use (WCAG 1.4.3, for the small text it colours), which is also what makes it fit for the boundary of a
+// control (3:1, WCAG 1.4.11). The table's were 4.2:1 to 4.5:1 on the highest containers, in the light theme 0x646C78
+// and in the dark one 0x7F8793; `InspectorThemeTest` keeps the ratios.
 internal val DarkInspectorScheme: ColorScheme = darkColorScheme(
     primary = hex(0x5ED3BF), onPrimary = hex(0x00382F),
     primaryContainer = hex(0x16443D), onPrimaryContainer = hex(0xA8F2E3),
@@ -98,7 +116,7 @@ internal val DarkInspectorScheme: ColorScheme = darkColorScheme(
     surfaceContainerLowest = hex(0x0E1013),
     surfaceContainerLow = hex(0x14171B), surfaceContainer = hex(0x1A1E23),
     surfaceContainerHigh = hex(0x22262C), surfaceContainerHighest = hex(0x2B3037),
-    outline = hex(0x7F8793), outlineVariant = hex(0x262A30),
+    outline = hex(0x9097A1), outlineVariant = hex(0x262A30),
 )
 
 internal val LightInspectorScheme: ColorScheme = lightColorScheme(
@@ -112,7 +130,7 @@ internal val LightInspectorScheme: ColorScheme = lightColorScheme(
     surfaceContainerLowest = hex(0xE9ECF0),
     surfaceContainerLow = hex(0xF7F8FA), surfaceContainer = hex(0xFFFFFF),
     surfaceContainerHigh = hex(0xECEEF2), surfaceContainerHighest = hex(0xE1E4E9),
-    outline = hex(0x646C78), outlineVariant = hex(0xDCE0E5),
+    outline = hex(0x5E6671), outlineVariant = hex(0xDCE0E5),
 )
 
 internal val LocalInspectorColors = staticCompositionLocalOf { DarkInspectorColors }

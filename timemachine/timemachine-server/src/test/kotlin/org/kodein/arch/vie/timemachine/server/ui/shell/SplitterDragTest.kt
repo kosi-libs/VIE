@@ -3,14 +3,17 @@
 package org.kodein.arch.vie.timemachine.server.ui.shell
 
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.test.DesktopComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
+import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.moveBy
 import androidx.compose.ui.test.moveTo
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.test.performMouseInput
+import androidx.compose.ui.graphics.toPixelMap
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import kotlin.test.Test
@@ -26,6 +29,7 @@ import org.kodein.arch.vie.timemachine.server.fixtures.windowTest
 import org.kodein.arch.vie.timemachine.server.ui.core.InspectorViewState
 import org.kodein.arch.vie.timemachine.server.ui.sessions.RailMenuDescription
 import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorDimens
+import org.kodein.arch.vie.timemachine.server.ui.theme.LightInspectorColors
 
 
 /**
@@ -37,6 +41,12 @@ import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorDimens
  * composition is what the last tests, on the functions the callbacks call, pin.
  */
 class SplitterDragTest {
+
+    /** [actual] is nearer [expected] than [other]: a rounded grip's pixels are anti-aliased, a few levels off its colour. */
+    private fun assertNearer(expected: Color, other: Color, actual: Color, message: String) {
+        fun distance(a: Color, b: Color) = kotlin.math.abs(a.red - b.red) + kotlin.math.abs(a.green - b.green) + kotlin.math.abs(a.blue - b.blue)
+        assertTrue(distance(expected, actual) < distance(other, actual), "$message: $actual is nearer $other than $expected")
+    }
 
     /** Presses at [x] over the splitter, moves by each of [steps] in turn, all before the next frame, and releases. */
     private fun DesktopComposeUiTest.drag(x: Dp, vararg steps: Float) {
@@ -107,7 +117,11 @@ class SplitterDragTest {
         until { shown("Clear disconnected") }
         waitForIdle()
 
+        // The grip is at the middle of the splitter's width and of the window's height: in the ring's colour once it has the focus.
+        fun grip() = onRoot().captureToImage().toPixelMap()[viewState.sessionsWidth.value.toInt() + 4, 450]
+        assertNearer(LightInspectorColors.strongOutline, LightInspectorColors.focusRing, grip(), "the grip at rest")
         val sessions = tabTo(onNodeWithContentDescription("Resize the sessions pane"))
+        assertNearer(LightInspectorColors.focusRing, LightInspectorColors.strongOutline, grip(), "the grip with the focus")
         val sessionsStart = viewState.sessionsWidth
         press(Key.DirectionRight)
         assertEquals(sessionsStart + 16.dp, viewState.sessionsWidth, "Right moves the splitter to the right: the sessions pane grows")

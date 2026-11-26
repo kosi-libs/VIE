@@ -96,7 +96,7 @@ internal fun InspectorButton(
         ButtonVariant.Filled -> Modifier.background(if (enabled) scheme.primary else disabledFill, InspectorPillShape)
         ButtonVariant.Tonal -> Modifier.background(if (enabled) scheme.primaryContainer else disabledFill, InspectorPillShape)
         ButtonVariant.Outlined -> Modifier.border(
-            InspectorDimens.outline, if (enabled) InspectorTheme.colors.strongOutline else scheme.outlineVariant, InspectorPillShape,
+            InspectorDimens.outline, if (enabled) scheme.outline else scheme.outlineVariant, InspectorPillShape,
         )
         ButtonVariant.Text -> Modifier
     }

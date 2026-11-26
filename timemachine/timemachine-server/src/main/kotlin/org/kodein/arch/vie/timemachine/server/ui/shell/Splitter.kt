@@ -11,9 +11,14 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.focusable
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.input.key.Key
 import androidx.compose.ui.input.key.KeyEventType
 import androidx.compose.ui.input.key.key
@@ -53,6 +58,7 @@ private val KeyStep = 16.dp
 internal fun Splitter(description: String, onDrag: (Dp) -> Unit, modifier: Modifier = Modifier) {
     val density = LocalDensity.current
     val latest = rememberUpdatedState(onDrag)
+    var focused by remember { mutableStateOf(false) }
     Box(
         modifier
             .width(InspectorDimens.dividerHitArea).fillMaxHeight()
@@ -67,11 +73,14 @@ internal fun Splitter(description: String, onDrag: (Dp) -> Unit, modifier: Modif
                 if (event.type == KeyEventType.KeyDown) latest.value(step)
                 true
             }
+            .onFocusChanged { focused = it.isFocused }
             .focusable()
             .draggable(rememberDraggableState { with(density) { latest.value(it.toDp()) } }, Orientation.Horizontal),
         contentAlignment = Alignment.Center,
     ) {
         VerticalRule()
-        Box(Modifier.size(width = 5.dp, height = 28.dp).background(InspectorTheme.colors.strongOutline, RoundedCornerShape(3.dp)))
+        // The grip is what shows the focus: in the ring's colour while the splitter has it, as an action shows its ring.
+        val grip = if (focused) InspectorTheme.colors.focusRing else InspectorTheme.colors.strongOutline
+        Box(Modifier.size(width = 5.dp, height = 28.dp).background(grip, RoundedCornerShape(3.dp)))
     }
 }

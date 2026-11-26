@@ -185,7 +185,7 @@ private fun TypeField(type: String, types: List<String>, blocked: Boolean, post:
     Box(Modifier.fillMaxWidth().padding(top = 4.dp).onSizeChanged { width = it.width }) {
         Row(
             Modifier.fillMaxWidth().height(36.dp)
-                .border(if (open) 2.dp else 1.dp, if (open) scheme.primary else InspectorTheme.colors.strongOutline, shape)
+                .border(if (open) 2.dp else 1.dp, if (open) scheme.primary else scheme.outline, shape)
                 .action(shape = shape, enabled = choosable) { open = !open }
                 .padding(start = 12.dp, end = 6.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -262,7 +262,7 @@ private fun JsonEditorBox(text: String, invalid: JsonParse.Invalid?, enabled: Bo
     val colors = InspectorTheme.colors
     Box(
         Modifier.fillMaxWidth().clip(RoundedCornerShape(8.dp)).background(scheme.surfaceContainer)
-            .border(1.dp, if (invalid != null) colors.error else colors.strongOutline, RoundedCornerShape(8.dp)),
+            .border(1.dp, if (invalid != null) colors.error else scheme.outline, RoundedCornerShape(8.dp)),
     ) {
         JsonEditor(text, invalid?.line, enabled, Modifier.fillMaxWidth().height(editorHeight), onText)
     }

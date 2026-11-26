@@ -452,7 +452,7 @@ private fun SearchField(query: String, onFocus: (Boolean) -> Unit, onChange: (St
         Modifier
             .width(240.dp).height(InspectorDimens.searchField)
             .background(scheme.surfaceContainerLowest, shape)
-            .border(1.dp, if (query.isNotEmpty()) scheme.primary else InspectorTheme.colors.strongOutline, shape)
+            .border(1.dp, if (query.isNotEmpty()) scheme.primary else scheme.outline, shape)
             .padding(horizontal = 8.dp),
         horizontalArrangement = Arrangement.spacedBy(6.dp),
         verticalAlignment = Alignment.CenterVertically,

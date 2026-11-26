@@ -20,12 +20,15 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.PixelMap
 import androidx.compose.ui.graphics.toPixelMap
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.semantics.SemanticsActions
 import androidx.compose.ui.test.DesktopComposeUiTest
 import androidx.compose.ui.test.ExperimentalTestApi
 import androidx.compose.ui.test.assertIsFocused
 import androidx.compose.ui.test.captureToImage
 import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performSemanticsAction
 import androidx.compose.ui.unit.dp
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -38,6 +41,8 @@ import org.kodein.arch.vie.timemachine.server.fixtures.contentTest
 import org.kodein.arch.vie.timemachine.server.fixtures.tabTo
 import org.kodein.arch.vie.timemachine.server.ui.core.InspectorViewState
 import org.kodein.arch.vie.timemachine.server.ui.designsystem.LatchedInteractionSource
+import org.kodein.arch.vie.timemachine.server.ui.theme.DarkInspectorColors
+import org.kodein.arch.vie.timemachine.server.ui.theme.LightInspectorColors
 import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorPillShape
 
 
@@ -51,6 +56,9 @@ import org.kodein.arch.vie.timemachine.server.ui.theme.InspectorPillShape
  */
 class ActionTest {
     private val tag = "action"
+
+    /** The ring's outer line is 2 px wide from the edge, so its inner one is at this x. */
+    private val RingOuter = 2
     private val width = 120
     private val height = 26
 
@@ -217,6 +225,33 @@ class ActionTest {
             tabTo(onNodeWithTag("action1")).assertIsFocused()
             assertActivatedByEnterAndSpace { clicks[1] }
             assertEquals(0, clicks[0], "a key clicked the action that has not the focus")
+        }
+    }
+
+    @Test
+    fun `an action the keyboard reached draws a ring at its edge, in the light and in the dark theme`() {
+        for ((viewState, colors) in listOf(InspectorViewState() to LightInspectorColors, darkTheme() to DarkInspectorColors)) {
+            // No shape: a rectangle's edge is straight, so each line is one exact colour; a curve blends its lines by a few levels.
+            actionTest(Modifier.action {}, viewState) {
+                val rest = pixels()[1, height / 2]
+                tabTo(onNodeWithTag(tag)).assertIsFocused()
+                // Two tones, so that it shows over the panes' surface and over a fill of the primary colour alike.
+                assertEquals(colors.focusRing, pixels()[1, height / 2], "the ring's outer line")
+                assertEquals(colors.focusRingInner, pixels()[RingOuter, height / 2], "the ring's inner line")
+                assertNotEquals(rest, pixels()[1, height / 2])
+            }
+        }
+    }
+
+    @Test
+    fun `an action the pointer reached has no ring, though it has the focus`() {
+        actionTest(Modifier.action {}) {
+            onNodeWithTag(tag).performClick()
+            onNodeWithTag(tag).performSemanticsAction(SemanticsActions.RequestFocus)
+            waitForIdle()
+            onNodeWithTag(tag).assertIsFocused()
+            // The edge is tinted by the focus and the hover, as any action's is: that is not the ring's colour.
+            assertNotEquals(LightInspectorColors.focusRing, pixels()[1, height / 2], "a ring is drawn for the pointer")
         }
     }
 

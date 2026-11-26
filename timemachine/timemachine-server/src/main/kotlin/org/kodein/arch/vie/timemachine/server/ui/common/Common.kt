@@ -59,6 +59,9 @@ internal fun rememberCopy(): (String) -> Unit {
  * The ripple that shows hover, press and keyboard focus is drawn in the theme's content colour (see
  * `InspectorTheme`); a filled button provides its own `RippleConfiguration` (see `InspectorButton`).
  *
+ * A control the keyboard reached, by Tab, is drawn with a ring at its edge (`focusRing`): the tint of the focus alone is a few
+ * levels of 255 on some fills. A control the pointer reached has no ring.
+ *
  * @param shape The element's shape. What shows the pointer over the element or pressing it is clipped to
  *   it, and so are the element's content and where a click lands. The default rectangle needs no clip:
  *   the indication keeps to the element's bounds. A component of the design system always passes its own.
@@ -82,6 +85,7 @@ internal fun Modifier.action(
 ): Modifier = this
     .then(if (shape == RectangleShape) Modifier else Modifier.clip(shape))
     .then(if (enabled) Modifier.pointerHoverIcon(PointerIcon.Hand) else Modifier)
+    .focusRing(shape)
     .clickable(enabled = enabled, role = role, interactionSource = interactionSource, onClick = onClick)
     .then(
         if (description == null && selected == null && checked == null) Modifier
