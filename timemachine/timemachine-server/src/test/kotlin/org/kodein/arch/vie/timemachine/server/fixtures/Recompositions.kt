@@ -5,6 +5,7 @@ package org.kodein.arch.vie.timemachine.server.fixtures
 import androidx.compose.runtime.Composer
 import androidx.compose.runtime.CompositionTracer
 import androidx.compose.runtime.InternalComposeTracingApi
+import java.util.concurrent.atomic.AtomicBoolean
 import java.util.concurrent.atomic.AtomicInteger
 
 
@@ -36,13 +37,23 @@ internal class Recompositions(functions: Collection<String>) : CompositionTracer
 /**
  * [block], with the bodies [functions] run counted. There is one tracer for the whole JVM: this one
  * is set for [block] alone.
+ *
+ * Two counts at once would each see the marks of the other, and the first to end would take the tracer
+ * of the second down: a count started while another runs fails at once rather than count wrong. The
+ * tests that count run one after the other, as Gradle runs the classes of a module's tests by default;
+ * they would have to be kept apart if tests were run in parallel in one JVM.
  */
 internal fun <T> countingRecompositions(vararg functions: String, block: (Recompositions) -> T): T {
+    check(counting.compareAndSet(false, true)) { "Another count of recompositions is running: there is one tracer for the whole JVM" }
     val recompositions = Recompositions(functions.asList())
     Composer.setTracer(recompositions)
     try {
         return block(recompositions)
     } finally {
         Composer.setTracer(null)
+        counting.set(false)
     }
 }
+
+/** Whether a [countingRecompositions] is running. */
+private val counting = AtomicBoolean(false)
